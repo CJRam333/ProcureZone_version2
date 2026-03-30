@@ -1,0 +1,311 @@
+================================================================================
+  PROCUREZONE — COMPLETE INTEGRATION CHANGES BRIEF
+  Date: March 3, 2026
+  Purpose: Summary of ALL backend-frontend integration changes made
+================================================================================
+
+
+BACKGROUND
+----------
+The ProcureZone frontend (React 19 + TypeScript + Vite) was built with 
+placeholder API paths, 0-based status enums, and 16 frontend-only roles.
+The backend (Spring Boot 3.2.5 + Java 21 + MySQL 8.0) uses different paths,
+1-based status enums, and 9 roles. This document covers every change made
+to align the two systems.
+
+
+================================================================================
+PART 1: STATUS ENUM CORRECTIONS (0-based → 1-based)
+================================================================================
+
+All status enums in the frontend were starting from 0. The backend uses 1-based
+values from database tables. We fixed all four modules:
+
+FILE: src/api/indents.ts
+  BEFORE: DRAFT=0, PENDING_APPROVAL=1, L1_APPROVED=2, L2_APPROVED=3, 
+          FULLY_APPROVED=4, REJECTED=5, PO_GENERATED=6, CANCELLED=7
+  AFTER:  DRAFT=1, SUBMITTED=2, DEPTHEAD_APPROVED=3, FINANCE_APPROVED=4,
+          PROCUREMENT_APPROVED=5, REJECTED=6, ON_HOLD=7, COMPLETED=8
+
+FILE: src/api/purchaseOrders.ts
+  BEFORE: DRAFT=0, PENDING_CONFIRMATION=1, CONFIRMED=2, PARTIALLY_RECEIVED=3,
+          FULLY_RECEIVED=4, CANCELLED=5, CLOSED=6
+  AFTER:  DRAFT=1, SUBMITTED=2, APPROVED=3, SENT_TO_VENDOR=4,
+          PARTIALLY_RECEIVED=5, FULLY_RECEIVED=6, CANCELLED=7, CLOSED=8
+
+FILE: src/api/grn.ts
+  BEFORE: DRAFT=0, PENDING_QC=1, QC_APPROVED=2, QC_REJECTED=3, POSTED=4,
+          CANCELLED=5
+  AFTER:  CREATED=1, INSPECTED=2, RM_APPROVED=3, APPROVED=4,
+          FINAL_APPROVED=5, STORED=6, REJECTED=7
+
+FILE: src/api/issueNotes.ts
+  BEFORE: DRAFT=0, PENDING_APPROVAL=1, APPROVED=2, ISSUED=3,
+          PARTIALLY_ISSUED=4, REJECTED=5, CANCELLED=6, CLOSED=7, RETURNED=8
+  AFTER:  CREATED=1, PENDING_RM_APPROVAL=2, RM_APPROVED=3,
+          APPROVED_BY_MANAGER=4, REJECTED_BY_RM=5, REJECTED_BY_MANAGER=6,
+          PENDING_STORE_ISSUE=7, ISSUED=8, REJECTED_BY_STORES=9, RETURNED=10
+
+
+================================================================================
+PART 2: API PATH CORRECTIONS
+================================================================================
+
+FILE: src/api/grn.ts — GRN Paths
+  - Base path kept as /grn (SINGULAR — backend does NOT use /grns)
+  - QC inspection path kept as /grn/{id}/inspect (NOT /qc)
+  - Added: /grn/{id}/rm-approve (RM approval step)
+  - Added: /grn/{id}/rm-reject (RM rejection step)
+  - Added: /grn/{id}/final-approve (Level 2 approval)
+  - Added: /grn/{id}/store (store goods in inventory)
+  - Added: /grn/pending-inspection (queue for QC)
+  - Added: /grn/pending-approval (queue for approval)
+  - Added: /grn/statistics (dashboard stats)
+  - Added: supervisorBypass field support (skips RM approval)
+
+FILE: src/api/indents.ts — Indent Paths
+  - Approval path changed: /indents/{id}/approve → /approvals/{id}/approve
+  - Rejection path changed: /indents/{id}/reject → /approvals/{id}/reject
+  - Added: /approvals/pending (pending approval queue)
+  - Added: /indents/by-status/{status} (filter by status)
+  - Added: /indents/by-employee/{empId} (filter by employee)
+  - Added: /indents/search?keyword=... (search)
+  - Added: /indents/statistics (dashboard stats)
+  - Added: /approvals/{id}/final-approve
+  - Added: /approvals/{id}/final-reject
+  - Added: /approvals/{id}/request-info
+  - Added: /approvals/{id}/history (approval history)
+  - Removed: /indents/my (not in backend)
+
+FILE: src/api/purchaseOrders.ts — PO Paths
+  - Removed: purchaseOrdersApi.confirm() (doesn't exist)
+  - Added: /pos/{id}/submit (Draft → Submitted)
+  - Added: /pos/{id}/approve (Submitted → Approved)
+  - Added: /pos/{id}/reject (rejection)
+  - Added: /pos/{id}/close (close PO)
+  - Added: /pos/{id}/send-to-vendor (Approved → Sent to Vendor)
+  - Added: /pos/by-vendor/{vendorId}
+  - Added: /pos/by-department/{deptId}
+  - Added: /pos/pending-approval
+  - Added: /pos/overdue
+  - Added: /pos/search?keyword=...
+  - Added: /pos/statistics
+  - Commented out: /pos/from-indent (not in backend)
+  - Commented out: /pos/approved-indents (not in backend)
+  - Commented out: /pos/pending-grn (not in backend)
+  - Commented out: /pos/{id}/email (not in backend)
+
+FILE: src/api/inventory.ts — Inventory Paths
+  - Stock adjustment path: /inventory/adjustment (kept original — NOT /adjust)
+  - Critical stock path: /inventory/critical-stock (kept original — NOT /critical)
+  - Stock lookup: /inventory/stock/{materialId}/plant/{plantId}
+  - Added: /inventory/check-stock/{materialId}/plant/{plantId}?requiredQuantity=N
+  - Commented out: /inventory/transfer (not in backend)
+  - Commented out: /inventory/export (not in backend)
+  - Commented out: /inventory/reconcile (not in backend)
+
+FILE: src/api/issueNotes.ts — Issue Note Paths
+  - return endpoint: ACTIVE (backend confirms it exists, status 8→10)
+  - cancel endpoint: ACTIVE (backend confirms it exists, status 1 or 2 only)
+  - Added: /issue-notes/{id}/stores-reject
+  - Added: /issue-notes/{id} (DELETE)
+  - Added: /issue-notes/my (user's own notes)
+  - Added: /issue-notes/department/{deptId}
+  - Added: /issue-notes/statistics
+
+FILE: src/api/vendors.ts — Vendor Paths
+  - Added: /vendors/active
+  - Added: /vendors/search?keyword=...
+  - Added: /vendors/{id}/rating (update vendor rating)
+  - Added: /vendors/{id}/performance
+  - Commented out: /vendors/{id}/activate (not in backend)
+  - Commented out: /vendors/{id}/deactivate (not in backend)
+  - Commented out: /vendors/{id}/blacklist (not in backend)
+  - Commented out: /vendors/{id}/remove-blacklist (not in backend)
+  - Commented out: /vendors/category/{id} (not in backend)
+  - Commented out: /vendors/bulk-import (not in backend)
+  - Commented out: /vendors/template (not in backend)
+
+
+================================================================================
+PART 3: NEW FILES CREATED
+================================================================================
+
+FILE: src/api/dashboard.ts (NEW)
+  Created a complete dashboard API module with 13 endpoints:
+  - GET /dashboard/statistics
+  - GET /dashboard/summary
+  - GET /dashboard/indents/stats
+  - GET /dashboard/purchase-orders/stats
+  - GET /dashboard/goods-receipts/stats
+  - GET /dashboard/issue-notes/stats
+  - GET /dashboard/inventory/stats
+  - GET /dashboard/vendors/stats
+  - GET /dashboard/trends/monthly
+  - GET /dashboard/breakdown/department
+  - GET /dashboard/top-materials
+  - GET /dashboard/pending-approvals
+  - GET /dashboard/alerts
+
+  Types exported: DashboardStatistics, DashboardSummary, MonthlyTrend,
+  DepartmentBreakdown, TopMaterial, PendingApprovalItem, SystemAlert
+
+
+================================================================================
+PART 4: BARREL FILE UPDATE
+================================================================================
+
+FILE: src/api/index.ts
+  - Added export { dashboardApi } from "./dashboard"
+  - Added all dashboard type exports
+
+
+================================================================================
+PART 5: ROLE ALIGNMENT (16 frontend roles → 9 backend roles)
+================================================================================
+
+The frontend had 16 roles that didn't exist in the backend. We mapped them
+to the 9 actual backend roles from @PreAuthorize annotations:
+
+  FRONTEND ROLE         →  BACKEND ROLE
+  ─────────────────────────────────────
+  SUPERADMIN            →  SUPERADMIN (kept)
+  ADMIN                 →  ADMIN (kept — it exists in backend!)
+  DEPTHEAD              →  DEPTHEAD (kept)
+  EMPLOYEE              →  EMPLOYEE (kept)
+  PROCUREMENT           →  PROCUREMENT (kept)
+  STOREKEEPER           →  STOREKEEPER (kept — it exists in backend!)
+  PLANTMANAGER          →  PLANTMANAGER (kept — it exists in backend!)
+  QUALITY               →  removed (mapped to QUALITY in route checks)
+  QUALITYMANAGER        →  QUALITY
+  SUPERVISOR            →  EMPLOYEE
+  FLOORINCHARGE         →  EMPLOYEE
+  INDENT_L1_APPROVER    →  DEPTHEAD
+  INDENT_L2_APPROVER    →  DEPTHEAD
+  INDENT_L3_APPROVER    →  DEPTHEAD
+  FINANCE               →  removed (not in backend)
+  
+  NEW BACKEND ROLES ADDED TO FRONTEND:
+  VIEWER                →  Read-only access
+  AUDITOR               →  Audit log access + reports
+
+FILES UPDATED FOR ROLES:
+
+  1. src/routes/router.tsx
+     - 48 ProtectedRoute role arrays updated
+     - Role reference comment block updated with all 9 roles
+     - Every route now uses only valid backend roles
+
+  2. src/components/layout/Sidebar.tsx
+     - 16 navigation items updated
+     - 3 nav groups (Master Data, Mappings, Administration) updated
+     - All role arrays now use 9 backend roles
+
+  3. src/components/common/roleWidgetConfig.tsx
+     - STORES → STOREKEEPER
+     - FLOORINCHARGE section merged into EMPLOYEE
+     - QUALITYMANAGER removed (QUALITY kept)
+     - Added ADMIN to SUPERADMIN overview widgets
+
+  4. src/pages/purchase-orders/PODetailPage.tsx
+     - purchaseOrdersApi.confirm() → purchaseOrdersApi.approve()
+     - POStatus.PENDING_CONFIRMATION → POStatus.SUBMITTED
+     - POStatus.CONFIRMED → POStatus.APPROVED
+     - Added POStatus.SENT_TO_VENDOR to status display map
+     - Updated can-cancel logic (was using < comparison, now explicit)
+     - Role checks updated to 9 backend roles
+
+  5. src/contexts/AuthContext.tsx
+     - NO CHANGES NEEDED — already role-agnostic
+
+  6. src/routes/ProtectedRoute.tsx
+     - NO CHANGES NEEDED — already generic
+
+
+================================================================================
+PART 6: BUSINESS LOGIC NOTES (from backend guide)
+================================================================================
+
+  1. SUPERVISOR BYPASS: Both GRN and Issue Note have a supervisorBypass flag.
+     When true, the RM (Reporting Manager) approval step is skipped.
+     - GRN: status jumps from 2 (Inspected) → 4 (Approved)
+     - Issue Note: status jumps from 2 (Pending RM) → 4 (Manager Approved)
+
+  2. AUTH: No refresh token endpoint exists. JWT expires after 1 hour.
+     Frontend should handle 401 by redirecting to login page.
+
+  3. INVENTORY: Uses custom { success, count, data } response wrapper,
+     NOT the standard Spring Page<T> format used by other modules.
+
+  4. PAGINATION: All paginated endpoints use 0-indexed pages (page=0 is first).
+
+  5. PO AMENDMENT: Repository exists but NO REST endpoint is exposed yet.
+     Frontend PO amendment page may not work against backend.
+
+
+================================================================================
+PART 7: COMPLETED IN FINAL PASS (March 4, 2026)
+================================================================================
+
+  1. Page Components Fixed (All old 0-based enums updated to backend values):
+     - GRNDetailPage.tsx (12 refs: DRAFT→CREATED, PENDING_QC→INSPECTED, etc.)
+     - GRNInspectionPage.tsx (PENDING_QC→CREATED)
+     - POAmendmentPage.tsx (CONFIRMED→APPROVED, PENDING_CONFIRMATION→SUBMITTED)
+     - IssueNoteDetailPage.tsx (40+ refs rewritten to newest 10-value enum)
+     - IssueNoteApprovalPage.tsx (20+ refs fixed)
+
+  2. Leftover Role References Cleaned:
+     - All "STORES" refs in router.tsx replaced with "STOREKEEPER"
+
+  3. Auth Refresh Logic Fixed:
+     - Dead refresh token code removed from src/api/client.ts
+     - 401/403 now perfectly handles local storage clear + redirect to /login
+     - LoginResponse type strictly matched to backend
+
+
+================================================================================
+PART 8: FILES MODIFIED — COMPLETE LIST
+================================================================================
+
+  API Layer (7 files):
+    ✓ src/api/indents.ts          — Enum + approval paths + 7 new endpoints
+    ✓ src/api/grn.ts              — Enum + paths + RM approval + 4 new endpoints
+    ✓ src/api/purchaseOrders.ts   — Enum + workflow methods + 6 new endpoints
+    ✓ src/api/inventory.ts        — Paths corrected + check-stock
+    ✓ src/api/issueNotes.ts       — Enum (10 values) + return/cancel restored
+    ✓ src/api/vendors.ts          — Active endpoints, non-existent commented
+    ✓ src/api/dashboard.ts        — NEW FILE with 13 endpoints
+    ✓ src/api/client.ts           — Auth interceptors fixed
+    ✓ src/api/auth.ts             — Types fixed
+
+  Routing & RBAC (3 files):
+    ✓ src/routes/router.tsx       — 50 role arrays → 9 backend roles
+    ✓ src/components/layout/Sidebar.tsx  — 16 nav items → 9 backend roles
+    ✓ src/components/common/roleWidgetConfig.tsx — Widget roles aligned
+
+  Page Components (7 files):
+    ✓ src/pages/purchase-orders/PODetailPage.tsx
+    ✓ src/pages/purchase-orders/POAmendmentPage.tsx
+    ✓ src/pages/grn/GRNDetailPage.tsx
+    ✓ src/pages/grn/GRNInspectionPage.tsx
+    ✓ src/pages/grn/GRNFormPage.tsx
+    ✓ src/pages/issue-notes/IssueNoteDetailPage.tsx
+    ✓ src/pages/issue-notes/IssueNoteApprovalPage.tsx
+
+  TOTAL: 20 files modified, 1 new file created
+  BUILD STATUS: ✅ Zero TypeScript errors
+
+
+================================================================================
+PART 9: UI & BRANDING UPDATES
+================================================================================
+
+  ✅ Custom ProcureZone logo and branding implemented across the application:
+     - Login Page: Full logo integrated, redundant text removed.
+     - Sidebar Navigation: Dynamic logo (full logo when expanded, icon when collapsed).
+     - Browser Tab: Favicon updated to use the ProcureZone icon.
+
+
+================================================================================
+END OF BRIEF
+================================================================================

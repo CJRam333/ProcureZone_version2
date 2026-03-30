@@ -1,0 +1,54 @@
+/* MainLayout CSS - Mobile Sidebar Overlay */
+
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Sidebar Overlay for mobile */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1040;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  pointer-events: none;
+}
+
+.sidebar-overlay.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Content wrapper - takes full available width */
+.content-wrapper {
+  flex: 1;
+  min-height: calc(100vh - 60px);
+  background-color: var(--body-bg);
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Main content should take remaining width after sidebar */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Prevent flex item from overflowing */
+  width: 100%;
+}
+
+/* Mobile responsive - hide overlay on desktop */
+@media (min-width: 992px) {
+  .sidebar-overlay {
+    display: none !important;
+  }
+}

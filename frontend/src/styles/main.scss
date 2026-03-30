@@ -1,0 +1,985 @@
+@use "sass:color";
+@use "./variables" as *;
+@use "bootstrap/scss/bootstrap";
+
+// ==========================================
+// CSS Variables - Light Theme Only
+// ==========================================
+:root {
+  --sidebar-width: #{$sidebar-width};
+  --sidebar-collapsed-width: #{$sidebar-collapsed-width};
+  --body-bg: #{$body-bg};
+  --card-bg: #{$card-bg};
+  --text-primary: #{$text-primary};
+  --text-secondary: #{$text-secondary};
+  --border-color: #{$border-color};
+  
+  // Force light color scheme
+  color-scheme: light;
+}
+
+// ==========================================
+// Base Styles - Light Theme
+// ==========================================
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--body-bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+// Force light mode on all elements
+*, *::before, *::after {
+  color-scheme: light !important;
+}
+
+// ==========================================
+// Sidebar Styles - Professional Light Theme
+// ==========================================
+.sidebar {
+  width: var(--sidebar-width);
+  height: 100vh;
+  background: $sidebar-bg;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 1rem;
+
+  // Thin custom scrollbar
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+  }
+  // Firefox scrollbar
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+  &.collapsed {
+    width: var(--sidebar-collapsed-width);
+
+    .nav-text {
+      display: none;
+    }
+
+    .sidebar-header h5 {
+      display: none;
+    }
+    
+    .sidebar-logo-text {
+      display: none;
+    }
+
+    .sidebar-header {
+      justify-content: center;
+      padding: 1.25rem 0.5rem;
+    }
+
+    .sidebar-brand {
+      display: none;
+    }
+  }
+
+  .sidebar-header {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    
+    .sidebar-logo {
+      width: 40px;
+      height: 40px;
+      background: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: $primary;
+      font-size: 1.25rem;
+    }
+    
+    h5 {
+      color: white;
+      margin: 0;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+  }
+  
+  .sidebar-section {
+    padding: 0.75rem 1rem 0.5rem;
+    
+    .section-label {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  }
+
+  .nav-link {
+    color: rgba(255, 255, 255, 0.85);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    margin: 2px 0.5rem;
+    font-size: 0.9rem;
+
+    &:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    &.active {
+      color: white;
+      background: rgba(255, 255, 255, 0.2);
+      font-weight: 500;
+      
+      .nav-icon {
+        color: #60a5fa;
+      }
+    }
+
+    .nav-icon {
+      font-size: 1.15rem;
+      width: 24px;
+      text-align: center;
+    }
+  }
+  
+  .sidebar-footer {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: rgba(255, 255, 255, 0.9);
+      
+      .user-avatar {
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+      }
+      
+      .user-details {
+        flex: 1;
+        
+        .user-name {
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+        
+        .user-role {
+          font-size: 0.75rem;
+          opacity: 0.7;
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// Main Content Area
+// ==========================================
+.main-content {
+  margin-left: var(--sidebar-width);
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100vh;
+  background: var(--body-bg);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - var(--sidebar-width));
+
+  &.sidebar-collapsed {
+    margin-left: var(--sidebar-collapsed-width);
+    width: calc(100% - var(--sidebar-collapsed-width));
+  }
+}
+
+.page-content {
+  padding: 1.5rem;
+}
+
+// ==========================================
+// Top Navbar - Light Theme
+// ==========================================
+.top-navbar {
+  background: var(--card-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 0.75rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  
+  .navbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .nav-icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: var(--body-bg);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover {
+      background: #e2e8f0;
+      color: var(--text-primary);
+    }
+    
+    &.has-notification::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 8px;
+      height: 8px;
+      background: $danger;
+      border-radius: 50%;
+      border: 2px solid white;
+    }
+  }
+  
+  .search-box {
+    position: relative;
+    
+    input {
+      padding: 0.5rem 1rem 0.5rem 2.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--body-bg);
+      width: 300px;
+      font-size: 0.875rem;
+      
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.1);
+      }
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+  }
+}
+
+// ==========================================
+// Page Header - Light Theme
+// ==========================================
+.page-header {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .breadcrumb {
+    margin: 0;
+    padding: 0;
+    background: none;
+    font-size: 0.875rem;
+    
+    .breadcrumb-item {
+      color: var(--text-muted);
+      
+      &.active {
+        color: var(--text-secondary);
+      }
+      
+      a {
+        color: $primary;
+        text-decoration: none;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// Cards - Light Theme with Shadows
+// ==========================================
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+  
+  .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .card-body {
+    padding: 1.25rem;
+  }
+}
+
+// Stat cards like legacy AdminLTE boxes
+.stat-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: $primary;
+  }
+  
+  &.stat-success::before { background: $success; }
+  &.stat-warning::before { background: $warning; }
+  &.stat-danger::before { background: $danger; }
+  &.stat-info::before { background: $info; }
+
+  .stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    background: rgba($primary, 0.1);
+    color: $primary;
+    
+    &.bg-success { background: rgba($success, 0.1); color: $success; }
+    &.bg-warning { background: rgba($warning, 0.1); color: $warning; }
+    &.bg-danger { background: rgba($danger, 0.1); color: $danger; }
+    &.bg-info { background: rgba($info, 0.1); color: $info; }
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+  }
+  
+  .stat-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    
+    a {
+      color: $primary;
+      font-size: 0.875rem;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+// ==========================================
+// Data Tables - Light Theme
+// ==========================================
+.data-table {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  
+  .table-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    
+    h5 {
+      margin: 0;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+  }
+
+  .table {
+    margin: 0;
+
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.875rem 1rem;
+      white-space: nowrap;
+    }
+
+    td {
+      vertical-align: middle;
+      padding: 0.875rem 1rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+    
+    tbody tr {
+      transition: background 0.15s ease;
+      
+      &:hover {
+        background: #f8fafc;
+      }
+      
+      &:last-child td {
+        border-bottom: none;
+      }
+    }
+  }
+  
+  .table-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: #fafbfc;
+  }
+}
+
+// ==========================================
+// Status Badges - Colorful Light Theme
+// ==========================================
+.status-badge {
+  padding: 0.35rem 0.875rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  &.pending, &.l1-pending, &.l2-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &.approved, &.l1-approved, &.l2-approved {
+    background: #d1fae5;
+    color: #065f46;
+  }
+
+  &.rejected, &.l1-rejected, &.l2-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  &.draft {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  &.completed, &.received {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  
+  &.partial {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  
+  &.cancelled {
+    background: #fecaca;
+    color: #991b1b;
+  }
+}
+
+// ==========================================
+// Forms - Light Theme
+// ==========================================
+.form-section {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid $primary;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.form-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.form-control, .form-select {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9rem;
+  background: white;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  
+  &:focus {
+    border-color: $primary;
+    box-shadow: 0 0 0 3px rgba($primary, 0.1);
+    outline: none;
+  }
+  
+  &:disabled, &[readonly] {
+    background: #f8fafc;
+    color: var(--text-secondary);
+  }
+  
+  &::placeholder {
+    color: var(--text-muted);
+  }
+}
+
+// ==========================================
+// Login Page - Light Theme
+// ==========================================
+.login-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  padding: 1rem;
+
+  .login-card {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 440px;
+    animation: slideUp 0.5s ease-out;
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+
+      .login-logo {
+        width: 64px;
+        height: 64px;
+        background: linear-gradient(135deg, $primary 0%, #1e3a8a 100%);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        color: white;
+        font-weight: 700;
+        font-size: 1.5rem;
+      }
+
+      h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        color: var(--text-secondary);
+        margin: 0;
+        font-size: 0.95rem;
+      }
+    }
+
+    .form-label {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .form-control {
+      padding: 0.875rem 1rem;
+      border-radius: 10px;
+      border: 2px solid var(--border-color);
+      font-size: 0.95rem;
+
+      &:focus {
+        border-color: $primary;
+        box-shadow: 0 0 0 4px rgba($primary, 0.1);
+      }
+    }
+
+    .btn-primary {
+      padding: 0.875rem 1.5rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 1rem;
+      background: linear-gradient(135deg, $primary 0%, #1e3a8a 100%);
+      border: none;
+      transition: all 0.3s;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba($primary, 0.4);
+      }
+
+      &:active:not(:disabled) {
+        transform: translateY(0);
+      }
+    }
+    
+    .login-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+      
+      small {
+        color: var(--text-muted);
+      }
+    }
+  }
+}
+
+// Responsive login page
+@media (max-width: 480px) {
+  .login-page {
+    padding: 0.5rem;
+
+    .login-card {
+      padding: 1.5rem;
+      border-radius: 16px;
+
+      .login-header {
+        h1 {
+          font-size: 1.5rem;
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// Buttons - Light Theme
+// ==========================================
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s;
+  
+  &.btn-primary {
+    background: $primary;
+    border-color: $primary;
+    
+    &:hover:not(:disabled) {
+      background: color.adjust($primary, $lightness: -5%);
+      border-color: color.adjust($primary, $lightness: -5%);
+      transform: translateY(-1px);
+    }
+  }
+  
+  &.btn-success {
+    background: $success;
+    border-color: $success;
+    
+    &:hover:not(:disabled) {
+      background: color.adjust($success, $lightness: -5%);
+    }
+  }
+  
+  &.btn-danger {
+    background: $danger;
+    border-color: $danger;
+    
+    &:hover:not(:disabled) {
+      background: color.adjust($danger, $lightness: -5%);
+    }
+  }
+  
+  &.btn-outline-primary {
+    color: $primary;
+    border-color: $primary;
+    
+    &:hover {
+      background: $primary;
+      color: white;
+    }
+  }
+  
+  &.btn-light {
+    background: white;
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    
+    &:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+  }
+}
+
+// ==========================================
+// Loading States - Light Theme
+// ==========================================
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    color: $primary;
+  }
+}
+
+.loading-card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  
+  p {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+  }
+}
+
+// ==========================================
+// Toast Notifications
+// ==========================================
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+// ==========================================
+// Empty States
+// ==========================================
+.empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  
+  .empty-icon {
+    font-size: 4rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  
+  h5 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+  
+  p {
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+  }
+}
+
+// ==========================================
+// Responsive Adjustments
+// ==========================================
+@media (max-width: 991.98px) {
+  .sidebar {
+    transform: translateX(-100%);
+    z-index: 1050; /* Higher than overlay (1040) */
+
+    &.show {
+      transform: translateX(0);
+      box-shadow: 4px 0 25px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+  }
+  
+  .top-navbar {
+    .search-box {
+      display: none;
+    }
+  }
+}
+
+@media (max-width: 767.98px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .data-table .table-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .stat-card {
+    margin-bottom: 1rem;
+  }
+  
+  .content-wrapper {
+    padding: 1rem !important;
+  }
+}
+
+// ==========================================
+// Print Styles
+// ==========================================
+@media print {
+  .sidebar,
+  .top-navbar {
+    display: none !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+  }
+  
+  .card, .data-table {
+    box-shadow: none !important;
+    border: 1px solid #dee2e6 !important;
+  }
+}

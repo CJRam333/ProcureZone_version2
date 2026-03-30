@@ -1,0 +1,46 @@
+// Design system variables (light theme)
+$primary: #2563eb;
+$secondary: #64748b;
+$success: #22c55e;
+$danger: #ef4444;
+$warning: #f59e0b;
+$info: #06b6d4;
+$light: #f8fafc;
+$dark: #1e293b;
+
+// Backgrounds
+$bg-body: #f8fafc;
+$bg-card: #ffffff;
+$bg-sidebar: #1e293b;
+$body-bg: $bg-body;
+$card-bg: $bg-card;
+$sidebar-bg: linear-gradient(180deg, #1e40af 0%, #1e3a8a 100%);
+
+// Text
+$text-primary: #1e293b;
+$text-secondary: #64748b;
+$text-muted: #94a3b8;
+
+// Spacing scale
+$spacer: 1rem;
+$spacer-xs: 0.25rem;
+$spacer-sm: 0.5rem;
+$spacer-md: 1rem;
+$spacer-lg: 1.5rem;
+$spacer-xl: 2rem;
+$spacer-xxl: 3rem;
+
+// Typography
+$font-family-base: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+$font-size-base: 0.875rem;
+$font-size-sm: 0.75rem;
+$font-size-lg: 1rem;
+$headings-font-weight: 600;
+
+// Layout
+$sidebar-width: 260px;
+$sidebar-collapsed-width: 70px;
+
+// Borders
+$border-color: #e2e8f0;
+
