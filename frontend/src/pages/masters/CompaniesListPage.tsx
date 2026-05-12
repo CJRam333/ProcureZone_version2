@@ -1,20 +1,29 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, Button, Badge, InputGroup, Form, Row, Col } from 'react-bootstrap';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Card, Button, Badge, InputGroup, Form, Row, Col, Tabs, Tab } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaBuilding } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaBuilding, FaSitemap, FaMapMarkerAlt } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { PageHeader, DataTable, LoadingSpinner, ConfirmDialog } from '../../components/common';
 import { companiesApi, getErrorMessage } from '../../api';
 import type { Company } from '../../api';
+import CompanyDeptMappingPage from '../mappings/CompanyDeptMappingPage';
+import CompanyLocationMappingPage from '../mappings/CompanyLocationMappingPage';
 
 const CompaniesListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  // Tab state from URL param for deep-linkable tabs
+  const activeTab = searchParams.get('tab') || 'list';
+  const setActiveTab = (tab: string) => {
+    setSearchParams(tab === 'list' ? {} : { tab });
+  };
 
   // Fetch companies
   const { data, isLoading, error, refetch } = useQuery({
@@ -115,62 +124,90 @@ const CompaniesListPage: React.FC = () => {
     <div>
       <PageHeader
         title="Companies"
-        subtitle="Manage company master data"
+        subtitle="Manage company master data and mappings"
         breadcrumbs={[
           { label: 'Dashboard', path: '/dashboard' },
           { label: 'Masters', path: '/masters' },
           { label: 'Companies' },
         ]}
         actions={
-          <Button variant="primary" onClick={() => navigate('/masters/companies/new')}>
-            <FaPlus className="me-2" />
-            Add Company
-          </Button>
+          activeTab === 'list' ? (
+            <Button variant="primary" onClick={() => navigate('/masters/companies/new')}>
+              <FaPlus className="me-2" />
+              Add Company
+            </Button>
+          ) : undefined
         }
       />
 
-      <Card>
-        <Card.Body>
-          {/* Filters */}
-          <Row className="mb-3">
-            <Col md={6}>
-              <Form onSubmit={handleSearch}>
-                <InputGroup>
-                  <Form.Control
-                    type="text"
-                    placeholder="Search by code or name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                  <Button type="submit" variant="outline-primary">
-                    <FaSearch />
+      <Tabs
+        activeKey={activeTab}
+        onSelect={(k) => setActiveTab(k || 'list')}
+        className="mb-4"
+        id="companies-tabs"
+      >
+        <Tab
+          eventKey="list"
+          title={<><FaBuilding className="me-2" />Companies</>}
+        >
+          <Card>
+            <Card.Body>
+              {/* Filters */}
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form onSubmit={handleSearch}>
+                    <InputGroup>
+                      <Form.Control
+                        type="text"
+                        placeholder="Search by code or name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                      <Button type="submit" variant="outline-primary">
+                        <FaSearch />
+                      </Button>
+                    </InputGroup>
+                  </Form>
+                </Col>
+                <Col md={6} className="text-end">
+                  <Button variant="outline-secondary" onClick={() => refetch()}>
+                    <FaSyncAlt className="me-2" />
+                    Refresh
                   </Button>
-                </InputGroup>
-              </Form>
-            </Col>
-            <Col md={6} className="text-end">
-              <Button variant="outline-secondary" onClick={() => refetch()}>
-                <FaSyncAlt className="me-2" />
-                Refresh
-              </Button>
-            </Col>
-          </Row>
+                </Col>
+              </Row>
 
-          {/* Data Table */}
-          <DataTable
-            columns={columns}
-            data={data?.content || []}
-            keyField="id"
-            loading={isLoading}
-            emptyMessage="No companies found"
-            totalItems={data?.totalElements || 0}
-            currentPage={page}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onRowClick={(row) => navigate(`/masters/companies/${row.id}/edit`)}
-          />
-        </Card.Body>
-      </Card>
+              {/* Data Table */}
+              <DataTable
+                columns={columns}
+                data={data?.content || []}
+                keyField="id"
+                loading={isLoading}
+                emptyMessage="No companies found"
+                totalItems={data?.totalElements || 0}
+                currentPage={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onRowClick={(row) => navigate(`/masters/companies/${row.id}/edit`)}
+              />
+            </Card.Body>
+          </Card>
+        </Tab>
+
+        <Tab
+          eventKey="department-mapping"
+          title={<><FaSitemap className="me-2" />Department Mapping</>}
+        >
+          <CompanyDeptMappingPage embedded />
+        </Tab>
+
+        <Tab
+          eventKey="location-mapping"
+          title={<><FaMapMarkerAlt className="me-2" />Location Mapping</>}
+        >
+          <CompanyLocationMappingPage embedded />
+        </Tab>
+      </Tabs>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

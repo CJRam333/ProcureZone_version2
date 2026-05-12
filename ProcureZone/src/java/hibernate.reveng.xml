@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-reverse-engineering PUBLIC "-//Hibernate/Hibernate Reverse Engineering DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-reverse-engineering-3.0.dtd">
+<hibernate-reverse-engineering>
+  <schema-selection match-catalog="seeds_indent"/>
+  <table-filter match-name="tbl_map_emp_roles"/>
+  <table-filter match-name="tbl_company_master"/>
+  <table-filter match-name="tbl_map_company_location"/>
+  <table-filter match-name="tbl_roles_master"/>
+  <table-filter match-name="tbl_section_master"/>
+  <table-filter match-name="tbl_indent_details"/>
+  <table-filter match-name="tbl_emp_master"/>
+  <table-filter match-name="tbl_location_master"/>
+  <table-filter match-name="tbl_indent_status"/>
+  <table-filter match-name="tbl_department_master"/>
+  <table-filter match-name="tbl_user_master"/>
+  <table-filter match-name="tbl_map_company_department"/>
+  <table-filter match-name="tbl_indent_master"/>
+  <table-filter match-name="tbl_map_emp_reporting"/>
+  <table-filter match-name="tbl_material_master"/>
+  <table-filter match-name="tbl_map_company_location_material"/>
+  <table-filter match-name="tbl_umo_master"/>
+  <table-filter match-name="tbl_plant_master"/>
+  <table-filter match-name="tbl_map_company_plant_material"/>
+  <table-filter match-name="tbl_indent_procurement_logs"/>
+  <table-filter match-name="tbl_ldap_config"/>
+  <table-filter match-name="tbl_map_company_emp"/>
+  <table-filter match-name="tbl_goods_receipt"/>
+  <table-filter match-name="tbl_issue_note"/>
+  <table-filter match-name="tbl_issue_note_details"/>
+  <table-filter match-name="pz_crop_group"/>
+  <table-filter match-name="pz_umo_master"/>
+  <table-filter match-name="pz_tbl_company_master"/>
+  <table-filter match-name="pz_schedule_sap_material_master"/>
+  <table-filter match-name="pz_crop_type"/>
+  <table-filter match-name="pz_plant_storage_locations"/>
+</hibernate-reverse-engineering>

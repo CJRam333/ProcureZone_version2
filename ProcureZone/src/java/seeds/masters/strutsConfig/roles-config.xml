@@ -1,0 +1,34 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.masters.action.RolesAction" extends="struts-default">
+        <action name="rolesMasterList" class="seeds.masters.action.RolesAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/roles_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/roles_master_list.jsp</result>
+        </action>
+        <action name="addRole" class="seeds.masters.action.RolesAction" method="addRole" >            
+            <result name="success">/WEB-INF/jsp/masters/roles_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/roles_master_list.jsp</result>
+        </action>
+        <action name="saveRole" class="seeds.masters.action.RolesAction" method="saveRole" >            
+            <result name="success" type="redirect">rolesMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/roles_master.jsp</result>
+        </action>
+        <action name="updateRole" class="seeds.masters.action.RolesAction" method="updateRole" >            
+            <result name="success">/WEB-INF/jsp/masters/roles_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/roles_master_list.jsp</result>            
+        </action>
+        <action name="deleteRole" class="seeds.masters.action.RolesAction" method="deleteRole" >            
+            <result name="success" type="redirect">rolesMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/roles_master_list.jsp</result>
+        </action>
+        <action name="viewRole" class="seeds.masters.action.RolesAction" method="viewRole" >            
+            <result name="success">/WEB-INF/jsp/masters/roles_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/roles_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>

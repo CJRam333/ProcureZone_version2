@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzMaterialMaster" table="pz_sap_material_masters" catalog="seeds_indent">
+      
+      <id name="materialId" type="int">
+                  <column name="id" />
+                  <generator class="identity"></generator>
+        </id>   
+        
+       <property name="materialCode" type="string">
+            <column name="material_code" />
+        </property>
+        
+        <property name="materialDesc" type="string">
+            <column name="material_desc"  />
+        </property>
+        
+        <property name="materialUom" type="string">
+            <column name="uom" />
+        </property>
+        
+        <property name="materialVariety" type="string">
+            <column name="material_type" />
+        </property>
+        
+        <property name="materialPlant" type="int">
+            <column name="plant" />
+        </property>
+        
+        <property name="materialGroup" type="string">
+            <column name="materialgroup"  />
+        </property>
+        
+        <property name="materialStatus" type="int">
+            <column name="materialstatus"  />
+        </property>
+        
+        <property name="materialPackType" type="int">
+            <column name="matpacktype"  />
+        </property>
+        
+        <property name="plantName" type="string">
+            <column name="plant_name"  />
+        </property>
+      
+      
+  </class>
+</hibernate-mapping>

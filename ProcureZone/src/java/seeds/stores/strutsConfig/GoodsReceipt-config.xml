@@ -1,0 +1,78 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.stores.action.GoodsReceiptAction" extends="struts-default">
+        <action name="issueNoteRequestList" class="seeds.stores.action.GoodsReceiptAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="issueNoteRequestList1" class="seeds.stores.action.GoodsReceiptAction" method="getList1" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="addIssueNoteRequest" class="seeds.stores.action.GoodsReceiptAction" method="addIssueNoteRequest" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="getIndent" class="seeds.stores.action.GoodsReceiptAction" method="getIndent" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request.jsp</result>
+        </action>
+        <action name="saveIssueNoteRequest" class="seeds.stores.action.GoodsReceiptAction" method="saveIssueNoteRequest" >            
+            <result name="success" type="redirect">issueNoteRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request.jsp</result>
+        </action>
+        <action name="getSelfIssueNoteDetails" class="seeds.stores.action.GoodsReceiptAction" method="getSelfIssueNoteDetails" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="rmIssueNoteRequestList" class="seeds.stores.action.GoodsReceiptAction" method="getRmList" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list_rm.jsp</result>
+        </action>
+        <action name="rmIssueNoteRequestList1" class="seeds.stores.action.GoodsReceiptAction" method="getRmList1" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list_rm.jsp</result>
+        </action>
+        <action name="getRmIssueNoteDetails" class="seeds.stores.action.GoodsReceiptAction" method="getRmIssueNoteDetails" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list_rm.jsp</result>
+        </action>
+        <action name="saveRmIssueNoteRequest" class="seeds.stores.action.GoodsReceiptAction" method="saveRmIssueNoteRequest" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_rm.jsp</result>            
+        </action>
+        <action name="getRmIssueNoteDetailsView" class="seeds.stores.action.GoodsReceiptAction" method="getRmIssueNoteDetailsView" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_rm_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_issue_note_request_list_rm.jsp</result>
+        </action>
+        <action name="goodsReceiptRequestList" class="seeds.stores.action.GoodsReceiptAction" method="getGoodsReceiptList" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request_list.jsp</result>
+        </action>
+        <action name="goodsReceiptRequestList1" class="seeds.stores.action.GoodsReceiptAction" method="getGoodsReceiptList1" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request_list.jsp</result>
+        </action>
+        <action name="addGoodsReceiptRequest" class="seeds.stores.action.GoodsReceiptAction" method="addGoodsReceiptRequest" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request_list.jsp</result>
+        </action>
+        <action name="getIndentDetails" class="seeds.stores.action.GoodsReceiptAction" method="getIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request.jsp</result>
+        </action>       
+        <action name="saveGoodsReceiptRequest" class="seeds.stores.action.GoodsReceiptAction" method="saveGoodsReceiptRequest" >            
+            <result name="success" type="redirect">goodsReceiptRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request.jsp</result>
+        </action>
+        <action name="goodsReceiptDetails" class="seeds.stores.action.GoodsReceiptAction" method="goodsReceiptDetails" >            
+            <result name="success">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request_details.jsp</result>
+            <result name="input">/WEB-INF/jsp/goodsreceipt/seeds_goods_receipt_request_list.jsp</result>
+        </action>
+    </package>
+</struts>

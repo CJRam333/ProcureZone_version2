@@ -1,0 +1,56 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <constant name="struts.multipart.maxSize" value="30000000" />
+    <package name="seeds.masters.action.EmployeeAction" extends="struts-default">
+        <interceptors>             
+            <interceptor-stack name="def">                 
+                <interceptor-ref name="defaultStack" /> 
+                <interceptor-ref name="fileUpload">
+                    <param name="maximumSize">1000000</param>
+                    <param name="allowedTypes">
+                        image/png,image/gif,image/jpeg,image/pjpeg
+                    </param>
+                </interceptor-ref>
+            </interceptor-stack> 
+        </interceptors> 
+        <default-interceptor-ref name="def" />
+        <action name="employeeMasterList" class="seeds.masters.action.EmployeeAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/employee_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/employee_master_list.jsp</result>
+        </action>
+        <action name="addEmployee" class="seeds.masters.action.EmployeeAction" method="addEmployee" >            
+            <result name="success">/WEB-INF/jsp/masters/employee_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/employee_master_list.jsp</result>
+        </action>
+        <action name="saveEmployee" class="seeds.masters.action.EmployeeAction" method="saveEmployee" >            
+            <result name="success" type="redirect">employeeMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/employee_master.jsp</result>
+        </action>
+        <action name="updateEmployee" class="seeds.masters.action.EmployeeAction" method="updateEmployee" >            
+            <result name="success">/WEB-INF/jsp/masters/employee_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/employee_master_list.jsp</result>            
+        </action>
+        <action name="deleteEmployee" class="seeds.masters.action.EmployeeAction" method="deleteEmployee" >            
+            <result name="success" type="redirect">employeeMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/employee_master_list.jsp</result>
+        </action>
+        <action name="viewEmployee" class="seeds.masters.action.EmployeeAction" method="viewEmployee" >            
+            <result name="success">/WEB-INF/jsp/masters/employee_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/employee_master_list.jsp</result>            
+        </action>
+        <action name="viewEmployee1" class="seeds.masters.action.EmployeeAction" method="viewEmployee1" >            
+            <result name="success">/WEB-INF/jsp/masters/employee_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/employee_master_list.jsp</result>            
+        </action>
+        
+        
+        
+        
+        
+    </package>
+</struts>

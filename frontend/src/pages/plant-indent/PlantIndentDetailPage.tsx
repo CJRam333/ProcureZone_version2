@@ -154,7 +154,7 @@ const PlantIndentDetailPage: React.FC = () => {
                 <th>UOM</th>
                 <th>Quantity</th>
                 <th>Stock Avail.</th>
-                <th>Rate</th>
+                {/* <th>Rate</th> */}
                 <th>Purpose</th>
               </tr>
             </thead>

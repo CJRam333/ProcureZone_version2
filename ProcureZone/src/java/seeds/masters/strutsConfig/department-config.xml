@@ -1,0 +1,34 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.masters.action.DepartmentAction" extends="struts-default">
+        <action name="departmentMasterList" class="seeds.masters.action.DepartmentAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/department_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/department_master_list.jsp</result>
+        </action>
+        <action name="addDepartment" class="seeds.masters.action.DepartmentAction" method="addDepartment" >            
+            <result name="success">/WEB-INF/jsp/masters/department_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/department_master_list.jsp</result>
+        </action>
+        <action name="saveDepartment" class="seeds.masters.action.DepartmentAction" method="saveDepartment" >            
+            <result name="success" type="redirect">departmentMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/department_master.jsp</result>
+        </action>
+        <action name="updateDepartment" class="seeds.masters.action.DepartmentAction" method="updateDepartment" >            
+            <result name="success">/WEB-INF/jsp/masters/department_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/department_master_list.jsp</result>            
+        </action>
+        <action name="deleteDepartment" class="seeds.masters.action.DepartmentAction" method="deleteDepartment" >            
+            <result name="success" type="redirect">departmentMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/department_master_list.jsp</result>
+        </action>
+        <action name="viewDepartment" class="seeds.masters.action.DepartmentAction" method="viewDepartment" >            
+            <result name="success">/WEB-INF/jsp/masters/department_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/department_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>

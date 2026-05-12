@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzCompanyMaster" table="pz_tbl_company_master" catalog="seeds_indent">
+      
+        
+        <id name="compId" type="java.lang.Integer">
+            <column name="comp_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="comp_lmu" />
+        </many-to-one>
+        <property name="compCode" type="string">
+            <column name="comp_code" length="100" not-null="true" />
+        </property>
+        <property name="compName" type="string">
+            <column name="comp_name" length="100" not-null="true" />
+        </property>
+        <property name="compStatus" type="int">
+            <column name="comp_status" not-null="true" />
+        </property>
+        <property name="compLmd" type="date">
+            <column name="comp_lmd" length="10" not-null="true" />
+        </property>
+        <set name="tblMapCompanyLocations" table="tbl_map_company_location" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="map_comp" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapCompanyLocation" />
+        </set>
+        <set name="tblMapCompanyDepartments" table="tbl_map_company_department" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="map_comp" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapCompanyDepartment" />
+        </set>
+        <set name="tblEmpMasters" table="tbl_emp_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="emp_company" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblEmpMaster" />
+        </set>
+    </class>
+</hibernate-mapping>

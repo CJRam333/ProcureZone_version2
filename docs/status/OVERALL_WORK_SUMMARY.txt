@@ -1,0 +1,636 @@
+================================================================================
+  PROCUREZONE BACKEND — OVERALL WORK SUMMARY
+  Last Updated: April 1, 2026
+  Developer: CJRam_NSL (janakiraama182@gmail.com)
+  Summary of all research and development work done to date
+================================================================================
+
+
+SESSION 1: PROJECT OVERVIEW (Feb 24, 2026)
+================================================================================
+
+What we did:
+  - Explored the entire backend project structure
+  - Read README.md, pom.xml, and key source files
+  - Provided a quick brief of the project
+
+Key findings:
+  - Project: ProcureZone Backend — Enterprise Procurement & Manufacturing Ops
+  - Owner: NSL India Pvt Ltd
+  - Tech: Spring Boot 3.2.5, Java 21, MySQL 8.0, JWT Auth
+  - Database: seeds_indent (56 tables)
+  - Status: 100% complete with 225 API endpoints
+  - Dual-module design: Corporate (office procurement) + Plant (manufacturing)
+
+
+SESSION 2: COMPREHENSIVE PROJECT BRIEF FOR AI (Feb 24, 2026)
+================================================================================
+
+What we did:
+  - Deep-dived into every aspect of the project
+  - Created COMPLETE_PROJECT_BRIEF_FOR_AI.md (700+ lines)
+
+File created: COMPLETE_PROJECT_BRIEF_FOR_AI.md
+Contents cover:
+  1.  Project identity (name, tech stack, versions)
+  2.  What the system does (business workflow end-to-end)
+  3.  All Maven dependencies with purpose
+  4.  Application configuration (application.yml) with env variables
+  5.  Complete project structure (every package, controller, service, repository)
+  6.  All 225 API endpoints (method, path, purpose)
+  7.  Full 56-table database schema
+  8.  Security architecture (JWT flow, roles, config)
+  9.  Cross-cutting features (audit, email, PDF, Excel, SAP)
+  10. Flyway migrations list
+  11. Build & run instructions
+  12. Coding patterns & conventions
+  13. Component count summary
+  14. ChatGPT-specific instructions
+
+Purpose: Feed to ChatGPT or any AI for full project context.
+
+
+SESSION 3: INDENT STATUS ENUM LOOKUP (Feb 25, 2026)
+================================================================================
+
+What we did:
+  - Found IndentStatus.java entity
+  - Extracted all indent status values
+
+Indent Status Values (from IndentStatus.java → tbl_indent_status):
+  1 = Draft
+  2 = Submitted
+  3 = Department Head Approved
+  4 = Finance Approved
+  5 = Procurement Approved (PO Created)
+  6 = Rejected
+  7 = On Hold
+  8 = Completed
+
+
+SESSION 4: FRONTEND INTEGRATION Q&A (Feb 27, 2026)
+================================================================================
+
+What we did:
+  - Answered 8 critical frontend integration questions
+  - Researched each answer directly from source code
+
+Questions answered:
+
+  Q1: PO Status Enum — What are exact backend values?
+  A1: 1-based: 1=Draft, 2=Submitted, 3=Approved, 4=Sent to Vendor,
+      5=Partially Received, 6=Fully Received, 7=Cancelled, 8=Closed
+      (from PurchaseOrder.java)
+
+  Q2: GRN Status Enum — What are exact backend values?
+  A2: 1-based: 1=Created, 2=Inspected, 3=RM Approved, 4=Approved,
+      5=Final Approved, 6=Stored, 7=Rejected
+      (from GoodsReceipt.java)
+
+  Q3: Issue Note Status Enum — What are exact backend values?
+  A3: 1-based with 10 values: 1=Created, 2=Pending RM Approval,
+      3=RM Approved, 4=Approved, 5=Rejected by RM, 6=Rejected by Manager,
+      7=Pending Store Issue, 8=Issued, 9=Rejected by Stores, 10=Returned
+      (from IssueNote.java)
+
+  Q4: Auth Refresh Token — Does /auth/refresh exist?
+  A4: NO. Only 3 auth endpoints exist: login, logout, /me.
+      JWT expires after 1 hour. No silent refresh mechanism.
+
+  Q5: GRN QC Endpoint — What's the exact path?
+  A5: POST /api/v1/grn/{id}/inspect (NOT /qc)
+      Also: base path is /api/v1/grn (singular, NOT /grns)
+
+  Q6: Dashboard Endpoints — Complete list?
+  A6: 13 endpoints under /api/v1/dashboard:
+      /statistics, /summary, /indents/stats, /purchase-orders/stats,
+      /goods-receipts/stats, /issue-notes/stats, /inventory/stats,
+      /vendors/stats, /trends/monthly, /breakdown/department,
+      /top-materials, /pending-approvals, /alerts
+
+  Q7: Inventory Response Format — Page<T> or custom?
+  A7: Custom wrapper: { "success": true, "count": N, "data": [...] }
+      Does NOT use Spring Page<T>
+
+  Q8: Which commented-out features are planned?
+  A8: None are in the backend. Stock Transfer, Vendor Bulk Import,
+      Reconciliation do not exist. Safe to leave disabled in frontend.
+
+
+SESSION 5: FRONTEND INTEGRATION GUIDE (Feb 27, 2026)
+================================================================================
+
+What we did:
+  - Created FRONTEND_INTEGRATION_GUIDE.txt for the frontend team
+  - Compiled all findings into a single feed-to-frontend document
+
+
+SESSION 6: FRONTEND INTEGRATION DEBUGGING (March 4-5, 2026)
+================================================================================
+
+What we did:
+  - Switched to the real replica database: seeds_indent_replica_1
+  - Debugged and fixed Flyway migration V20 (foreign key type mismatch on tbl_email_log)
+  - Interacted directly with the MySQL database to investigate empty user tables
+  - Manually seeded the test user (rajesh.kumar) into tbl_user_master and tbl_map_emp_roles
+  - Investigated BCrypt password hashing issues and provided a raw SQL fix
+  - Enabled show-sql and injected a LoginTester bean to debug AUTH_INVALID_CREDENTIALS
+  - Documented all findings into BACKEND-STATUS-AND-COMPLETION-PLAN.md
+
+
+SESSION 7: DASHBOARD ERROR RESOLUTION (March 5, 2026)
+================================================================================
+
+What we did:
+  - Analyzed IntelliJ console logs to identify dashboard "server error" root cause
+  - Found 5 missing database tables causing SQL errors on dashboard load
+  - Created Flyway migration V32__create_missing_tables.sql
+  - Created Flyway migration V33__create_vendors_table.sql
+  - Created Flyway migration V34__add_issue_note_comments.sql
+  - Fixed V34 migration failure: removed MySQL-unsupported "IF NOT EXISTS" syntax
+  - Cleaned failed migration from flyway_schema_history table
+  - Verified all dashboard APIs now execute without errors
+
+Result:
+  - Login works ✅
+  - Dashboard loads without "server error" ✅
+  - Total Indents card shows 10 (correct) ✅
+  - Other cards show 0 (expected — newly created tables are empty) ✅
+
+
+SESSION 8: FRONTEND CRUD DISCOVERY (March 5, 2026)
+================================================================================
+
+What we did:
+  - Explored the React frontend (frontend/src/) to assess CRUD page readiness
+  - Discovered ALL Master Data CRUD pages already exist and are functional
+  - Sidebar already has "Master Data" collapsible group with 12 sub-items
+  - All routes defined in frontend/src/routes/router.tsx under /masters/*
+
+
+================================================================================
+SESSION 9: PLANT INDENT MODULE OVERHAUL (March 21–22, 2026)
+Developer: CJRam_NSL
+================================================================================
+
+What we did:
+
+  BACKEND — Entity & Repository:
+  - Diagnosed silent failures: application was targeting wrong legacy table
+    (pz_tbl_indent_master instead of pz_tbl_indent_masterb).
+  - Completely re-wrote PlantIndent.java JPA entity to map to pz_tbl_indent_masterb.
+  - Decoupled strict @ManyToOne relationships causing "Unable to find UnitOfMeasure"
+    runtime exceptions on form submit.
+  - Replaced with direct integer ID field mappings for legacy schema compatibility.
+  - Refactored PlantIndentRepository.java — stripped broken @EntityGraph annotations.
+  - Rewrote all JPQL queries using simple field access instead of deep entity graphs.
+
+  BACKEND — Service Layer:
+  - Rebuilt PlantIndentService.java with null-safety guards (> 0 checks on IDs).
+  - Implemented dynamic entityManager.find() lookups inside mapToResponse()
+    to restore plantName, cropTypeName, batchNumber, statusDescription in payloads.
+  - Stabilized the 8-tier status lifecycle:
+    Draft → Pending DEO → Pending Manager → Approved → Processing → Completed.
+
+  DATABASE:
+  - Seeded pz_crop_type table with mock categorical data:
+    Cotton, Maize, Rice, Soybean, Wheat, Vegetables, Oilseeds, Pulses,
+    Sugarcane, Fruits, Spices.
+
+  FRONTEND — Form (PlantIndentFormPage.tsx):
+  - Fixed transformFormData: was sending wrong fields to backend.
+    Now correctly maps: cropType→outputMaterial, cropGroup→packProcess,
+    deliveryDate→outputDescription.
+  - Removed dead Zod schema validations (companyId, departmentId) causing
+    completely silent form submission drops.
+  - Added UOM auto-population on material selection via useEffect.
+
+  FRONTEND — List (PlantIndentListPage.tsx):
+  - Restored Crop Type / Plant columns from outputMaterial/cropTypeName fallback fields.
+  - Added UOM column that was missing.
+  - Added row-level Edit and Delete action buttons with status-aware toggles.
+
+  FRONTEND — Detail View (PlantIndentDetailPage.tsx):
+  - Created dedicated read-only view page from scratch.
+  - Displays Plant/Employee Info, Crop/Production details, QC Parameters
+    (STL, ODV, GOT, ELISA, Moisture, Pure Seed, Germ Normal), Material line items.
+  - Added Edit/Delete buttons with appropriate status restrictions.
+
+  FRONTEND — Routing (router.tsx):
+  - /plant-indent/:id → PlantIndentDetailPage (read-only view)
+  - /plant-indent/:id/edit → PlantIndentFormPage (edit form)
+
+
+================================================================================
+SESSION 10: INDENT STATUS DISPLAY BUG FIX (March 22–26, 2026)
+Developer: CJRam_NSL
+================================================================================
+
+What we did:
+  - Diagnosed bug: rejected indents were incorrectly displaying as "PO_CREATED".
+  - Root cause: backend was returning backend status names, frontend was not
+    prioritizing local status mapping.
+  - Fixed IndentListPage.tsx and ApprovalPage.tsx to use a local status map
+    that always overrides the backend-provided status name string.
+  - Fixed TypeScript linting errors introduced during the fix.
+  - Confirmed consistent, human-readable status labels across all indent pages.
+
+
+================================================================================
+SESSION 11: DEVELOPER ATTRIBUTION & GIT IDENTITY (March 22–30, 2026)
+Developer: CJRam_NSL
+================================================================================
+
+What we did:
+  - Investigated existing git attribution — found another developer signature
+    "SaiHarsha502vvit" in the repository history.
+  - Configured global Git identity for all future commits:
+      git config user.name "CJRam_NSL"
+      git config user.email "janakiraama182@gmail.com"
+  - Performed dual codebase commits executing all tracked file changes in:
+      → Backend Java (Spring Boot) module
+      → Frontend React (TypeScript) module
+  - Both commits now permanently recorded under CJRam_NSL identity.
+
+
+================================================================================
+SESSION 12: SECURITY FIX — JwtAuthenticationFilter (March 30, 2026)
+Developer: CJRam_NSL
+================================================================================
+
+What we did:
+  - Responded to critical compile-time failure preventing Spring Boot server from starting.
+  - Error: JwtAuthenticationFilter.java:96:131 — ')' expected
+  - Root Cause: Extra, unmatched open parenthesis in logger.debug call:
+      logger.debug( ( "message...", args ) — stray ( before the string.
+  - Fixed by removing the typo parenthesis. Application boots successfully.
+
+File fixed:
+  - src/main/java/com/nslindia/procurezone/security/JwtAuthenticationFilter.java
+
+
+================================================================================
+SESSION 13: RATE COLUMN REMOVAL & MOCK VENDOR LIST (April 1, 2026)
+Developer: CJRam_NSL
+================================================================================
+
+What we did:
+  - Commented out all "Rate (₹)" and "Est. Rate" columns across 6 frontend pages
+    to hide pricing details from indent and PO creation/detail views.
+  - Added 5 mock vendor entries as a fallback in POFormPage so PO creation can be
+    tested end-to-end without backend vendor data.
+
+Files modified:
+  - frontend/src/pages/indents/IndentFormPage.tsx
+      → Commented out Rate (₹) table header
+      → Commented out estimatedRate input cell per row
+  - frontend/src/pages/indents/IndentDetailPage.tsx
+      → Commented out Est. Rate (₹) table header
+      → Commented out rate value display cell per row
+  - frontend/src/pages/plant-indent/PlantIndentFormPage.tsx
+      → Commented out Est. Rate table header
+      → Commented out estimatedRate input cell per row
+  - frontend/src/pages/plant-indent/PlantIndentDetailPage.tsx
+      → Commented out Rate table header
+  - frontend/src/pages/purchase-orders/POFormPage.tsx
+      → Commented out Rate (₹) table header (already done in prior session)
+      → Commented out unitRate input cell per row
+      → Added mock vendor list fallback (5 vendors: AGRO001, BFA002, GCS003, NAT004, PSC005)
+  - frontend/src/pages/purchase-orders/PODetailPage.tsx
+      → Commented out Rate (₹) table header
+      → Commented out rate value display cell per row
+
+Note: All changes are commented out, NOT deleted — can be restored at any time.
+
+
+================================================================================
+FILES CREATED / MODIFIED DURING ALL SESSIONS (CUMULATIVE)
+================================================================================
+
+  Backend Java:
+  1. PlantIndent.java — Re-mapped to pz_tbl_indent_masterb
+  2. PlantIndentRepository.java — Stripped broken @EntityGraph
+  3. PlantIndentService.java — Rebuilt with null-safety and dynamic lookups
+  4. JwtAuthenticationFilter.java — Fixed syntax error (stray parenthesis)
+
+  Frontend React/TypeScript:
+  5.  PlantIndentFormPage.tsx — Fixed transformFormData, removed dead validations
+  6.  PlantIndentListPage.tsx — Restored columns, added UOM, Edit/Delete buttons
+  7.  PlantIndentDetailPage.tsx — Created from scratch (read-only detail view)
+  8.  plant-indent/index.ts — Added PlantIndentDetailPage export
+  9.  pages/index.tsx — Added PlantIndentDetailPage export
+  10. router.tsx — Updated /plant-indent/:id and /plant-indent/:id/edit routes
+  11. IndentListPage.tsx — Fixed status display bug (local map overrides backend)
+  12. ApprovalPage.tsx — Fixed status display consistency
+  13. IndentFormPage.tsx — Commented out Rate column
+  14. IndentDetailPage.tsx — Commented out Est. Rate column
+  15. POFormPage.tsx — Commented out Rate column, added mock vendor fallback
+  16. PODetailPage.tsx — Commented out Rate column
+
+  Database:
+  17. V32__create_missing_tables.sql — tbl_audit_log, tbl_goods_receipt, etc.
+  18. V33__create_vendors_table.sql — tbl_vendors
+  19. V34__add_issue_note_comments.sql — Added issue_note_comments column
+  20. V35__add_issue_note_missing_columns.sql — Additional column additions
+  21. pz_crop_type — Seeded with 11 mock crop type records
+
+
+================================================================================
+CURRENT STATE OF THE PROJECT (as of April 1, 2026)
+================================================================================
+
+  Backend:  Stable & running.
+            248 endpoints across 28 controllers.
+            JwtAuthenticationFilter syntax error fixed, server boots cleanly.
+
+  Frontend: React + TypeScript + Vite.
+            Plant Indent module fully functional (Create/View/Edit/Delete).
+            Indent status display bug fixed across all pages.
+            Rate columns hidden across all form/detail pages.
+            Mock vendor fallback added for PO creation testing.
+            Estimated completion: ~70% overall.
+
+  Database: seeds_indent_replica_1 (MySQL 8.0).
+            Flyway migrations V32–V35 applied successfully.
+            pz_crop_type seeded with mock data.
+            tbl_indent_master and pz_tbl_indent_masterb both have live data.
+
+  Git:      All work committed under CJRam_NSL (janakiraama182@gmail.com).
+            Developer attribution permanently recorded in version history.
+
+================================================================================
+END OF SUMMARY
+================================================================================
+
+
+
+SESSION 1: PROJECT OVERVIEW (Feb 24, 2026)
+================================================================================
+
+What we did:
+  - Explored the entire backend project structure
+  - Read README.md, pom.xml, and key source files
+  - Provided a quick brief of the project
+
+Key findings:
+  - Project: ProcureZone Backend — Enterprise Procurement & Manufacturing Ops
+  - Owner: NSL India Pvt Ltd
+  - Tech: Spring Boot 3.2.5, Java 21, MySQL 8.0, JWT Auth
+  - Database: seeds_indent (56 tables)
+  - Status: 100% complete with 225 API endpoints
+  - Dual-module design: Corporate (office procurement) + Plant (manufacturing)
+
+
+SESSION 2: COMPREHENSIVE PROJECT BRIEF FOR AI (Feb 24, 2026)
+================================================================================
+
+What we did:
+  - Deep-dived into every aspect of the project
+  - Created COMPLETE_PROJECT_BRIEF_FOR_AI.md (700+ lines)
+
+File created: COMPLETE_PROJECT_BRIEF_FOR_AI.md
+Contents cover:
+  1.  Project identity (name, tech stack, versions)
+  2.  What the system does (business workflow end-to-end)
+  3.  All Maven dependencies with purpose
+  4.  Application configuration (application.yml) with env variables
+  5.  Complete project structure (every package, controller, service, repository)
+  6.  All 225 API endpoints (method, path, purpose)
+  7.  Full 56-table database schema
+  8.  Security architecture (JWT flow, roles, config)
+  9.  Cross-cutting features (audit, email, PDF, Excel, SAP)
+  10. Flyway migrations list
+  11. Build & run instructions
+  12. Coding patterns & conventions
+  13. Component count summary
+  14. ChatGPT-specific instructions
+
+Purpose: Feed to ChatGPT or any AI for full project context.
+
+
+SESSION 3: INDENT STATUS ENUM LOOKUP (Feb 25, 2026)
+================================================================================
+
+What we did:
+  - Found IndentStatus.java entity
+  - Extracted all indent status values
+
+Indent Status Values (from IndentStatus.java → tbl_indent_status):
+  1 = Draft
+  2 = Submitted
+  3 = Department Head Approved
+  4 = Finance Approved
+  5 = Procurement Approved (PO Created)
+  6 = Rejected
+  7 = On Hold
+  8 = Completed
+
+
+SESSION 4: FRONTEND INTEGRATION Q&A (Feb 27, 2026)
+================================================================================
+
+What we did:
+  - Answered 8 critical frontend integration questions
+  - Researched each answer directly from source code
+
+Questions answered:
+
+  Q1: PO Status Enum — What are exact backend values?
+  A1: 1-based: 1=Draft, 2=Submitted, 3=Approved, 4=Sent to Vendor,
+      5=Partially Received, 6=Fully Received, 7=Cancelled, 8=Closed
+      (from PurchaseOrder.java)
+
+  Q2: GRN Status Enum — What are exact backend values?
+  A2: 1-based: 1=Created, 2=Inspected, 3=RM Approved, 4=Approved,
+      5=Final Approved, 6=Stored, 7=Rejected
+      (from GoodsReceipt.java)
+
+  Q3: Issue Note Status Enum — What are exact backend values?
+  A3: 1-based with 10 values: 1=Created, 2=Pending RM Approval,
+      3=RM Approved, 4=Approved, 5=Rejected by RM, 6=Rejected by Manager,
+      7=Pending Store Issue, 8=Issued, 9=Rejected by Stores, 10=Returned
+      (from IssueNote.java)
+
+  Q4: Auth Refresh Token — Does /auth/refresh exist?
+  A4: NO. Only 3 auth endpoints exist: login, logout, /me.
+      JWT expires after 1 hour. No silent refresh mechanism.
+
+  Q5: GRN QC Endpoint — What's the exact path?
+  A5: POST /api/v1/grn/{id}/inspect (NOT /qc)
+      Also: base path is /api/v1/grn (singular, NOT /grns)
+
+  Q6: Dashboard Endpoints — Complete list?
+  A6: 13 endpoints under /api/v1/dashboard:
+      /statistics, /summary, /indents/stats, /purchase-orders/stats,
+      /goods-receipts/stats, /issue-notes/stats, /inventory/stats,
+      /vendors/stats, /trends/monthly, /breakdown/department,
+      /top-materials, /pending-approvals, /alerts
+
+  Q7: Inventory Response Format — Page<T> or custom?
+  A7: Custom wrapper: { "success": true, "count": N, "data": [...] }
+      Does NOT use Spring Page<T>
+
+  Q8: Which commented-out features are planned?
+  A8: None are in the backend. Stock Transfer, Vendor Bulk Import,
+      Reconciliation do not exist. Safe to leave disabled in frontend.
+
+
+SESSION 5: FRONTEND INTEGRATION GUIDE (Feb 27, 2026)
+================================================================================
+
+What we did:
+  - Created FRONTEND_INTEGRATION_GUIDE.txt for the frontend team
+  - Compiled all findings into a single feed-to-frontend document
+
+File created: FRONTEND_INTEGRATION_GUIDE.txt
+Contents cover 12 sections:
+  1.  Status enum corrections (all 4 modules with business rules)
+  2.  Endpoint path corrections (GRN path, QC path, no auth refresh)
+  3.  Complete GRN endpoints (14 endpoints)
+  4.  Complete dashboard endpoints (13 endpoints with params)
+  5.  Inventory API (response format + 10 endpoints)
+  6.  Auth response format (login/me structure + test credentials)
+  7.  Role names for @PreAuthorize (9 roles with exact strings)
+  8.  Common response patterns across modules
+  9.  Business logic (Indent→PO→GRN flow, supervisor bypass, FY numbering)
+  10. Features that don't exist (what to disable)
+  11. Extra insights (CORS, dates, pagination, decimals)
+  12. 10 questions for the frontend team
+
+
+SESSION 6: FRONTEND INTEGRATION DEBUGGING (March 4-5, 2026)
+================================================================================
+
+What we did:
+  - Switched to the real replica database: seeds_indent_replica_1
+  - Debugged and fixed Flyway migration V20 (foreign key type mismatch on tbl_email_log)
+  - Interacted directly with the MySQL database to investigate empty user tables
+  - Manually seeded the test user (rajesh.kumar) into tbl_user_master and tbl_map_emp_roles
+  - Investigated BCrypt password hashing issues and provided a raw SQL fix
+  - Enabled show-sql and injected a LoginTester bean to capture Hibernate SQL output on startup to debug AUTH_INVALID_CREDENTIALS
+  - Documented all findings into BACKEND-STATUS-AND-COMPLETION-PLAN.md
+
+
+SESSION 7: DASHBOARD ERROR RESOLUTION (March 5, 2026)
+================================================================================
+
+What we did:
+  - Analyzed IntelliJ console logs to identify dashboard "server error" root cause
+  - Found 5 missing database tables causing SQL errors on dashboard load
+  - Created Flyway migration V32__create_missing_tables.sql:
+      → tbl_audit_log, tbl_goods_receipt, tbl_purchase_orders, tbl_purchase_order_details
+  - Created Flyway migration V33__create_vendors_table.sql:
+      → tbl_vendors
+  - Created Flyway migration V34__add_issue_note_comments.sql:
+      → Added missing issue_note_comments column to tbl_issue_note
+  - Fixed V34 migration failure: removed MySQL-unsupported "IF NOT EXISTS" syntax
+  - Cleaned failed migration from flyway_schema_history table
+  - Verified all dashboard APIs now execute without errors
+
+Result:
+  - Login works ✅
+  - Dashboard loads without "server error" ✅
+  - Total Indents card shows 10 (correct, data exists in tbl_indent_master) ✅
+  - Other cards show 0 (expected — newly created tables are empty) ✅
+
+Files created:
+  - src/main/resources/db/migration/V32__create_missing_tables.sql
+  - src/main/resources/db/migration/V33__create_vendors_table.sql
+  - src/main/resources/db/migration/V34__add_issue_note_comments.sql
+
+
+SESSION 8: FRONTEND CRUD DISCOVERY (March 5, 2026)
+================================================================================
+
+What we did:
+  - Explored the React frontend (frontend/src/) to assess CRUD page readiness
+  - Discovered ALL Master Data CRUD pages already exist and are functional:
+      → 25 page files in frontend/src/pages/masters/
+      → Companies, Plants, Locations, Departments, Sections, UOM, Crops,
+        Materials, Vendors, Employees, Users, Roles (List + Form pages each)
+  - Sidebar already has "Master Data" collapsible group with 12 sub-items
+  - All routes defined in frontend/src/routes/router.tsx under /masters/*
+  - All API modules exist: companies.ts, departments.ts, employees.ts, etc.
+  - Pages use React Query, search, pagination, delete confirmations
+
+Missing:
+  - Master Data landing/hub page (currently redirects to Companies)
+  - Plan: Create MasterDataPage.tsx with card sections grouped as:
+      Organization (Companies, Plants, Locations, Departments, Sections)
+      People (Employees, Users, Roles)
+      Catalog (Materials, Vendors, UOM, Crop Types)
+
+
+================================================================================
+FILES CREATED DURING THESE SESSIONS
+================================================================================
+
+  1. COMPLETE_PROJECT_BRIEF_FOR_AI.md
+     - 700+ line comprehensive project reference
+     - For feeding to ChatGPT or any AI assistant
+     - Covers all 14 aspects of the backend
+
+  2. FRONTEND_INTEGRATION_GUIDE.txt
+     - Frontend-specific integration reference
+     - Status enum corrections, endpoint paths, response formats
+     - 10 questions for the frontend team
+
+  3. OVERALL_WORK_SUMMARY.txt (this file)
+     - Summary of all work done across all sessions
+
+  4. V32__create_missing_tables.sql (Session 7)
+     - Flyway migration for tbl_audit_log, tbl_goods_receipt,
+       tbl_purchase_orders, tbl_purchase_order_details
+
+  5. V33__create_vendors_table.sql (Session 7)
+     - Flyway migration for tbl_vendors
+
+  6. V34__add_issue_note_comments.sql (Session 7)
+     - Flyway migration adding issue_note_comments to tbl_issue_note
+
+
+================================================================================
+KEY SOURCE FILES EXAMINED
+================================================================================
+
+  Entities:
+    - IndentStatus.java      → Indent status enum (1-8)
+    - PurchaseOrder.java     → PO status enum (1-8) + helper methods
+    - GoodsReceipt.java      → GRN status enum (1-7) + supervisor bypass
+    - IssueNote.java         → Issue note status enum (1-10) + return flow
+
+  Controllers:
+    - AuthController.java     → 3 endpoints (login, logout, me)
+    - GRNController.java      → 14 endpoints, base: /api/v1/grn
+    - DashboardController.java → 13 endpoints, base: /api/v1/dashboard
+    - InventoryController.java → 10 endpoints, custom response wrapper
+
+  Config:
+    - SecurityConfig.java     → STATELESS sessions, CORS, JWT filter
+    - application.yml         → DB, JWT, SAP, email, Flyway config
+
+  Frontend (Session 8):
+    - frontend/src/components/layout/Sidebar.tsx → Navigation with Master Data group
+    - frontend/src/routes/router.tsx             → All master data routes
+    - frontend/src/pages/masters/                → 25 CRUD page files
+    - frontend/src/api/                          → 25 API module files
+
+
+================================================================================
+CURRENT STATE OF THE PROJECT
+================================================================================
+
+  Backend:  100% complete (225 endpoints across 35 controllers)
+  Frontend: React + TypeScript + Vite, partially complete (~55% overall)
+            - Auth: 95%, Dashboard: 60%, Indents: 70%, PO: 50%
+            - All Master Data CRUD pages exist (list + form)
+            - Missing: Master Data landing page, approval workflow UIs, reports
+  Database: seeds_indent_replica_1 (MySQL 8.0)
+            - V32-V34 migrations applied, all tables present
+            - tbl_indent_master has data; newly created tables are empty
+  Integration: Login works, dashboard shows data, no SQL errors
+  Next Step: Create Master Data landing page with grouped card sections
+
+================================================================================
+END OF SUMMARY
+================================================================================

@@ -1,0 +1,35 @@
+-- V25: Create Company-Location-Material Mapping Table
+-- Maps which materials are available at which locations
+-- Supports location-level inventory management
+
+CREATE TABLE IF NOT EXISTS tbl_map_company_location_material (
+    mapping_id INT AUTO_INCREMENT PRIMARY KEY,
+    comp_id INT NOT NULL,
+    loc_id INT NOT NULL,
+    material_id INT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    min_stock_level DECIMAL(20, 2) DEFAULT 0.00,
+    max_stock_level DECIMAL(20, 2) DEFAULT 0.00,
+    reorder_level DECIMAL(20, 2) DEFAULT 0.00,
+    reorder_quantity DECIMAL(20, 2) DEFAULT 0.00,
+    created_by INT NOT NULL,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_modified_by INT,
+    last_modified_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    remarks VARCHAR(500),
+    CONSTRAINT fk_clm_company FOREIGN KEY (comp_id) REFERENCES tbl_company_master (comp_id),
+    CONSTRAINT fk_clm_location FOREIGN KEY (loc_id) REFERENCES tbl_location_master (loc_id),
+    CONSTRAINT fk_clm_material FOREIGN KEY (material_id) REFERENCES tbl_material_master (material_id),
+    CONSTRAINT uq_comp_location_material UNIQUE (
+        comp_id,
+        loc_id,
+        material_id
+    )
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Company-Location-Material mapping for location-level material availability';
+
+-- Index for performance
+CREATE INDEX idx_clm_location ON tbl_map_company_location_material (loc_id, is_active);
+
+CREATE INDEX idx_clm_company ON tbl_map_company_location_material (comp_id, is_active);
+
+CREATE INDEX idx_clm_material ON tbl_map_company_location_material (material_id, is_active);

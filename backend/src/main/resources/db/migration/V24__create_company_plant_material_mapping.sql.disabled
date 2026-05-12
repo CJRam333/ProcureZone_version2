@@ -1,0 +1,45 @@
+-- Migration for Company-Plant-Material Mapping
+-- Defines which materials are available at which plant for a company
+-- Date: November 7, 2025
+
+DROP TABLE IF EXISTS tbl_map_company_plant_material;
+
+CREATE TABLE tbl_map_company_plant_material (
+    mapping_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary key',
+    comp_id INT NOT NULL COMMENT 'Company ID',
+    plant_id INT NOT NULL COMMENT 'Plant ID',
+    material_id INT NOT NULL COMMENT 'Material ID',
+    is_active TINYINT(1) DEFAULT 1 COMMENT 'Active status (1=active, 0=inactive)',
+    min_stock_level DECIMAL(20,2) DEFAULT 0.00 COMMENT 'Minimum stock level for this material at this plant',
+    max_stock_level DECIMAL(20,2) DEFAULT 0.00 COMMENT 'Maximum stock level',
+    reorder_level DECIMAL(20,2) DEFAULT 0.00 COMMENT 'Reorder point',
+    reorder_quantity DECIMAL(20,2) DEFAULT 0.00 COMMENT 'Standard reorder quantity',
+    created_by INT NOT NULL COMMENT 'Created by employee',
+    created_date DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation timestamp',
+    last_modified_by INT COMMENT 'Last modified by employee',
+    last_modified_date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last modification timestamp',
+    remarks VARCHAR(500) COMMENT 'Additional remarks',
+
+-- Foreign key constraints
+CONSTRAINT fk_cpm_company FOREIGN KEY (comp_id) REFERENCES tbl_company_master (comp_id) ON DELETE CASCADE,
+CONSTRAINT fk_cpm_plant FOREIGN KEY (plant_id) REFERENCES tbl_plant_master (plant_id) ON DELETE CASCADE,
+CONSTRAINT fk_cpm_material FOREIGN KEY (material_id) REFERENCES tbl_material_master (material_id) ON DELETE CASCADE,
+CONSTRAINT fk_cpm_created_by FOREIGN KEY (created_by) REFERENCES tbl_emp_master (emp_number),
+CONSTRAINT fk_cpm_modified_by FOREIGN KEY (last_modified_by) REFERENCES tbl_emp_master (emp_number),
+
+-- Unique constraint: One mapping per company-plant-material combination
+UNIQUE KEY uk_company_plant_material (
+    comp_id,
+    plant_id,
+    material_id
+),
+
+-- Indexes for performance
+INDEX idx_cpm_company (comp_id),
+    INDEX idx_cpm_plant (plant_id),
+    INDEX idx_cpm_material (material_id),
+    INDEX idx_cpm_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Maps materials to plants for companies';
+
+-- Note: Sample data should be inserted via application or separate data migration
+-- when actual plant/company/material master data exists

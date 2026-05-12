@@ -1,0 +1,556 @@
+{
+  "info": {
+    "name": "ProcureZone Role-Based Access Tests",
+    "description": "Tests role-based access control for all 7 active users with different roles",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080/api/v1"},
+    {"key": "superadminToken", "value": ""},
+    {"key": "adminToken", "value": ""},
+    {"key": "deptheadToken", "value": ""},
+    {"key": "procurementToken", "value": ""},
+    {"key": "employeeToken", "value": ""},
+    {"key": "financeToken", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "01-SUPERADMIN-Full-Access",
+      "description": "vikram.singh - SUPERADMIN + DEPTHEAD",
+      "item": [
+        {
+          "name": "SUPER-01: Login as SUPERADMIN",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {"mode": "raw", "raw": "{\"username\": \"vikram.singh\", \"password\": \"password\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('SUPERADMIN login successful', function() {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Has SUPERADMIN role', function() {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.user.roles).to.include('SUPERADMIN');",
+              "});",
+              "var json = pm.response.json();",
+              "if (json.accessToken) { pm.collectionVariables.set('superadminToken', json.accessToken); }"
+            ]}
+          }]
+        },
+        {
+          "name": "SUPER-02: Create Vendor (Should PASS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{superadminToken}}"}
+            ],
+            "url": "{{baseUrl}}/vendors",
+            "body": {"mode": "raw", "raw": "{\"vendorCode\": \"VND-TEST-{{$timestamp}}\", \"vendorName\": \"Test Vendor Role {{$timestamp}}\", \"vendorType\": \"Supplier\", \"contactPerson\": \"Test Contact\", \"contactPhone\": \"9876543210\", \"contactEmail\": \"testvendor@test.com\", \"addressLine1\": \"Test Address\", \"city\": \"Mumbai\", \"state\": \"Maharashtra\", \"country\": \"India\", \"pincode\": \"400001\", \"paymentTerms\": \"Net 30\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('SUPERADMIN can create vendor (status 200/201)', function() {",
+              "  pm.expect([200, 201]).to.include(pm.response.code);",
+              "});",
+              "pm.test('Not forbidden', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "SUPER-03: Get All Employees (Should PASS)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{superadminToken}}"}],
+            "url": "{{baseUrl}}/employees"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('SUPERADMIN can view employees', function() {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns array of employees', function() {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.content || json).to.be.an('array');",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "SUPER-04: Approve Indent (Admin Can)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{superadminToken}}"}
+            ],
+            "url": "{{baseUrl}}/indents/1/approve",
+            "body": {"mode": "raw", "raw": "{\"comments\": \"Approved by test\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('SUPERADMIN can approve (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "SUPER-05: Delete Vendor (Admin Only)",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{superadminToken}}"}],
+            "url": "{{baseUrl}}/vendors/99999"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('SUPERADMIN can delete vendor (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "02-ADMIN-Management-Access",
+      "description": "amit.patel - Administrator + Plant Manager",
+      "item": [
+        {
+          "name": "ADMIN-01: Login as ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {"mode": "raw", "raw": "{\"username\": \"amit.patel\", \"password\": \"password\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('ADMIN login successful', function() {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Has ADMIN role', function() {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.user.roles).to.include('ADMIN');",
+              "});",
+              "var json = pm.response.json();",
+              "if (json.accessToken) { pm.collectionVariables.set('adminToken', json.accessToken); }"
+            ]}
+          }]
+        },
+        {
+          "name": "ADMIN-02: Get Materials (Should PASS)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}],
+            "url": "{{baseUrl}}/materials"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('ADMIN can view materials', function() {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "ADMIN-03: Create Employee (Admin Can)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{adminToken}}"}
+            ],
+            "url": "{{baseUrl}}/employees",
+            "body": {"mode": "raw", "raw": "{\"empName\": \"Test Admin Emp\", \"empEmail\": \"test.admin@test.com\", \"empDesignation\": \"1\", \"empDepartmentId\": 1, \"companyId\": 1, \"plantId\": 1, \"empPhone\": \"9876543210\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('ADMIN can create employees (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "03-DEPTHEAD-Approval-Access",
+      "description": "anjali.mehta - Department Head + Finance Manager + Plant Manager",
+      "item": [
+        {
+          "name": "DEPT-01: Login as DEPTHEAD",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {"mode": "raw", "raw": "{\"username\": \"anjali.mehta\", \"password\": \"password\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('DEPTHEAD login successful', function() {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Has DEPTHEAD role', function() {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.user.roles).to.include('DEPTHEAD');",
+              "});",
+              "var json = pm.response.json();",
+              "if (json.accessToken) { pm.collectionVariables.set('deptheadToken', json.accessToken); }"
+            ]}
+          }]
+        },
+        {
+          "name": "DEPT-02: Get Pending Approvals (Should PASS)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{deptheadToken}}"}],
+            "url": "{{baseUrl}}/approvals/pending"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('DEPTHEAD can view pending approvals (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "DEPT-03: Approve Indent (DeptHead Can)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{deptheadToken}}"}
+            ],
+            "url": "{{baseUrl}}/indents/1/approve",
+            "body": {"mode": "raw", "raw": "{\"comments\": \"Approved by DeptHead\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('DEPTHEAD can approve indent (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "DEPT-04: Delete Vendor (Should FAIL - Blocked)",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{deptheadToken}}"}],
+            "url": "{{baseUrl}}/vendors/99999"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('DEPTHEAD cannot delete vendor (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "04-PROCUREMENT-PO-Access",
+      "description": "arjun.nair - Procurement Officer + Plant Manager",
+      "item": [
+        {
+          "name": "PROC-01: Login as PROCUREMENT",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {"mode": "raw", "raw": "{\"username\": \"arjun.nair\", \"password\": \"password\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('PROCUREMENT login successful', function() {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Has PROCUREMENT role', function() {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.user.roles).to.include('PROCUREMENT');",
+              "});",
+              "var json = pm.response.json();",
+              "if (json.accessToken) { pm.collectionVariables.set('procurementToken', json.accessToken); }"
+            ]}
+          }]
+        },
+        {
+          "name": "PROC-02: Get POs (Should PASS)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{procurementToken}}"}],
+            "url": "{{baseUrl}}/pos"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('PROCUREMENT can view POs', function() {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "PROC-03: Create Vendor (Should PASS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{procurementToken}}"}
+            ],
+            "url": "{{baseUrl}}/vendors",
+            "body": {"mode": "raw", "raw": "{\"vendorName\": \"Procurement Vendor {{$timestamp}}\", \"vendorGstin\": \"27AABCT1234B1Z5\", \"vendorAddress\": \"Test Address\", \"vendorContactPhone\": \"9876543211\", \"vendorEmail\": \"procvendor@test.com\", \"vendorType\": \"1\", \"paymentTerms\": \"Net 30\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('PROCUREMENT can create vendor (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "PROC-04: Approve Indent (Should FAIL - Blocked)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{procurementToken}}"}
+            ],
+            "url": "{{baseUrl}}/indents/1/approve",
+            "body": {"mode": "raw", "raw": "{\"comments\": \"Test approval\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('PROCUREMENT cannot approve indent (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "05-EMPLOYEE-Limited-Access",
+      "description": "anil.kapoor - Regular Employee + Plant Manager",
+      "item": [
+        {
+          "name": "EMP-01: Login as EMPLOYEE",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {"mode": "raw", "raw": "{\"username\": \"anil.kapoor\", \"password\": \"password\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('EMPLOYEE login successful', function() {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Has EMPLOYEE role', function() {",
+              "  var json = pm.response.json();",
+              "  pm.expect(json.user.roles).to.include('EMPLOYEE');",
+              "});",
+              "var json = pm.response.json();",
+              "if (json.accessToken) { pm.collectionVariables.set('employeeToken', json.accessToken); }"
+            ]}
+          }]
+        },
+        {
+          "name": "EMP-02: Get Indents (Should PASS)",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{employeeToken}}"}],
+            "url": "{{baseUrl}}/indents"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('EMPLOYEE can view indents', function() {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "EMP-03: Create Indent (Should PASS)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{employeeToken}}"}
+            ],
+            "url": "{{baseUrl}}/indents",
+            "body": {"mode": "raw", "raw": "{\"indentTitle\": \"Test Employee Indent\", \"priority\": 2, \"items\": [{\"materialId\": 1, \"quantity\": 5, \"unitId\": 1}]}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('EMPLOYEE can create indent (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "EMP-04: Create Vendor (Should FAIL - Blocked)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{employeeToken}}"}
+            ],
+            "url": "{{baseUrl}}/vendors",
+            "body": {"mode": "raw", "raw": "{\"vendorName\": \"Emp Vendor\", \"vendorGstin\": \"27AABCT1234C1Z5\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('EMPLOYEE cannot create vendor (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "EMP-05: Approve Indent (Should FAIL - Blocked)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{employeeToken}}"}
+            ],
+            "url": "{{baseUrl}}/indents/1/approve",
+            "body": {"mode": "raw", "raw": "{\"comments\": \"Test\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('EMPLOYEE cannot approve indent (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    },
+    {
+      "name": "06-Cross-Role-Access-Matrix",
+      "description": "Testing access boundaries between roles",
+      "item": [
+        {
+          "name": "MATRIX-01: EMPLOYEE Delete Material (Blocked)",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{employeeToken}}"}],
+            "url": "{{baseUrl}}/materials/99999"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('EMPLOYEE cannot delete material (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "MATRIX-02: PROCUREMENT Delete Employee (Blocked)",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{procurementToken}}"}],
+            "url": "{{baseUrl}}/employees/99999"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('PROCUREMENT cannot delete employee (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "MATRIX-03: DEPTHEAD Create Employee (Blocked)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{deptheadToken}}"}
+            ],
+            "url": "{{baseUrl}}/employees",
+            "body": {"mode": "raw", "raw": "{\"empName\": \"Unauthorized Create\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('DEPTHEAD cannot create employee (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "MATRIX-04: EMPLOYEE Final Approve (Blocked)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{employeeToken}}"}
+            ],
+            "url": "{{baseUrl}}/indents/1/final-approve",
+            "body": {"mode": "raw", "raw": "{\"comments\": \"Test\"}"}
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('EMPLOYEE cannot final-approve (blocked - 4xx/5xx)', function() {",
+              "  pm.expect([200, 201, 204]).to.not.include(pm.response.code);",
+              "});"
+            ]}
+          }]
+        },
+        {
+          "name": "MATRIX-05: SUPERADMIN All Access Summary",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{superadminToken}}"}],
+            "url": "{{baseUrl}}/dashboard/stats"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {"exec": [
+              "pm.test('SUPERADMIN has full access (not 403)', function() {",
+              "  pm.expect(pm.response.code).to.not.equal(403);",
+              "});"
+            ]}
+          }]
+        }
+      ]
+    }
+  ]
+}

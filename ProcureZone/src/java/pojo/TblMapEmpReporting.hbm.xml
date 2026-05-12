@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblMapEmpReporting" table="tbl_map_emp_reporting" catalog="seeds_indent">
+        <id name="reportId" type="java.lang.Integer">
+            <column name="report_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMasterByReportLmu" class="pojo.TblEmpMaster" fetch="select">
+            <column name="report_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByReportSub" class="pojo.TblEmpMaster" fetch="select">
+            <column name="report_sub" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByReportSup" class="pojo.TblEmpMaster" fetch="select">
+            <column name="report_sup" not-null="true" />
+        </many-to-one>
+        <property name="reportStart" type="date">
+            <column name="report_start" length="10" not-null="true" />
+        </property>
+        <property name="reportEnd" type="date">
+            <column name="report_end" length="10" not-null="true" />
+        </property>
+        <property name="reportStatus" type="int">
+            <column name="report_status" not-null="true" />
+        </property>
+        <property name="reportLmd" type="date">
+            <column name="report_lmd" length="10" not-null="true" />
+        </property>
+    </class>
+</hibernate-mapping>

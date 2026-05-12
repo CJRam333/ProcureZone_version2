@@ -43,7 +43,11 @@ interface PageResponse<T> {
     totalPages: number;
 }
 
-const CompanyLocationMappingPage: React.FC = () => {
+interface CompanyLocationMappingPageProps {
+    embedded?: boolean;
+}
+
+const CompanyLocationMappingPage: React.FC<CompanyLocationMappingPageProps> = ({ embedded = false }) => {
     const queryClient = useQueryClient();
 
     const [selectedCompany, setSelectedCompany] = useState<number | null>(null);
@@ -79,8 +83,8 @@ const CompanyLocationMappingPage: React.FC = () => {
         queryKey: ['company-location-mappings', selectedCompany],
         queryFn: async () => {
             if (!selectedCompany) return [];
-            const response = await apiClient.get(`/company-locations/company/${selectedCompany}`);
-            return response.data;
+            const response = await apiClient.get(`/company-locations/company/${selectedCompany}/locations?size=1000`);
+            return response.data?.content || [];
         },
         enabled: !!selectedCompany,
     });
@@ -157,15 +161,18 @@ const CompanyLocationMappingPage: React.FC = () => {
 
     return (
         <div>
-            <PageHeader
-                title="Company-Location Mapping"
-                subtitle="Assign locations to companies"
-                breadcrumbs={[
-                    { label: 'Dashboard', path: '/dashboard' },
-                    { label: 'Masters', path: '/masters/companies' },
-                    { label: 'Company-Location Mapping' },
-                ]}
-            />
+            {!embedded && (
+                <PageHeader
+                    title="Company-Location Mapping"
+                    subtitle="Assign locations to companies"
+                    breadcrumbs={[
+                        { label: 'Dashboard', path: '/dashboard' },
+                        { label: 'Masters', path: '/masters' },
+                        { label: 'Companies', path: '/masters/companies' },
+                        { label: 'Location Mapping' },
+                    ]}
+                />
+            )}
 
             {error && (
                 <Alert variant="danger" dismissible onClose={() => setError(null)}>

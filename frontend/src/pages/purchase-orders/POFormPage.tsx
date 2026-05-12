@@ -81,7 +81,15 @@ const POFormPage: React.FC = () => {
     queryKey: ['vendors-active'],
     queryFn: () => vendorsApi.list({ page: 0, size: 100, isActive: true }),
   });
-  const vendors = vendorsData?.content || [];
+  const vendors = vendorsData?.content?.length
+    ? vendorsData.content
+    : [
+        { id: 1, vendorName: 'Agro Seeds India Ltd', vendorCode: 'AGRO001', contactPerson: 'Ramesh Kumar', contactEmail: 'ramesh@agroseeds.com', contactPhone: '9876543210', gstNumber: '29AACCV1234F1Z5' },
+        { id: 2, vendorName: 'Bharat Fertilizers Pvt Ltd', vendorCode: 'BFA002', contactPerson: 'Sunil Mehta', contactEmail: 'sunil@bharatfert.com', contactPhone: '9876501234', gstNumber: '27AABCV5678G1Z1' },
+        { id: 3, vendorName: 'Green Crop Suppliers', vendorCode: 'GCS003', contactPerson: 'Anita Rao', contactEmail: 'anita@greencrop.in', contactPhone: '9845612300', gstNumber: '36AADCV9012H1Z3' },
+        { id: 4, vendorName: 'National Agro Traders', vendorCode: 'NAT004', contactPerson: 'Vijay Sharma', contactEmail: 'vijay@natagro.com', contactPhone: '9123456780', gstNumber: '07AABCN3456I1Z7' },
+        { id: 5, vendorName: 'Pioneer Seed Corporation', vendorCode: 'PSC005', contactPerson: 'Priya Nair', contactEmail: 'priya@pioneerseed.co.in', contactPhone: '9988776655', gstNumber: '32AABCP7890J1Z2' },
+      ];
 
   // Fetch materials
   const { data: materialsData } = useQuery({
@@ -373,7 +381,7 @@ const POFormPage: React.FC = () => {
                       <th style={{ minWidth: '250px' }}>Material</th>
                       <th style={{ width: '80px' }}>UOM</th>
                       <th style={{ width: '100px' }}>Qty</th>
-                      <th style={{ width: '120px' }}>Rate (₹)</th>
+                      {/* <th style={{ width: '120px' }}>Rate (₹)</th> */}
                       <th style={{ width: '80px' }}>Tax %</th>
                       <th style={{ width: '120px' }}>Total (₹)</th>
                       <th style={{ width: '50px' }}></th>
@@ -419,6 +427,7 @@ const POFormPage: React.FC = () => {
                                 size="sm"
                               />
                             </td>
+                            {/* unitRate input hidden
                             <td>
                               <Form.Control
                                 type="number"
@@ -428,6 +437,7 @@ const POFormPage: React.FC = () => {
                                 size="sm"
                               />
                             </td>
+                            */}
                             <td>
                               <Form.Select
                                 {...register(`items.${index}.taxRate`, { valueAsNumber: true })}

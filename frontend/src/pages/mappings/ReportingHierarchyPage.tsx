@@ -36,17 +36,18 @@ interface Employee {
 
 interface ReportingRelation {
     id?: number;
-    employeeId: number;
-    reportingToId: number;
-    effectiveFrom?: string;
-    effectiveTo?: string;
-    employeeName?: string;
-    employeeCode?: string;
-    reportingToName?: string;
-    reportingToCode?: string;
+    subordinateEmployeeNumber: number;
+    supervisorEmployeeNumber: number;
+    effectiveDate?: string;
+    statusText?: string;
+    active?: boolean;
 }
 
-const ReportingHierarchyPage: React.FC = () => {
+interface ReportingHierarchyPageProps {
+    embedded?: boolean;
+}
+
+const ReportingHierarchyPage: React.FC<ReportingHierarchyPageProps> = ({ embedded = false }) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -74,7 +75,8 @@ const ReportingHierarchyPage: React.FC = () => {
     });
 
     const employees: Employee[] = employeesData?.content || employeesData || [];
-    const relations: ReportingRelation[] = hierarchyData?.content || hierarchyData || [];
+    // Backend wraps list in { success, data: [...] } — extract .data
+    const relations: ReportingRelation[] = hierarchyData?.data || [];
 
     // Get managers (employees who can be reported to)
     const managers = useMemo(() => {
@@ -89,17 +91,22 @@ const ReportingHierarchyPage: React.FC = () => {
     const filteredRelations = useMemo(() => {
         if (!searchTerm) return relations;
         const lower = searchTerm.toLowerCase();
-        return relations.filter(r =>
-            r.employeeName?.toLowerCase().includes(lower) ||
-            r.employeeCode?.toLowerCase().includes(lower) ||
-            r.reportingToName?.toLowerCase().includes(lower) ||
-            r.reportingToCode?.toLowerCase().includes(lower)
-        );
-    }, [relations, searchTerm]);
+        const empById = (id: number) => employees.find(e => e.id === id);
+        return relations.filter(r => {
+            const sub = empById(r.subordinateEmployeeNumber);
+            const sup = empById(r.supervisorEmployeeNumber);
+            return (
+                sub?.empName?.toLowerCase().includes(lower) ||
+                sub?.empId?.toLowerCase().includes(lower) ||
+                sup?.empName?.toLowerCase().includes(lower) ||
+                sup?.empId?.toLowerCase().includes(lower)
+            );
+        });
+    }, [relations, searchTerm, employees]);
 
     // Save hierarchy mutation
     const saveMutation = useMutation({
-        mutationFn: async (data: { employeeId: number; reportingToId: number }) => {
+        mutationFn: async (data: { subordinateEmployeeNumber: number; supervisorEmployeeNumber: number }) => {
             if (editingId) {
                 const response = await apiClient.put(`/employee-reporting/${editingId}`, data);
                 return response.data;
@@ -150,14 +157,14 @@ const ReportingHierarchyPage: React.FC = () => {
         }
 
         saveMutation.mutate({
-            employeeId: Number(selectedEmployee),
-            reportingToId: Number(selectedManager),
+            subordinateEmployeeNumber: Number(selectedEmployee),
+            supervisorEmployeeNumber: Number(selectedManager),
         });
     };
 
     const handleEdit = (relation: ReportingRelation) => {
-        setSelectedEmployee(relation.employeeId);
-        setSelectedManager(relation.reportingToId);
+        setSelectedEmployee(relation.subordinateEmployeeNumber);
+        setSelectedManager(relation.supervisorEmployeeNumber);
         setEditingId(relation.id || null);
     };
 
@@ -181,20 +188,23 @@ const ReportingHierarchyPage: React.FC = () => {
 
     return (
         <div>
-            <PageHeader
-                title="Employee Reporting Hierarchy"
-                subtitle="Configure who reports to whom in the organization"
-                breadcrumbs={[
-                    { label: 'Dashboard', path: '/dashboard' },
-                    { label: 'Mappings', path: '/mappings/company-departments' },
-                    { label: 'Reporting Hierarchy' },
-                ]}
-                actions={
-                    <Button variant="outline-secondary" onClick={() => navigate(-1)}>
-                        <FaArrowLeft className="me-2" /> Back
-                    </Button>
-                }
-            />
+            {!embedded && (
+                <PageHeader
+                    title="Employee Reporting Hierarchy"
+                    subtitle="Configure who reports to whom in the organization"
+                    breadcrumbs={[
+                        { label: 'Dashboard', path: '/dashboard' },
+                        { label: 'Masters', path: '/masters' },
+                        { label: 'Employees', path: '/masters/employees' },
+                        { label: 'Reporting Hierarchy' },
+                    ]}
+                    actions={
+                        <Button variant="outline-secondary" onClick={() => navigate(-1)}>
+                            <FaArrowLeft className="me-2" /> Back
+                        </Button>
+                    }
+                />
+            )}
 
             {error && (
                 <Alert variant="danger" className="mb-4">
@@ -311,24 +321,24 @@ const ReportingHierarchyPage: React.FC = () => {
                             <tbody>
                                 {filteredRelations.length > 0 ? (
                                     filteredRelations.map((relation) => {
-                                        const emp = employees.find(e => e.id === relation.employeeId);
-                                        const mgr = employees.find(e => e.id === relation.reportingToId);
+                                        const sub = employees.find(e => e.id === relation.subordinateEmployeeNumber);
+                                        const sup = employees.find(e => e.id === relation.supervisorEmployeeNumber);
                                         return (
                                             <tr key={relation.id}>
                                                 <td>
                                                     <Badge bg="secondary" className="me-2">
-                                                        {relation.employeeCode || emp?.empId}
+                                                        {sub?.empId || relation.subordinateEmployeeNumber}
                                                     </Badge>
-                                                    <strong>{relation.employeeName || emp?.empName}</strong>
+                                                    <strong>{sub?.empName || `Employee #${relation.subordinateEmployeeNumber}`}</strong>
                                                 </td>
-                                                <td className="text-muted">{emp?.empDesignation || 'N/A'}</td>
+                                                <td className="text-muted">{sub?.empDesignation || 'N/A'}</td>
                                                 <td>
                                                     <Badge bg="info" className="me-2">
-                                                        {relation.reportingToCode || mgr?.empId}
+                                                        {sup?.empId || relation.supervisorEmployeeNumber}
                                                     </Badge>
-                                                    <strong>{relation.reportingToName || mgr?.empName}</strong>
+                                                    <strong>{sup?.empName || `Employee #${relation.supervisorEmployeeNumber}`}</strong>
                                                 </td>
-                                                <td className="text-muted">{mgr?.empDesignation || 'N/A'}</td>
+                                                <td className="text-muted">{sup?.empDesignation || 'N/A'}</td>
                                                 <td className="text-center">
                                                     <Button
                                                         variant="outline-primary"

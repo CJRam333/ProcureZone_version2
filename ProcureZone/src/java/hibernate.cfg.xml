@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC "-//Hibernate/Hibernate Configuration DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+  <session-factory>
+    <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+    <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+    <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/seeds_indent?useUnicode=true&amp;characterEncoding=UTF-8</property>
+    <!--    <property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
+    <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/seeds_indent?zeroDateTimeBehavior=convertToNull</property>-->
+    <property name="hibernate.connection.username">root</property>
+    <!--<property name="hibernate.connection.username">ramesh</property>
+    <property name="hibernate.connection.password">seedsclinic</property>-->
+    <property name="hibernate.connection.password"/>
+    <!--<property name="hibernate.connection.password">ezone160@172169160</property>-->
+    <property name="hibernate.current_session_context_class">org.hibernate.context.ThreadLocalSessionContext</property>
+    <mapping resource="pojo/TblIndentDetails.hbm.xml"/>
+    <mapping resource="pojo/TblMapCompanyDepartment.hbm.xml"/>
+    <mapping resource="pojo/TblCompanyMaster.hbm.xml"/>
+    <mapping resource="pojo/TblMapCompanyLocation.hbm.xml"/>
+    <mapping resource="pojo/TblDepartmentMaster.hbm.xml"/>
+    <mapping resource="pojo/TblMapEmpRoles.hbm.xml"/>
+    <mapping resource="pojo/TblRolesMaster.hbm.xml"/>
+    <mapping resource="pojo/TblMapEmpReporting.hbm.xml"/>
+    <mapping resource="pojo/TblSectionMaster.hbm.xml"/>
+    <mapping resource="pojo/TblIndentStatus.hbm.xml"/>
+    <mapping resource="pojo/TblIndentMaster.hbm.xml"/>
+    <mapping resource="pojo/TblLocationMaster.hbm.xml"/>
+    <mapping resource="pojo/TblUserMaster.hbm.xml"/>
+    <mapping resource="pojo/TblEmpMaster.hbm.xml"/>
+    <mapping resource="pojo/TblMaterialMaster.hbm.xml"/>
+    <mapping resource="pojo/TblMapCompanyLocationMaterial.hbm.xml"/>
+    <mapping resource="pojo/TblPlantMaster.hbm.xml"/>
+    <mapping resource="pojo/TblUmoMaster.hbm.xml"/>
+    <mapping resource="pojo/TblMapCompanyPlantMaterial.hbm.xml"/>
+    <mapping resource="pojo/TblIndentProcurementLogs.hbm.xml"/>
+    <mapping resource="pojo/TblLdapConfig.hbm.xml"/>
+    <mapping resource="pojo/TblMapCompanyEmp.hbm.xml"/>
+    <mapping resource="pojo/TblGoodsReceipt.hbm.xml"/>
+    <mapping resource="pojo/TblIssueNote.hbm.xml"/>
+    <mapping resource="pojo/TblIssueNoteDetails.hbm.xml"/>
+    <mapping resource="pojo/TblCropMaster.hbm.xml"/>
+    <mapping resource="pojo/TblPzMaterialMaster.hbm.xml"/>
+    <mapping resource="pojo/TblPzUmoMaster.hbm.xml"/>
+    <mapping resource="pojo/TblPzCompanyMaster.hbm.xml"/>
+    <mapping resource="pojo/TblPzScheduleMaterialmaster.hbm.xml"/>
+    <mapping resource="pojo/TblPzCropsType.hbm.xml"/>
+    <mapping resource="pojo/TblPzProcPack.hbm.xml"/>
+    <mapping resource="pojo/TbPzlIndentMaster.hbm.xml"/>
+    <mapping resource="pojo/TblPzIndentDetails.hbm.xml"/>
+    <mapping resource="pojo/TbPzlIndentMastera.hbm.xml"/>
+    <mapping resource="pojo/TblPlantOrderType.hbm.xml"/>
+    <mapping resource="pojo/TblPlantLineCode.hbm.xml"/>
+    <mapping resource="pojo/TblPzMapCompanyPlantMaterial.hbm.xml"/>
+    <mapping resource="pojo/TblPzPlantStoLocation.hbm.xml"/>
+    <mapping resource="pojo/TblPzTblEmpPlantMap.hbm.xml"/>
+  </session-factory>
+</hibernate-configuration>

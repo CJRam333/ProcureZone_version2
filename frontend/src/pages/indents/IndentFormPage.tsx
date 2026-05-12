@@ -446,7 +446,7 @@ const IndentFormPage: React.FC = () => {
                     <th style={{ minWidth: '280px' }}>Material</th>
                     <th style={{ width: '80px' }} className="text-center">UOM</th>
                     <th style={{ width: '100px' }} className="text-center">Qty</th>
-                    <th style={{ width: '120px' }} className="text-end">Rate (₹)</th>
+                    {/* <th style={{ width: '120px' }} className="text-end">Rate</th> */}
                     <th style={{ width: '130px' }} className="text-end">Value (₹)</th>
                     <th style={{ width: '150px' }}>Remarks</th>
                     <th style={{ width: '50px' }}></th>
@@ -599,16 +599,7 @@ const IndentFormPage: React.FC = () => {
                           isInvalid={!!errors.items?.[index]?.requestedQuantity}
                         />
                       </td>
-                      <td>
-                        <Form.Control
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          size="sm"
-                          className="text-end"
-                          {...register(`items.${index}.estimatedRate`, { valueAsNumber: true })}
-                        />
-                      </td>
+                      {/* <td>estimatedRate input hidden</td> */}
                       <td className="text-end">
                         <strong className="text-success">
                           {new Intl.NumberFormat('en-IN', {

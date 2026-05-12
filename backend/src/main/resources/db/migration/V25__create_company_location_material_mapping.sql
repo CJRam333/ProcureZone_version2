@@ -1,0 +1,6 @@
+-- V25: Company-Location-Material Mapping
+-- -------------------------------------------------
+-- Table and indexes already exist in legacy schema.
+-- This migration is intentionally left blank.
+-- Purpose: Align Flyway version history only.
+-- -------------------------------------------------

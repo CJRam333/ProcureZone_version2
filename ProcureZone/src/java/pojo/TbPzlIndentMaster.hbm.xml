@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TbPzlIndentMaster" table="pz_tbl_indent_master" catalog="seeds_indent">
+   <id name="indentId" type="java.lang.Integer">
+            <column name="indent_id" />
+            <generator class="identity"></generator>
+        </id>
+        
+        <property name="indentCode" type="string">
+            <column name="indent_code"  />
+                </property>
+        
+        <property name="empNo" type="string">
+            <column name="emp_no"  />
+                </property>
+        
+        <property name="empPlant" type="int">
+            <column name="emp_plant"  />
+                </property>
+        
+       
+
+        <property name="indentNo" type="string">
+            <column name="indent_number"  />
+                </property>
+        
+        
+
+        <property name="indentRemarks" type="string">
+                    <column name="indent_remarks"  />
+                </property>
+
+        
+
+
+        <property name="cropType" type="string">
+                    <column name="crop_type" length="20"  />
+                </property>
+
+        <property name="indCrop" type="string">
+                    <column name="ind_crop" length="20" />
+                </property>
+
+        <property name="packPross" type="string">
+                    <column name="pack_process" length="20"  />
+                </property>
+
+        <property name="outMaterial" type="string">
+                    <column name="out_material" length="20" />
+                </property>
+
+        <property name="outDesc" type="string">
+                    <column name="out_desc" length="20"  />
+                </property>
+
+        <property name="batchNumber" type="int">
+                    <column name="batch_number" length="20" />
+                </property>
+
+        <property name="masterUom" type="string">
+                    <column name="master_uom" length="20" />
+                </property>
+
+        <property name="lineCode" type="string">
+                    <column name="line_code" length="20"  />
+                </property>
+
+        <property name="lineDesc" type="string">
+                    <column name="line_desc" length="20" />
+                </property>
+
+        <property name="expoutQty" type="string">
+                    <column name="expected_quontity" length="20"  />
+                </property>
+                
+  </class>
+</hibernate-mapping>

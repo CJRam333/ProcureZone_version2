@@ -52,3 +52,43 @@
     display: none !important;
   }
 }
+
+/* ─── Compact Mode ──────────────────────────────────────────────────────── */
+body.compact-mode .content-wrapper {
+  padding: 0.75rem !important;
+}
+
+body.compact-mode .card {
+  margin-bottom: 0.5rem !important;
+}
+
+body.compact-mode .card-body {
+  padding: 0.65rem 0.9rem !important;
+}
+
+body.compact-mode .card-header {
+  padding: 0.4rem 0.9rem !important;
+}
+
+body.compact-mode .table td,
+body.compact-mode .table th {
+  padding: 0.35rem 0.5rem !important;
+  font-size: 0.85rem;
+}
+
+body.compact-mode .btn {
+  padding: 0.2rem 0.55rem !important;
+  font-size: 0.85rem;
+}
+
+body.compact-mode .mb-3 {
+  margin-bottom: 0.5rem !important;
+}
+
+body.compact-mode .mb-4 {
+  margin-bottom: 0.75rem !important;
+}
+
+body.compact-mode h5 {
+  font-size: 0.95rem;
+}

@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblIssueNote" table="tbl_issue_note" catalog="seeds_indent">
+        <id name="issueNoteId" type="java.lang.Integer">
+            <column name="issue_note_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMasterByIssueNoteStoresby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="issue_note_storesby" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIssueNoteLmu" class="pojo.TblEmpMaster" fetch="select">
+            <column name="issue_note_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIssueNoteApprovedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="issue_note_approvedby" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIssueNoteCreatedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="issue_note_createdby" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByIssueNoteApprovedStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="issue_note_approved_status" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByIssueNoteStoresbyStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="issue_note_storesby_status" />
+        </many-to-one>        
+        <many-to-one name="tblCompanyMaster" class="pojo.TblCompanyMaster" fetch="select">
+            <column name="issue_note_company" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblDepartmentMaster" class="pojo.TblDepartmentMaster" fetch="select">
+            <column name="issue_note_dept" not-null="true"/>
+        </many-to-one>
+        <many-to-one name="tblSectionMaster" class="pojo.TblSectionMaster" fetch="select">
+            <column name="issue_note_sec" not-null="true"/>
+        </many-to-one>
+        <many-to-one name="tblPlantMaster" class="pojo.TblPlantMaster" fetch="select">
+            <column name="issue_note_plant" not-null="true" />
+        </many-to-one>
+        <property name="issueNoteYear" type="string">
+            <column name="issue_note_year" length="45" not-null="true"/>
+        </property>
+        <property name="issueNoteNo" type="string">
+            <column name="issue_note_no" not-null="true" length="13"/>
+        </property>        
+        <property name="issueNoteCreatedDate" type="string">
+            <column name="issue_note_created_date" length="20" />
+        </property>
+        <property name="issueNoteCreatedRemarks" type="string">
+            <column name="issue_note_created_remarks" length="16777215" />
+        </property>
+        <property name="issueNoteApprovedbyDate" type="string">
+            <column name="issue_note_approvedby_date" length="20" />
+        </property>
+        <property name="issueNoteApprovedbyRemarks" type="string">
+            <column name="issue_note_approvedby_remarks" length="16777215" />
+        </property>       
+        <property name="issueNoteStoresbyDate" type="string">
+            <column name="issue_note_storesby_date" length="20" />
+        </property>
+        <property name="issueNoteStoresbyRemarks" type="string">
+            <column name="issue_note_storesby_remarks" length="16777215" />
+        </property>
+        <property name="issueNoteStatus" type="int">
+            <column name="issue_note_status" not-null="true" />
+        </property>
+        <property name="issueNoteLmd" type="string">
+            <column name="issue_note_lmd" length="20" not-null="true" />
+        </property>
+    </class>
+</hibernate-mapping>

@@ -1,0 +1,26 @@
+{
+  "id": "procurezone-env",
+  "name": "ProcureZone Local Environment",
+  "values": [
+    {"key": "base_url", "value": "http://localhost:8080", "enabled": true},
+    {"key": "api_version", "value": "v1", "enabled": true},
+    {"key": "username", "value": "vikram.singh", "enabled": true},
+    {"key": "password", "value": "password123", "enabled": true},
+    {"key": "access_token", "value": "", "enabled": true},
+    {"key": "user_id", "value": "", "enabled": true},
+    {"key": "test_user_id", "value": "1", "enabled": true},
+    {"key": "employee_number", "value": "6", "enabled": true},
+    {"key": "company_id", "value": "1", "enabled": true},
+    {"key": "material_id", "value": "", "enabled": true},
+    {"key": "department_id", "value": "101", "enabled": true},
+    {"key": "plant_id", "value": "301", "enabled": true},
+    {"key": "location_id", "value": "", "enabled": true},
+    {"key": "vendor_id", "value": "", "enabled": true},
+    {"key": "indent_id", "value": "1", "enabled": true},
+    {"key": "po_id", "value": "", "enabled": true},
+    {"key": "grn_id", "value": "", "enabled": true},
+    {"key": "issue_note_id", "value": "", "enabled": true},
+    {"key": "created_user_id", "value": "", "enabled": true}
+  ],
+  "_postman_variable_scope": "environment"
+}

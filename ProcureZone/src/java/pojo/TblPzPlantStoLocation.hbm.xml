@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzPlantStoLoction" table="pz_plant_storage_locations" catalog="seeds_indent">
+      <id name="plantId" type="int">
+            <column name="id" not-null="true"/>
+            <generator class="identity"></generator>
+        </id>
+        
+        <property name="plantCode" type="int">
+            <column name="plant_code"  />
+        </property>
+        <property name="plantName" type="string">
+            <column name="Plant_name" />
+        </property>
+        <property name="stoLoc" type="string">
+            <column name="sto_loc"/>
+        </property>
+        <property name="stoLocDesc" type="string">
+            <column name="sto_loc_desc" />
+        </property>
+        <property name="plantStatus" type="int">
+            <column name="status" />
+        </property>
+  </class>
+</hibernate-mapping>

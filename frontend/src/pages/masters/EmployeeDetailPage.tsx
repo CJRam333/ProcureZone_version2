@@ -245,7 +245,7 @@ const EmployeeDetailPage: React.FC = () => {
                                 <Button
                                     size="sm"
                                     variant="outline-primary"
-                                    onClick={() => navigate('/mappings/employee-roles')}
+                                    onClick={() => navigate('/masters/employees?tab=role-mapping')}
                                 >
                                     Manage Roles
                                 </Button>

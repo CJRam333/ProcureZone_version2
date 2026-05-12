@@ -1,0 +1,539 @@
+newman
+
+ProcureZone API Test Suite V2 - Corrected Endpoints
+
+□ 01-Authentication
+└ AUTH-01: Login
+  ┌
+  │ 'Token missing - will be set by login request'
+  └
+  POST http://localhost:8080/api/v1/auth/login [200 OK, 1.03kB, 104ms]
+  √  Response time < 2000ms
+  √  Status 200 OK
+  √  Has access token
+  √  Has user info
+
+└ AUTH-02: Login Invalid Password
+  POST http://localhost:8080/api/v1/auth/login [401 Unauthorized, 554B, 75ms]
+  √  Response time < 2000ms
+  √  Status 401
+
+└ AUTH-03: Login Non-existent User
+  POST http://localhost:8080/api/v1/auth/login [401 Unauthorized, 551B, 11ms]
+  √  Response time < 2000ms
+  √  Status 401
+
+└ AUTH-04: Login Empty Payload
+  POST http://localhost:8080/api/v1/auth/login [400 Bad Request, 549B, 13ms]
+  √  Response time < 2000ms
+  √  Status 400
+
+└ AUTH-05: Get Current User
+  GET http://localhost:8080/api/v1/auth/me [200 OK, 575B, 12ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has user data
+
+□ 02-Users
+└ USER-01: List All Users
+  GET http://localhost:8080/api/v1/users [200 OK, 3.96kB, 45ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has user list
+  ┌
+  │ 'Set test_user_id:', 3
+  └
+
+└ USER-02: Get User By ID
+  GET http://localhost:8080/api/v1/users/6 [200 OK, 663B, 20ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has user data
+
+└ USER-03: Create User
+  POST http://localhost:8080/api/v1/users [404 Not Found, 564B, 33ms]
+  √  Response time < 2000ms
+  √  Status 201/400/403/404/409 (permission/validation/not-found)
+
+└ USER-04: Update User Profile
+  PUT http://localhost:8080/api/v1/users/6 [400 Bad Request, 524B, 18ms]
+  √  Response time < 2000ms
+  √  Status 200 or 400/403 (permission/validation)
+
+└ USER-05: Change Password
+  POST http://localhost:8080/api/v1/users/6/change-password [200 OK, 382B, 169ms]
+  √  Response time < 2000ms
+  √  Status 200 or 400/403 (permission/validation)
+
+└ USER-06: Reset Password (Admin)
+  POST http://localhost:8080/api/v1/users/reset-password [200 OK, 382B, 83ms]
+  √  Response time < 2000ms
+  √  Status 200 or 400/403 (permission/validation)
+
+└ USER-07: Lock User Account
+  POST http://localhost:8080/api/v1/users/3/lock [200 OK, 382B, 13ms]
+  √  Response time < 2000ms
+  √  Status 200 or 403 (permission)
+
+└ USER-08: Unlock User Account
+  POST http://localhost:8080/api/v1/users/3/unlock [200 OK, 382B, 15ms]
+  √  Response time < 2000ms
+  √  Status 200 or 403 (permission)
+
+□ 03-Employees
+└ EMP-01: List All Employees
+  GET http://localhost:8080/api/v1/employees [200 OK, 6.12kB, 51ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has employee list
+  ┌
+  │ 'Set test_employee_id:', 24
+  └
+
+└ EMP-02: Get Employee By ID
+  GET http://localhost:8080/api/v1/employees/6 [200 OK, 980B, 21ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has employee data
+
+└ EMP-03: Get Non-existent Employee
+  GET http://localhost:8080/api/v1/employees/99999 [404 Not Found, 553B, 10ms]
+  √  Response time < 2000ms
+  √  Status 404
+
+└ EMP-04: Search Employees
+  GET http://localhost:8080/api/v1/employees/search?query=ravi [200 OK, 1.01kB, 31ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has search results
+
+└ EMP-05: Get Employee Roles
+  GET http://localhost:8080/api/v1/employees/6/roles [200 OK, 580B, 13ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has roles list or set
+
+└ EMP-06: Get Employees by Department
+  GET http://localhost:8080/api/v1/employees/by-department/101 [200 OK, 5.04kB, 66ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has employee list
+
+└ EMP-07: Get Employee Statistics
+  GET http://localhost:8080/api/v1/employees/statistics [200 OK, 1.41kB, 26ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has statistics data
+
+└ EMP-08: Create Employee
+  POST http://localhost:8080/api/v1/employees [400 Bad Request, 693B, 42ms]
+  √  Response time < 2000ms
+  √  Status 201/400/403 (permission/validation)
+
+└ EMP-09: Update Employee
+  PUT http://localhost:8080/api/v1/employees/24 [200 OK, 923B, 47ms]
+  √  Response time < 2000ms
+  √  Status 200/400/403/404 (permission/validation/not-found)
+
+└ EMP-10: Assign Role to Employee
+  POST http://localhost:8080/api/v1/employees/24/roles [200 OK, 382B, 27ms]
+  √  Response time < 2000ms
+  √  Status 200/400/403/404/409 (permission/validation/conflict)
+
+└ EMP-11: Activate Employee
+  POST http://localhost:8080/api/v1/employees/24/activate [200 OK, 382B, 10ms]
+  √  Response time < 2000ms
+  √  Status 200/403/404 (permission/not-found)
+
+└ EMP-12: Deactivate Employee
+  POST http://localhost:8080/api/v1/employees/24/deactivate [200 OK, 382B, 12ms]
+  √  Response time < 2000ms
+  √  Status 200/403/404 (permission/not-found)
+
+□ 04-Approvals
+└ APR-01: Get Pending Approvals
+  GET http://localhost:8080/api/v1/approvals/pending [200 OK, 425B, 14ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has pending approvals list
+
+└ APR-02: Get Pending For Me with Department
+  GET http://localhost:8080/api/v1/approvals/pending-for-me?departmentId=101 [200 OK, 425B, 10ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has pending list
+
+└ APR-03: Get Department Indents
+  GET http://localhost:8080/api/v1/approvals/department-indents?departmentId=101 [200 OK, 3.73kB, 30ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has paginated response
+
+└ APR-04: Get Approval Workflow History
+  GET http://localhost:8080/api/v1/approvals/indents/{{indent_id}}/approval-workflow [500 Internal Server Error, 650B, 7ms]
+  √  Response time < 2000ms
+  1. Status 200 or 404
+
+└ APR-05: Approve Indent (with remarks)
+  POST http://localhost:8080/api/v1/approvals/indents/{{indent_id}}/approve?remarks=Approved via API test [500 Internal Server Error, 647B, 7ms]
+  √  Response time < 2000ms
+  2. Status 200/400/403/404 (validation/permission/not-found)
+
+└ APR-06: Reject Indent (with remarks)
+  POST http://localhost:8080/api/v1/approvals/indents/{{indent_id}}/reject?remarks=Rejected via API test - insufficient justification [500 Internal Server Error, 650B, 8ms]
+  √  Response time < 2000ms
+  3. Status 200/400/403/404 (validation/permission/not-found)
+
+└ APR-07: Request Info on Indent
+  POST http://localhost:8080/api/v1/approvals/indents/{{indent_id}}/request-info [500 Internal Server Error, 650B, 9ms]
+  √  Response time < 2000ms
+  4. Status 200/400/403/404 (validation/permission/not-found)
+
+└ APR-08: Approve Non-existent Indent
+  POST http://localhost:8080/api/v1/approvals/indents/99999/approve?remarks=Test [404 Not Found, 548B, 10ms]
+  √  Response time < 2000ms
+  √  Status 404
+
+□ 05-Companies
+└ COMP-01: List All
+  GET http://localhost:8080/api/v1/companies [200 OK, 2.34kB, 15ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has data
+
+└ COMP-02: Get Active
+  GET http://localhost:8080/api/v1/companies/active [200 OK, 2.34kB, 14ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ COMP-03: Get By ID
+  GET http://localhost:8080/api/v1/companies/1 [200 OK, 563B, 13ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ COMP-04: Get Non-existent
+  GET http://localhost:8080/api/v1/companies/99999 [404 Not Found, 549B, 9ms]
+  √  Response time < 2000ms
+  √  Status 404
+
+└ COMP-05: Search
+  GET http://localhost:8080/api/v1/companies/search?query=NSL [200 OK, 2.34kB, 10ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 06-Materials
+└ MAT-01: List All
+  GET http://localhost:8080/api/v1/materials [200 OK, 4.44kB, 15ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ MAT-02: Get Active
+  GET http://localhost:8080/api/v1/materials/active [200 OK, 4.44kB, 12ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ MAT-03: Get By ID (1001)
+  GET http://localhost:8080/api/v1/materials/1001 [200 OK, 646B, 10ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ MAT-04: Search
+  GET http://localhost:8080/api/v1/materials/search?query=seed [200 OK, 4.44kB, 10ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 07-Departments
+└ DEPT-01: List All
+  GET http://localhost:8080/api/v1/departments [200 OK, 3.17kB, 13ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DEPT-02: Get By ID (101)
+  GET http://localhost:8080/api/v1/departments/101 [200 OK, 561B, 11ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DEPT-03: Get Non-existent (99999)
+  GET http://localhost:8080/api/v1/departments/99999 [404 Not Found, 552B, 8ms]
+  √  Response time < 2000ms
+  √  Status 404
+
+□ 09-Plants
+└ PLANT-01: List All
+  GET http://localhost:8080/api/v1/plants [200 OK, 1.48kB, 27ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ PLANT-02: Get By ID (301)
+  GET http://localhost:8080/api/v1/plants/301 [200 OK, 572B, 10ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ PLANT-03: Get Non-existent (99999)
+  GET http://localhost:8080/api/v1/plants/99999 [404 Not Found, 547B, 8ms]
+  √  Response time < 2000ms
+  √  Status 404
+
+□ 10-Locations
+└ LOC-01: List All
+  GET http://localhost:8080/api/v1/locations [200 OK, 1.75kB, 13ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 11-UOMs
+└ UOM-01: List All
+  GET http://localhost:8080/api/v1/unit-of-measures [200 OK, 2.53kB, 13ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 12-Vendors
+└ VND-01: List All
+  GET http://localhost:8080/api/v1/vendors [200 OK, 14.45kB, 20ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ VND-02: Get Active
+  GET http://localhost:8080/api/v1/vendors/active [200 OK, 14.59kB, 15ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ VND-03: Get By ID (1)
+  GET http://localhost:8080/api/v1/vendors/1 [200 OK, 1.18kB, 10ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ VND-04: Get Non-existent (99999)
+  GET http://localhost:8080/api/v1/vendors/99999 [404 Not Found, 548B, 11ms]
+  √  Response time < 2000ms
+  √  Status 404
+
+└ VND-05: Search
+  GET http://localhost:8080/api/v1/vendors/search?keyword=agri [200 OK, 2.78kB, 19ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 13-Indents
+└ IND-01: List All
+  GET http://localhost:8080/api/v1/indents [200 OK, 3.73kB, 50ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ IND-02: Get By ID (1001)
+  GET http://localhost:8080/api/v1/indents/1001 [404 Not Found, 586B, 17ms]
+  √  Response time < 2000ms
+  √  Status 200 or 404
+
+└ IND-03: Get By Status (1)
+  GET http://localhost:8080/api/v1/indents/status/1 [200 OK, 2.74kB, 44ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ IND-04: Search
+  GET http://localhost:8080/api/v1/indents/search?q=IND [200 OK, 3.74kB, 61ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ IND-05: Get Non-existent (99999)
+  GET http://localhost:8080/api/v1/indents/99999 [404 Not Found, 548B, 12ms]
+  √  Response time < 2000ms
+  √  Status 404
+
+□ 14-Purchase-Orders
+└ PO-01: List All
+  GET http://localhost:8080/api/v1/pos [200 OK, 3.43kB, 64ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ PO-02: Get By ID (1)
+  GET http://localhost:8080/api/v1/pos/1 [404 Not Found, 552B, 18ms]
+  √  Response time < 2000ms
+  √  Status 200 or 404
+
+└ PO-03: Get Approved Indents
+  GET http://localhost:8080/api/v1/pos/approved-indents [200 OK, 425B, 32ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ PO-04: Get Pending Approval
+  GET http://localhost:8080/api/v1/pos/pending-approval [200 OK, 1.58kB, 31ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ PO-05: Get Overdue
+  GET http://localhost:8080/api/v1/pos/overdue [200 OK, 3.44kB, 65ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ PO-06: Dashboard Statistics
+  GET http://localhost:8080/api/v1/pos/dashboard/statistics [200 OK, 656B, 24ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 15-GRN
+└ GRN-01: List All
+  GET http://localhost:8080/api/v1/grn [200 OK, 483B, 17ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ GRN-02: Get By ID (1)
+  GET http://localhost:8080/api/v1/grn/1 [404 Not Found, 541B, 15ms]
+  √  Response time < 2000ms
+  √  Status 200 or 404
+
+□ 16-Issue-Notes
+└ ISS-01: List All
+  GET http://localhost:8080/api/v1/issue-notes [200 OK, 2.69kB, 35ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ ISS-02: Get By ID (1)
+  GET http://localhost:8080/api/v1/issue-notes/1 [404 Not Found, 548B, 11ms]
+  √  Response time < 2000ms
+  √  Status 200 or 404
+
+□ 17-Inventory
+└ INV-01: List All
+  GET http://localhost:8080/api/v1/inventory [200 OK, 1.13kB, 39ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ INV-02: Low Stock
+  GET http://localhost:8080/api/v1/inventory/low-stock [200 OK, 459B, 52ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ INV-03: Critical Stock
+  GET http://localhost:8080/api/v1/inventory/critical-stock [200 OK, 494B, 11ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ INV-04: Statistics
+  GET http://localhost:8080/api/v1/inventory/statistics [200 OK, 638B, 18ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ INV-05: Transactions
+  GET http://localhost:8080/api/v1/inventory/transactions [200 OK, 1.72kB, 21ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 18-Dashboard
+└ DASH-01: Statistics
+  GET http://localhost:8080/api/v1/dashboard/statistics [200 OK, 6.54kB, 101ms]
+  √  Response time < 2000ms
+  √  Status 200
+  √  Has stats
+
+└ DASH-02: Summary
+  GET http://localhost:8080/api/v1/dashboard/summary [200 OK, 657B, 12ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-03: Pending Approvals
+  GET http://localhost:8080/api/v1/dashboard/pending-approvals [200 OK, 1.36kB, 9ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-04: Indent Stats
+  GET http://localhost:8080/api/v1/dashboard/indents/stats [200 OK, 617B, 14ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-05: PO Stats
+  GET http://localhost:8080/api/v1/dashboard/purchase-orders/stats [200 OK, 571B, 13ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-06: GRN Stats
+  GET http://localhost:8080/api/v1/dashboard/goods-receipts/stats [200 OK, 513B, 12ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-07: Inventory Stats
+  GET http://localhost:8080/api/v1/dashboard/inventory/stats [200 OK, 582B, 11ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-08: Vendor Stats
+  GET http://localhost:8080/api/v1/dashboard/vendors/stats [200 OK, 529B, 11ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-09: Monthly Trends
+  GET http://localhost:8080/api/v1/dashboard/trends/monthly [200 OK, 1.2kB, 25ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-10: Department Breakdown
+  GET http://localhost:8080/api/v1/dashboard/breakdown/department [200 OK, 1.59kB, 11ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-11: Top Materials
+  GET http://localhost:8080/api/v1/dashboard/top-materials [200 OK, 2.11kB, 15ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+└ DASH-12: Alerts
+  GET http://localhost:8080/api/v1/dashboard/alerts [200 OK, 771B, 9ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+□ 19-Reports
+└ RPT-01: Material Quantity Report
+  GET http://localhost:8080/api/v1/reports/material-quantity [500 Internal Server Error, 905B, 71ms]
+  √  Response time < 2000ms
+  √  Status 200, 403, or 500 (role-dependent)
+
+└ RPT-02: Low Stock Alert Report
+  GET http://localhost:8080/api/v1/reports/low-stock-alert [500 Internal Server Error, 1.04kB, 10ms]
+  √  Response time < 2000ms
+  √  Status 200, 403, or 500 (role-dependent)
+
+□ 99-Cleanup
+└ FINAL: Logout
+  POST http://localhost:8080/api/v1/auth/logout [200 OK, 506B, 11ms]
+  √  Response time < 2000ms
+  √  Status 200
+
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                90 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │               180 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                90 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │               196 │                4 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 9.8s                                       │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 115.31kB (approx)                         │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 25ms [min: 7ms, max: 169ms, s.d.: 26ms] │
+└────────────────────────────────────────────────────────────────┘
+
+[31m  # [39m[31m failure        [39m[31m detail                                                        [39m
+[90m    [39m[90m                [39m[90m                                                               [39m
+ 1.  AssertionError  Status 200 or 404                                             
+                     expected [ 200, 404 ] to include 500                          
+                     at assertion:0 in test-script                                 
+                     inside "04-Approvals / APR-04: Get Approval Workflow History" 
+[90m    [39m[90m                [39m[90m                                                               [39m
+ 2.  AssertionError  Status 200/400/403/404 (validation/permission/not-found)      
+                     expected [ 200, 400, 403, 404 ] to include 500                
+                     at assertion:0 in test-script                                 
+                     inside "04-Approvals / APR-05: Approve Indent (with remarks)" 
+[90m    [39m[90m                [39m[90m                                                               [39m
+ 3.  AssertionError  Status 200/400/403/404 (validation/permission/not-found)      
+                     expected [ 200, 400, 403, 404 ] to include 500                
+                     at assertion:0 in test-script                                 
+                     inside "04-Approvals / APR-06: Reject Indent (with remarks)"  
+[90m    [39m[90m                [39m[90m                                                               [39m
+ 4.  AssertionError  Status 200/400/403/404 (validation/permission/not-found)      
+                     expected [ 200, 400, 403, 404 ] to include 500                
+                     at assertion:0 in test-script                                 
+                     inside "04-Approvals / APR-07: Request Info on Indent"        

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPlantLineCode" table="pz_tbl_line_code" catalog="seeds_indent">
+      
+        
+        <id name="lineId" type="int">
+                  <column name="line_id" not-null="true"/>
+                  <generator class="identity"></generator>
+        </id> 
+        
+        <property name="linePlant" type="int">
+            <column name="line_plant"/>
+        </property>
+        
+        <property name="lineActivtyType" type="string">
+            <column name="line_activity_type" />
+        </property>
+        
+        <property name="lineCode" type="string">
+            <column name="line_code"/>
+        </property>
+        
+        <property name="lineDesc" type="string">
+            <column name="line_desc"/>
+        </property>
+        <property name="lineActDesc" type="string">
+            <column name="line_activity_desc"/>
+        </property>
+        <property name="lineStatus" type="int">
+            <column name="line_status"/>
+        </property>
+        
+  </class>
+</hibernate-mapping>
+

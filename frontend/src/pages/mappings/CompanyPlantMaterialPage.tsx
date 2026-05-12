@@ -46,7 +46,11 @@ const plantMaterialApi = {
   },
 };
 
-const CompanyPlantMaterialPage: React.FC = () => {
+interface CompanyPlantMaterialPageProps {
+  embedded?: boolean;
+}
+
+const CompanyPlantMaterialPage: React.FC<CompanyPlantMaterialPageProps> = ({ embedded = false }) => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [plantFilter, setPlantFilter] = useState<string>('');
@@ -83,11 +87,11 @@ const CompanyPlantMaterialPage: React.FC = () => {
     queryFn: () => plantsApi.getActive(0, 100),
   });
 
-  // Fetch materials for search
+  // Fetch materials for search — load on focus/open OR when search text changes
   const { data: materialsData } = useQuery({
     queryKey: ['materials-search', materialSearch],
-    queryFn: () => materialsApi.list({ search: materialSearch, size: 20, isActive: true }),
-    enabled: materialSearch.length >= 2,
+    queryFn: () => materialsApi.list({ search: materialSearch || undefined, size: 50, isActive: true }),
+    enabled: showMaterialDropdown,
   });
 
   // Fetch mappings
@@ -191,14 +195,18 @@ const CompanyPlantMaterialPage: React.FC = () => {
       return;
     }
 
+    const selectedPlant = plantsData?.content?.find(
+      (p: { id: number; companyId?: number }) => p.id === formData.plantId
+    );
+
     const payload = {
+      companyId: selectedPlant?.companyId || 1, // companyId required by backend
       plantId: formData.plantId,
       materialId: formData.materialId,
-      minQuantity: formData.minQuantity,
-      maxQuantity: formData.maxQuantity,
-      reorderLevel: formData.reorderLevel,
-      leadTimeDays: formData.leadTimeDays,
-      isActive: formData.isActive,
+      quantity: formData.maxQuantity ? String(formData.maxQuantity) : undefined,
+      reorderLevel: formData.reorderLevel ? String(formData.reorderLevel) : undefined,
+      maxLevel: formData.maxQuantity ? String(formData.maxQuantity) : undefined,
+      status: formData.isActive ? 1 : 0,
     };
 
     if (isEditing && selectedMapping) {
@@ -279,19 +287,30 @@ const CompanyPlantMaterialPage: React.FC = () => {
 
   return (
     <div className="company-plant-material">
-      <PageHeader
-        title="Plant-Material Mapping"
-        subtitle="Configure material availability and stock levels for each plant"
-        breadcrumbs={[
-          { label: 'Mappings', path: '/mappings' },
-          { label: 'Plant-Material', path: '' },
-        ]}
-        actions={
+      {!embedded && (
+        <PageHeader
+          title="Plant-Material Mapping"
+          subtitle="Configure material availability and stock levels for each plant"
+          breadcrumbs={[
+            { label: 'Dashboard', path: '/dashboard' },
+            { label: 'Masters', path: '/masters' },
+            { label: 'Plants', path: '/masters/plants' },
+            { label: 'Material Mapping' },
+          ]}
+          actions={
+            <Button variant="primary" onClick={openAddModal}>
+              <FaPlus className="me-1" /> Add Mapping
+            </Button>
+          }
+        />
+      )}
+      {embedded && (
+        <div className="d-flex justify-content-end mb-3">
           <Button variant="primary" onClick={openAddModal}>
             <FaPlus className="me-1" /> Add Mapping
           </Button>
-        }
-      />
+        </div>
+      )}
 
       {/* Summary Cards */}
       <Row className="mb-3">
@@ -314,7 +333,7 @@ const CompanyPlantMaterialPage: React.FC = () => {
         <Col md={4}>
           <Card className="bg-info bg-opacity-10 border-info">
             <Card.Body className="text-center py-3">
-              <h4 className="mb-1 text-info">19</h4>
+              <h4 className="mb-1 text-info">{mappingsData?.content?.length || 0}</h4>
               <div className="text-muted small">Materials Mapped</div>
             </Card.Body>
           </Card>

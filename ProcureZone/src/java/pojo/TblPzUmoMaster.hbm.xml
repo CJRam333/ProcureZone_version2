@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzUmoMaster" table="pz_umo_master" catalog="seeds_indent">
+      
+      <id name="umoId" type="int">
+                  <column name="umo_id" not-null="true"/>
+                  <generator class="identity"></generator>
+        </id>   
+        
+        <property name="umoNamea" type="string">
+            <column name="umo_name" length="100" not-null="true" />
+        </property>
+        
+        <property name="umoStatus" type="int">
+            <column name="umo_status"  not-null="true" />
+        </property>
+        
+       
+  </class>
+</hibernate-mapping>

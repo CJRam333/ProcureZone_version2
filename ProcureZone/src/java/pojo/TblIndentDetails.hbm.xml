@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblIndentDetails" table="tbl_indent_details" catalog="seeds_indent">
+        <id name="indentDetailsId" type="java.lang.Integer">
+            <column name="indent_details_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_details_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblIndentMaster" class="pojo.TblIndentMaster" fetch="select">
+            <column name="indent_id" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblMaterialMaster" class="pojo.TblMaterialMaster" fetch="select">
+            <column name="indent_details_material" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblUmoMaster" class="pojo.TblUmoMaster" fetch="select">
+            <column name="indent_details_umo" not-null="true" />
+        </many-to-one>
+        <property name="indentDetailsQty" type="big_decimal">
+            <column name="indent_details_qty" precision="20" not-null="true" />
+        </property>
+        <property name="indentDetailsRmQty" type="big_decimal">
+            <column name="indent_details_rm_qty" precision="20" />
+        </property>
+        <property name="indentDetailsDeptQty" type="big_decimal">
+            <column name="indent_details_dept_qty" precision="20" />
+        </property>
+        <property name="indentDetailsStockAval" type="big_decimal">
+            <column name="indent_details_stock_aval" precision="20" not-null="true" />
+        </property>
+        <property name="indentDetailsPricing" type="big_decimal">
+            <column name="indent_details_pricing" precision="20" />
+        </property>
+        <property name="indentDetailsPurpose" type="string">
+            <column name="indent_details_purpose" length="16777215" />
+        </property>
+        <property name="indentDetailsVendor" type="string">
+            <column name="indent_details_vendor" length="200" />
+        </property>
+        <property name="indentDetailsStatus" type="int">
+            <column name="indent_details_status" not-null="true" />
+        </property>
+        <property name="indentDetailsLmd" type="date">
+            <column name="indent_details_lmd" length="10" not-null="true" />
+        </property>
+    </class>
+</hibernate-mapping>

@@ -344,24 +344,17 @@ const router = createBrowserRouter([
           },
         ],
       },
+      // Vendor routes - redirect to masters
       {
         path: 'vendors',
         children: [
           {
             index: true,
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PROCUREMENT']}>
-                <VendorsListPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/vendors" replace />,
           },
           {
             path: 'new',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'PROCUREMENT']}>
-                <VendorFormPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/vendors/new" replace />,
           },
           {
             path: ':id',
@@ -373,32 +366,21 @@ const router = createBrowserRouter([
           },
           {
             path: ':id/edit',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'PROCUREMENT']}>
-                <VendorFormPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/vendors" replace />,
           },
         ],
       },
+      // Materials routes - redirect to masters
       {
         path: 'materials',
         children: [
           {
             index: true,
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <MaterialsListPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/materials" replace />,
           },
           {
             path: 'new',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <MaterialFormPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/materials/new" replace />,
           },
           {
             path: 'import',
@@ -418,11 +400,7 @@ const router = createBrowserRouter([
           },
           {
             path: ':id/edit',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <MaterialFormPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/materials" replace />,
           },
         ],
       },
@@ -923,61 +901,37 @@ const router = createBrowserRouter([
           },
         ],
       },
-      // ==================== MAPPING ROUTES ====================
+      // ==================== MAPPING REDIRECTS (backward compatibility) ====================
       {
         path: 'mappings',
         children: [
           {
             index: true,
-            element: <Navigate to="/mappings/company-departments" replace />,
+            element: <Navigate to="/masters/companies?tab=department-mapping" replace />,
           },
           {
             path: 'company-departments',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <CompanyDeptMappingPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/companies?tab=department-mapping" replace />,
           },
           {
             path: 'company-locations',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <CompanyLocationMappingPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/companies?tab=location-mapping" replace />,
           },
           {
             path: 'employee-roles',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <EmployeeRoleMappingPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/employees?tab=role-mapping" replace />,
           },
           {
             path: 'company-location-materials',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <CompanyLocationMaterialPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/locations?tab=material-mapping" replace />,
           },
           {
             path: 'reporting-hierarchy',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <ReportingHierarchyPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/employees?tab=reporting-hierarchy" replace />,
           },
           {
             path: 'plant-materials',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN']}>
-                <CompanyPlantMaterialPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/masters/plants?tab=material-mapping" replace />,
           },
         ],
       },

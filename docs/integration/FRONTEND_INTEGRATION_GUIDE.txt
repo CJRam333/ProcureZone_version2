@@ -1,0 +1,453 @@
+================================================================================
+  PROCUREZONE — BACKEND-TO-FRONTEND INTEGRATION GUIDE
+  Generated: February 27, 2026
+  Purpose: Feed this to the Frontend AI to fix mismatches and enable integration
+================================================================================
+
+
+================================================================================
+SECTION 1: CRITICAL STATUS ENUM CORRECTIONS
+================================================================================
+
+IMPORTANT: ALL status values in the backend are 1-BASED (start from 1, not 0).
+The frontend currently uses 0-based. This MUST be fixed everywhere.
+
+--- INDENT STATUS (from IndentStatus.java → tbl_indent_status table) ---
+
+  1 = Draft              (initial creation)
+  2 = Submitted          (pending HOD approval)
+  3 = Department Head Approved (L1 approved)
+  4 = Finance Approved   (L2 approved)
+  5 = Procurement Approved / PO Created
+  6 = Rejected           (rejected at any level)
+  7 = On Hold            (legacy hold status)
+  8 = Completed          (fully done)
+
+  Note: IndentStatus is a JPA entity mapped to tbl_indent_status table.
+  The status field on Indent is a FK to this table (not a plain integer).
+  The Response DTO returns both the status ID and status name.
+
+
+--- PO STATUS (from PurchaseOrder.java → po_status column, plain integer) ---
+
+  1 = Draft
+  2 = Submitted           (pending approval)
+  3 = Approved
+  4 = Sent to Vendor
+  5 = Partially Received
+  6 = Fully Received
+  7 = Cancelled
+  8 = Closed
+
+  Frontend WRONG mapping: DRAFT=0, PENDING=1, CONFIRMED=2
+  Frontend CORRECT mapping: DRAFT=1, SUBMITTED=2, APPROVED=3, SENT_TO_VENDOR=4,
+                            PARTIALLY_RECEIVED=5, FULLY_RECEIVED=6, CANCELLED=7, CLOSED=8
+
+  Business rules:
+  - Can edit:          only when status = 1 (Draft)
+  - Can approve:       only when status = 2 (Submitted)
+  - Can send to vendor: only when status = 3 (Approved)
+  - Can receive goods: only when status = 4 or 5 (Sent/Partially Received)
+  - Can cancel:        any status except 7 (Cancelled), 8 (Closed), 6 (Fully Received)
+
+
+--- GRN STATUS (from GoodsReceipt.java → goods_receipt_status column) ---
+
+  1 = Created             (pending inspection)
+  2 = Inspected           (pending RM approval)
+  3 = RM Approved         (pending Dept Head approval)
+  4 = Approved            (pending final approval)
+  5 = Final Approved      (pending storage)
+  6 = Stored              (completed — goods in inventory)
+  7 = Rejected
+
+  Frontend WRONG mapping: DRAFT=0, PENDING_QC=1, QC_APPROVED=2
+  Frontend CORRECT mapping: CREATED=1, INSPECTED=2, RM_APPROVED=3, APPROVED=4,
+                            FINAL_APPROVED=5, STORED=6, REJECTED=7
+
+  GRN has a "supervisorBypass" boolean flag:
+  - If true, skip RM approval step (status jumps from 2→4)
+  - If false, normal flow: 1→2→3→4→5→6
+
+  Business rules:
+  - Can inspect:       only when status = 1
+  - Can RM approve:    only when status = 2 AND supervisorBypass = false
+  - Can approve:       when status = 3 OR (status = 2 AND supervisorBypass = true)
+  - Can final approve: only when status = 4
+  - Can store:         only when status = 5
+  - Can reject:        any status except 6 (Stored) and 7 (Rejected)
+
+
+--- ISSUE NOTE STATUS (from IssueNote.java → issue_note_status column) ---
+
+  1  = Created             (draft)
+  2  = Pending RM Approval (submitted)
+  3  = RM Approved         (pending manager approval)
+  4  = Approved by Manager (ready for stores)
+  5  = Rejected by RM
+  6  = Rejected by Manager
+  7  = Pending Store Issue  (waiting for stores to issue)
+  8  = Issued              (materials released — done)
+  9  = Rejected by Stores  (insufficient stock)
+  10 = Returned            (materials returned to stores)
+
+  Frontend WRONG mapping: DRAFT=0, PENDING_APPROVAL=1, APPROVED=2
+  Frontend CORRECT mapping: use exact values 1-10 above
+
+  Issue Note also has "supervisorBypass" flag:
+  - If true, skip RM approval (status jumps from 2→4 on manager approval)
+  - If false, normal flow: 1→2→3→4→7→8
+
+  Business rules:
+  - Can submit:           only when status = 1
+  - Can RM approve:       only when status = 2 AND supervisorBypass = false
+  - Can manager approve:  when status = 3 OR (status = 2 AND supervisorBypass = true)
+  - Can issue goods:      when status = 4 or 7
+  - Can stores reject:    when status = 4 or 7
+  - Can cancel:           when status = 1 or 2
+  - Can return:           only when status = 8 (Issued)
+  - Rejected states: 5, 6, 9 (three different rejection reasons)
+
+
+================================================================================
+SECTION 2: ENDPOINT PATH CORRECTIONS
+================================================================================
+
+--- GRN BASE PATH ---
+  Backend: /api/v1/grn        (SINGULAR)
+  If frontend uses /api/v1/grns (PLURAL) — this is WRONG, change to /grn
+
+--- GRN QUALITY INSPECTION ENDPOINT ---
+  Backend: POST /api/v1/grn/{id}/inspect
+  NOT:     POST /api/v1/grn/{id}/qc
+  The frontend must use /inspect, not /qc
+
+--- AUTH REFRESH TOKEN ---
+  /api/v1/auth/refresh does NOT EXIST in the backend.
+  Only 3 auth endpoints exist:
+    POST /api/v1/auth/login     → returns { accessToken, user }
+    POST /api/v1/auth/logout    → requires Authorization header
+    GET  /api/v1/auth/me        → returns current user info
+
+  JWT token expires after 1 HOUR (PT1H).
+  Currently: no silent refresh possible. User must re-login after expiry.
+  Frontend should: handle 401 errors by redirecting to login page.
+
+
+================================================================================
+SECTION 3: COMPLETE GRN ENDPOINTS (all under /api/v1/grn)
+================================================================================
+
+  POST   /api/v1/grn                       → Create GRN
+  GET    /api/v1/grn?page=0&size=10&status=1&search=vendor → List all (paginated)
+  GET    /api/v1/grn/{id}                  → Get by ID
+  GET    /api/v1/grn/number/{grnNumber}    → Get by GRN number
+  POST   /api/v1/grn/{id}/inspect          → Quality inspection
+  POST   /api/v1/grn/{id}/rm-approve       → RM approval
+  POST   /api/v1/grn/{id}/rm-reject        → RM rejection
+  POST   /api/v1/grn/{id}/approve          → Dept Head approval (L1)
+  POST   /api/v1/grn/{id}/final-approve    → Final approval (L2, adds to inventory)
+  POST   /api/v1/grn/{id}/store            → Store goods
+  POST   /api/v1/grn/{id}/reject           → Reject
+  GET    /api/v1/grn/pending-inspection    → Pending inspection queue
+  GET    /api/v1/grn/pending-approval      → Pending approval queue
+  GET    /api/v1/grn/statistics            → Dashboard stats
+
+
+================================================================================
+SECTION 4: COMPLETE DASHBOARD ENDPOINTS (all under /api/v1/dashboard)
+================================================================================
+
+  GET /api/v1/dashboard/statistics            → Full dashboard (companyId, departmentId)
+  GET /api/v1/dashboard/summary               → Summary cards (companyId)
+  GET /api/v1/dashboard/indents/stats         → Indent stats (companyId, departmentId)
+  GET /api/v1/dashboard/purchase-orders/stats → PO stats (companyId)
+  GET /api/v1/dashboard/goods-receipts/stats  → GRN stats (companyId)
+  GET /api/v1/dashboard/issue-notes/stats     → Issue note stats (companyId, departmentId)
+  GET /api/v1/dashboard/inventory/stats       → Inventory stats (companyId)
+  GET /api/v1/dashboard/vendors/stats         → Vendor stats (no params)
+  GET /api/v1/dashboard/trends/monthly        → Monthly trends (companyId, months=6)
+  GET /api/v1/dashboard/breakdown/department  → Dept breakdown (companyId)
+  GET /api/v1/dashboard/top-materials         → Top consumed (companyId, limit=10)
+  GET /api/v1/dashboard/pending-approvals     → Pending items (companyId, departmentId)
+  GET /api/v1/dashboard/alerts                → System alerts (companyId)
+
+
+================================================================================
+SECTION 5: INVENTORY API — RESPONSE FORMAT & ENDPOINTS
+================================================================================
+
+The Inventory module does NOT use Spring Page<T>.
+It uses a custom Map<String, Object> response wrapper:
+
+  {
+    "success": true,
+    "count": 5,
+    "data": [ ... inventory items ... ]
+  }
+
+Error responses:
+  {
+    "success": false,
+    "error": "Insufficient Stock",
+    "message": "..."
+  }
+
+All Inventory Endpoints (base: /api/v1/inventory):
+
+  GET    /api/v1/inventory                                         → List with filters (companyId, plantId, materialId, lowStock)
+  GET    /api/v1/inventory/stock/{materialId}/plant/{plantId}      → Get stock for material at plant
+  GET    /api/v1/inventory/stock/plant/{plantId}/company/{companyId} → Bulk: all materials at plant
+  GET    /api/v1/inventory/low-stock                               → Low stock items
+  GET    /api/v1/inventory/critical-stock                          → Critical stock items
+  GET    /api/v1/inventory/statistics                              → Statistics (companyId)
+  POST   /api/v1/inventory/adjustment                              → Stock adjustment
+  GET    /api/v1/inventory/transactions                            → Transaction history (many filters)
+  GET    /api/v1/inventory/check-stock/{materialId}/plant/{plantId}?requiredQuantity=100  → Check single
+  POST   /api/v1/inventory/check-stock-bulk?plantId=1              → Bulk availability check
+
+  Note: Transaction history accepts filters: companyId, plantId, materialId,
+        transactionType, direction, startDate, endDate (ISO 8601 format)
+
+
+================================================================================
+SECTION 6: AUTH RESPONSE FORMAT
+================================================================================
+
+Login Request:
+  POST /api/v1/auth/login
+  Body: { "username": "rajesh.kumar", "password": "password123" }
+
+Login Response:
+  {
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "user": {
+      "userId": 1,
+      "employeeNumber": 1,
+      "employeeId": "EMP001",
+      "displayName": "Rajesh Kumar",
+      "email": "rajesh.kumar@nslindia.com",
+      "roles": ["SUPERADMIN"]
+    }
+  }
+
+/me Response (AuthenticatedUser):
+  {
+    "userId": 1,
+    "employeeNumber": 1,
+    "employeeId": "EMP001",
+    "displayName": "Rajesh Kumar",
+    "email": "rajesh.kumar@nslindia.com",
+    "roles": ["SUPERADMIN"]
+  }
+
+Test Credentials:
+  SUPERADMIN:  rajesh.kumar  / password123
+  DEPTHEAD:    suresh.reddy  / password123
+  EMPLOYEE:    priya.sharma  / password123
+
+
+================================================================================
+SECTION 7: ROLE NAMES USED IN @PreAuthorize
+================================================================================
+
+These are the exact role strings the backend checks. Frontend must match these
+when showing/hiding UI elements based on user roles:
+
+  SUPERADMIN     → Full access to everything
+  ADMIN          → Administrative access
+  DEPTHEAD       → Department Head, approval workflows
+  EMPLOYEE       → Basic access, create indents
+  PROCUREMENT    → PO creation, vendor management
+  STOREKEEPER    → GRN, inventory, issue notes
+  PLANTMANAGER   → Plant-level management
+  VIEWER         → Read-only access
+  AUDITOR        → Read-only + audit access
+
+Note: Roles are returned from /auth/login and /auth/me in the "roles" array.
+
+
+================================================================================
+SECTION 8: COMMON RESPONSE PATTERNS ACROSS ALL MODULES
+================================================================================
+
+Most modules (Indent, PO, GRN, Issue Note, Vendor, Employee, User, Master Data)
+use these response patterns:
+
+  1. Single entity:     Returns the entity DTO directly (not wrapped)
+  2. Paginated list:    Returns Spring Page<T> with:
+     {
+       "content": [...],
+       "totalElements": 100,
+       "totalPages": 10,
+       "size": 10,
+       "number": 0     ← current page (0-indexed)
+     }
+  3. Statistics:        Returns custom DTO directly
+  4. Inventory module:  Exception — uses { success, count, data } wrapper
+
+  Pagination params: ?page=0&size=10&sort=createdDate,desc
+
+
+================================================================================
+SECTION 9: KEY BUSINESS LOGIC THE FRONTEND SHOULD KNOW
+================================================================================
+
+1. INDENT → PO FLOW:
+   - Only indents with status=5 (Procurement Approved) can become POs
+   - One indent creates one PO
+   - Creating a PO updates the indent status to 4 (Finance Approved / PO Created)
+   - PO number format: PO/YYYY/NNNNN (auto-generated)
+
+2. PO → GRN FLOW:
+   - GRN is created AGAINST a PO's indent
+   - GRN validates: received qty cannot exceed PO ordered qty
+   - Multiple partial GRNs allowed per PO
+   - Final GRN approval (status=5) adds goods to inventory automatically
+
+3. ISSUE NOTE → INVENTORY FLOW:
+   - Issue note DEDUCTS from inventory when status=8 (Issued)
+   - Return (status=10) ADDS back to inventory
+   - Stores rejection (status=9) = insufficient stock, no inventory change
+
+4. DOCUMENT NUMBERING:
+   - Indian Financial Year format: IND/2024-25/0001
+   - FY starts April, ends March
+   - Auto-reset counter at FY boundary
+   - Company-based prefixes
+
+5. AUDIT LOGGING:
+   - Backend logs ALL CRUD operations to tbl_audit_log
+   - Frontend doesn't need to send audit data — backend handles it automatically
+   - Audit captures: entity type, old/new values (JSON), user, IP, timestamp
+
+6. SUPERVISOR BYPASS:
+   - Both GRN and Issue Note support "supervisorBypass" flag
+   - When true: skips RM (Reporting Manager) approval step
+   - This affects the status flow the frontend needs to display
+
+
+================================================================================
+SECTION 10: FEATURES THAT DO NOT EXIST IN BACKEND
+================================================================================
+
+The following features are NOT implemented. Frontend should comment out or
+disable UI for these:
+
+  ✗ /api/v1/auth/refresh          — No token refresh endpoint
+  ✗ Stock Transfer                 — No endpoints
+  ✗ Vendor Bulk Import             — No endpoints (only Material bulk import exists)
+  ✗ Reconciliation                 — No endpoints
+  ✗ LDAP/AD login                  — Table exists but no implementation
+  ✗ PO Amendment API               — Repository exists but no REST endpoint exposed
+  ✗ Plant Indent module            — Entity/repo exist but controller may be incomplete
+
+Features that DO exist (don't accidentally disable):
+  ✓ Material Bulk Import:  POST /api/v1/bulk-import/materials (CSV upload)
+  ✓ Material Bulk Template: GET /api/v1/bulk-import/template
+  ✓ SAP Material Import:   POST /api/v1/sap/import
+  ✓ Issue Note Return:     POST /api/v1/issue-notes/{id}/return (status 8→10)
+  ✓ Issue Note Cancel:     Supported when status = 1 or 2
+
+
+================================================================================
+SECTION 11: EXTRA INSIGHTS FOR FRONTEND TEAM
+================================================================================
+
+1. CORS: Backend has CORS configured. If frontend gets CORS errors, check that
+   the frontend origin is added to WebConfig.java's allowed origins list.
+
+2. DATE FORMATS: Backend uses ISO 8601 formats:
+   - LocalDate: "2025-03-15"
+   - LocalDateTime: "2025-03-15T10:30:00"
+   Frontend should send/receive dates in these formats.
+
+3. PAGINATION: All paginated endpoints use 0-indexed pages.
+   First page = 0, not 1.
+
+4. ERROR HANDLING: Backend uses Spring's standard error response:
+   {
+     "timestamp": "2025-...",
+     "status": 400,
+     "error": "Bad Request",
+     "message": "Validation failed",
+     "path": "/api/v1/indents"
+   }
+   Exception: Inventory module uses { success: false, error, message }
+
+5. DECIMAL PRECISION: All monetary and quantity fields use decimal(20,2).
+   Frontend should display 2 decimal places for amounts and quantities.
+
+6. STATUS FIELD NAMING IN RESPONSES:
+   - PO: returns both "poStatus" (integer) and "poStatusName" (string)
+   - GRN: returns "status" (integer) + getStatusName() method generates string
+   - Issue Note: returns "status" (integer) + getStatusDescription() method
+   - Indent: returns nested "status" object (IndentStatus entity with id + name)
+
+7. FILE UPLOADS: Material bulk import expects multipart/form-data with CSV file.
+
+8. ACTUATOR: Health check available at GET /actuator/health (no auth required).
+   Frontend can use this for backend connectivity check.
+
+
+================================================================================
+SECTION 12: QUESTIONS FROM BACKEND TEAM TO FRONTEND TEAM
+================================================================================
+
+Please answer these so the backend team can optimize API responses:
+
+1. PAGINATION OR INFINITE SCROLL?
+   Does the frontend use traditional pagination (page numbers) or infinite scroll?
+   This affects whether backend should return Page<T> or cursor-based responses.
+
+2. WHAT FRAMEWORK IS THE FRONTEND USING?
+   React? Angular? Vue? Next.js? This helps backend team understand what
+   response format works best and whether SSR considerations apply.
+
+3. HOW DOES THE FRONTEND HANDLE REAL-TIME UPDATES?
+   Does the frontend poll for updates or expect WebSocket/SSE?
+   Currently backend has no WebSocket support. If frontend needs real-time
+   notifications (e.g., "new indent approved"), we'd need to build that.
+
+4. WHAT DATE/TIME DISPLAY FORMAT DOES THE FRONTEND USE?
+   Backend sends ISO 8601. Does frontend need a specific timezone conversion?
+   (Backend stores UTC, frontend may need IST display.)
+
+5. DASHBOARD REFRESH INTERVAL?
+   How often does the dashboard auto-refresh? If very frequent, we may need to
+   add caching on the backend to avoid DB pressure.
+
+6. DOES THE FRONTEND NEED PDF DOWNLOAD ENDPOINTS?
+   Backend has PDF generation (IndentPdfService, PurchaseOrderPdfService,
+   PdfReportService). Are these being used? The endpoints return byte[] with
+   Content-Type: application/pdf. Frontend needs to handle blob download.
+
+7. MULTI-LANGUAGE / i18n?
+   Does frontend need status names in multiple languages? Currently backend
+   returns English-only status names. If i18n is needed, backend can return
+   status codes only and let frontend handle translations.
+
+8. FILE ATTACHMENT SUPPORT?
+   Does the frontend need to attach files to indents/POs/GRNs?
+   Currently backend has no file upload/attachment endpoints for documents
+   (only CSV import for materials). If needed, this must be built.
+
+9. WHICH MODULES ARE YOU BUILDING FIRST?
+   Knowing frontend priority order helps backend team ensure those APIs are
+   tested and stable. Is it:
+   a) Dashboard + Auth (landing page)
+   b) Indent Management (core workflow)
+   c) PO Management
+   d) GRN + Inventory
+   e) Issue Notes
+   f) Master Data forms
+   g) User/Employee management
+
+10. HOW ARE YOU HANDLING ROLE-BASED UI?
+    Do you hide menu items entirely for unauthorized roles, or show them
+    as disabled/greyed out? Backend returns roles in the login response —
+    make sure frontend checks these exact role strings (Section 7 above).
+
+================================================================================
+END OF DOCUMENT
+================================================================================

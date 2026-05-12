@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblDepartmentMaster" table="tbl_department_master" catalog="seeds_indent">
+        <id name="deptId" type="java.lang.Integer">
+            <column name="dept_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="dept_lmu" not-null="true" />
+        </many-to-one>
+        <property name="deptCode" type="string">
+            <column name="dept_code" length="100" />
+        </property>
+        <property name="deptName" type="string">
+            <column name="dept_name" length="100" not-null="true" />
+        </property>
+        <property name="deptStatus" type="int">
+            <column name="dept_status" not-null="true" />
+        </property>
+        <property name="deptLmd" type="date">
+            <column name="dept_lmd" length="10" not-null="true" />
+        </property>
+        <set name="tblMapCompanyDepartments" table="tbl_map_company_department" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="map_dept" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapCompanyDepartment" />
+        </set>
+        <set name="tblIndentMasters" table="tbl_indent_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_dept" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblIndentMaster" />
+        </set>
+        <set name="tblEmpMasters" table="tbl_emp_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="emp_department" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblEmpMaster" />
+        </set>
+    </class>
+</hibernate-mapping>

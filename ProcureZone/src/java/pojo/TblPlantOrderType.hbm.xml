@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPlantOrderType" table="pz_indent_ordertype" catalog="seeds_indent">
+        <id name="orderId" type="java.lang.Integer">
+            <column name="order_id" />
+            <generator class="identity"></generator>
+        </id>
+        
+        <property name="orderCompany" type="int">
+            <column name="order_company"/>
+        </property>
+        
+        <property name="orderDesc" type="string">
+            <column name="order_desc" />
+        </property>
+        
+        <property name="orderNoid" type="string">
+            <column name="order_no_id"/>
+        </property>
+        
+        <property name="orderStatus" type="int">
+            <column name="order_status"/>
+        </property>
+        
+  </class>
+
+</hibernate-mapping>

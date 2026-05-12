@@ -1,0 +1,251 @@
+{
+  "info": {
+    "_postman_id": "procurezone-api-tests-fixed-v1",
+    "name": "ProcureZone API Test Suite - Fixed",
+    "description": "Comprehensive API testing for ProcureZone Backend - Logout moved to end to prevent token blacklisting",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{"key": "token", "value": "{{access_token}}", "type": "string"}]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-login if token is missing or for first request",
+          "const tokenRefreshNeeded = !pm.environment.get('access_token');",
+          "if (tokenRefreshNeeded) {",
+          "    console.log('Token missing - will be set by login request');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response time < 2000ms', function() {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8080"},
+    {"key": "api_version", "value": "v1"}
+  ],
+  "item": [
+    {
+      "name": "01-Authentication",
+      "description": "Login and validation tests - NO LOGOUT HERE",
+      "item": [
+        {
+          "name": "AUTH-01: Login",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"{{username}}\", \"password\": \"{{password}}\"}"
+            },
+            "url": {"raw": "{{base_url}}/api/{{api_version}}/auth/login", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "auth", "login"]}
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Has access token', () => {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.accessToken || json.token).to.exist;",
+                  "    pm.environment.set('access_token', json.accessToken || json.token);",
+                  "});",
+                  "pm.test('Has user info', () => {",
+                  "    var json = pm.response.json();",
+                  "    if(json.user && json.user.userId) pm.environment.set('user_id', json.user.userId);",
+                  "    if(json.user && json.user.employeeNumber) pm.environment.set('employee_number', json.user.employeeNumber);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "AUTH-02: Login Invalid Password",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"username\": \"{{username}}\", \"password\": \"wrongpassword\"}"},
+            "url": {"raw": "{{base_url}}/api/{{api_version}}/auth/login", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "auth", "login"]}
+          },
+          "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"], "type": "text/javascript"}}]
+        },
+        {
+          "name": "AUTH-03: Login Non-existent User",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"username\": \"nonexistent.user\", \"password\": \"password123\"}"},
+            "url": {"raw": "{{base_url}}/api/{{api_version}}/auth/login", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "auth", "login"]}
+          },
+          "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"], "type": "text/javascript"}}]
+        },
+        {
+          "name": "AUTH-04: Login Empty Payload",
+          "request": {
+            "auth": {"type": "noauth"},
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{}"},
+            "url": {"raw": "{{base_url}}/api/{{api_version}}/auth/login", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "auth", "login"]}
+          },
+          "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"], "type": "text/javascript"}}]
+        },
+        {
+          "name": "AUTH-05: Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/api/{{api_version}}/auth/me", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "auth", "me"]}
+          },
+          "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "pm.test('Has username', () => pm.expect(pm.response.json().username).to.exist);"], "type": "text/javascript"}}]
+        }
+      ]
+    },
+    {
+      "name": "02-Companies",
+      "item": [
+        {"name": "COMP-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/companies", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "companies"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "pm.test('Is array', () => pm.expect(data).to.be.an('array'));", "if(data.length > 0) pm.environment.set('company_id', data[0].id || data[0].companyId);"], "type": "text/javascript"}}]},
+        {"name": "COMP-02: Get Active", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/companies/active", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "companies", "active"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "COMP-03: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/companies/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "companies", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "COMP-04: Get Non-existent", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/companies/99999", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "companies", "99999"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"], "type": "text/javascript"}}]},
+        {"name": "COMP-05: Search", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/companies/search?query=NSL", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "companies", "search"], "query": [{"key": "query", "value": "NSL"}]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "03-Materials",
+      "item": [
+        {"name": "MAT-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/materials", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "materials"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "var list = data.content || data;", "if(list && list.length > 0) pm.environment.set('material_id', list[0].id || list[0].materialId);"], "type": "text/javascript"}}]},
+        {"name": "MAT-02: Get Active", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/materials/active", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "materials", "active"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "MAT-03: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/materials/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "materials", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "MAT-04: Search", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/materials/search?query=seed", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "materials", "search"], "query": [{"key": "query", "value": "seed"}]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "04-Departments",
+      "item": [
+        {"name": "DEPT-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/departments", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "departments"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "if(data && data.length > 0) pm.environment.set('department_id', data[0].id || data[0].departmentId);"], "type": "text/javascript"}}]},
+        {"name": "DEPT-02: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/departments/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "departments", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "05-Plants",
+      "item": [
+        {"name": "PLANT-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/plants", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "plants"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "if(data && data.length > 0) pm.environment.set('plant_id', data[0].id || data[0].plantId);"], "type": "text/javascript"}}]},
+        {"name": "PLANT-02: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/plants/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "plants", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "06-Locations",
+      "item": [
+        {"name": "LOC-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/locations", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "locations"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "if(data && data.length > 0) pm.environment.set('location_id', data[0].id || data[0].locationId);"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "07-UOMs",
+      "item": [
+        {"name": "UOM-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/unit-of-measures", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "unit-of-measures"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "08-Vendors",
+      "item": [
+        {"name": "VND-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/vendors", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "vendors"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "var list = data.content || data;", "if(list && list.length > 0) pm.environment.set('vendor_id', list[0].id || list[0].vendorId);"], "type": "text/javascript"}}]},
+        {"name": "VND-02: Get Active", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/vendors/active", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "vendors", "active"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "VND-03: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/vendors/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "vendors", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "VND-04: Get Non-existent", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/vendors/99999", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "vendors", "99999"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"], "type": "text/javascript"}}]},
+        {"name": "VND-05: Search", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/vendors/search?query=agri", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "vendors", "search"], "query": [{"key": "query", "value": "agri"}]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "09-Indents",
+      "item": [
+        {"name": "IND-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/indents", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "indents"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "var list = data.content || data;", "if(list && list.length > 0) pm.environment.set('indent_id', list[0].id || list[0].indentId);"], "type": "text/javascript"}}]},
+        {"name": "IND-02: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/indents/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "indents", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "IND-03: Get By Status", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/indents/status/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "indents", "status", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "IND-04: Search", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/indents/search?query=IND", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "indents", "search"], "query": [{"key": "query", "value": "IND"}]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "10-Purchase-Orders",
+      "item": [
+        {"name": "PO-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/purchase-orders", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "purchase-orders"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "var list = data.content || data;", "if(list && list.length > 0) pm.environment.set('po_id', list[0].id || list[0].poId);"], "type": "text/javascript"}}]},
+        {"name": "PO-02: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/purchase-orders/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "purchase-orders", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "PO-03: Get By Status", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/purchase-orders/status/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "purchase-orders", "status", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "PO-04: Search", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/purchase-orders/search?query=PO", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "purchase-orders", "search"], "query": [{"key": "query", "value": "PO"}]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "11-GRN",
+      "item": [
+        {"name": "GRN-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/grn", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "grn"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "var list = data.content || data;", "if(list && list.length > 0) pm.environment.set('grn_id', list[0].id || list[0].grnId);"], "type": "text/javascript"}}]},
+        {"name": "GRN-02: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/grn/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "grn", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200 or 404', () => pm.expect([200,404]).to.include(pm.response.code));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "12-Issue-Notes",
+      "item": [
+        {"name": "ISS-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/issue-notes", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "issue-notes"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "var data = pm.response.json();", "var list = data.content || data;", "if(list && list.length > 0) pm.environment.set('issue_note_id', list[0].id || list[0].issueNoteId);"], "type": "text/javascript"}}]},
+        {"name": "ISS-02: Get By ID", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/issue-notes/1", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "issue-notes", "1"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200 or 404', () => pm.expect([200,404]).to.include(pm.response.code));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "13-Inventory",
+      "item": [
+        {"name": "INV-01: List All", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/inventory", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "inventory"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "INV-02: Low Stock", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/inventory/low-stock", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "inventory", "low-stock"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "INV-03: Summary", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/inventory/summary", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "inventory", "summary"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "14-Dashboard",
+      "item": [
+        {"name": "DASH-01: Statistics", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/dashboard/stats", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "dashboard", "stats"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "pm.test('Has stats', () => {", "    var json = pm.response.json();", "    pm.expect(json.totalIndents || json.indentCount || json.stats).to.exist;", "});"], "type": "text/javascript"}}]},
+        {"name": "DASH-02: Recent Activity", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/dashboard/recent-activity", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "dashboard", "recent-activity"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "DASH-03: Pending Approvals", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/dashboard/pending-approvals", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "dashboard", "pending-approvals"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "15-Reports",
+      "item": [
+        {"name": "RPT-01: Indent Report", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/reports/indents", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "reports", "indents"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "RPT-02: PO Report", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/reports/purchase-orders", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "reports", "purchase-orders"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]},
+        {"name": "RPT-03: Inventory Report", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}], "url": {"raw": "{{base_url}}/api/{{api_version}}/reports/inventory", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "reports", "inventory"]}}, "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"], "type": "text/javascript"}}]}
+      ]
+    },
+    {
+      "name": "99-Cleanup",
+      "description": "Logout at the very end",
+      "item": [
+        {
+          "name": "FINAL: Logout",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/api/{{api_version}}/auth/logout", "host": ["{{base_url}}"], "path": ["api", "{{api_version}}", "auth", "logout"]}
+          },
+          "event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));", "pm.environment.set('access_token', '');"], "type": "text/javascript"}}]
+        }
+      ]
+    }
+  ]
+}

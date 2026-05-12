@@ -1,0 +1,26 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.login.action.LoginAction" extends="struts-default">
+        <action name="login" method="execute" class="seeds.login.action.LoginAction">
+            <result name="success">WEB-INF/jsp/login/login.jsp</result>
+        </action> 
+        <action name="loginAction" method="getLogin" class="seeds.login.action.LoginAction">
+            <result name="success" >dashboard.jsp</result>
+            <result name="error">WEB-INF/jsp/login/login.jsp</result>
+            <result name="input" >WEB-INF/jsp/login/login.jsp</result>           
+        </action>
+        <action name="logOutAction" method="execute" class="seeds.login.action.LoginAction">
+            <result name="success" type="redirect">loginAction.action</result>
+            <result name="input" >WEB-INF/jsp/login/login.jsp</result>           
+        </action>
+        
+        <action name="MyDashboard"  method="getDashboardCount" class="seeds.login.action.LoginAction">
+            <result name="success" >dashboard.jsp</result>
+        </action>
+    </package>
+</struts>

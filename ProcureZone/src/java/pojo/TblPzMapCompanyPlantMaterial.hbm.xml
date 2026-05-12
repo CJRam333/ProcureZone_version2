@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzMapCompanyPlantMaterial" table="tbl_pz_map_company_plant_material" catalog="seeds_indent">
+        <id name="mapId" type="java.lang.Integer">
+            <column name="map_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblCompanyMaster" class="pojo.TblPzCompanyMaster" fetch="select">
+            <column name="map_comp" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="map_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblMaterialMaster" class="pojo.TblPzScheduleMaterialmaster" fetch="select">
+            <column name="map_material" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblPlantMaster" class="pojo.TblPlantMaster" fetch="select">
+            <column name="map_plant" not-null="true" />
+        </many-to-one>
+        <property name="mapQuantityStores" type="big_decimal">
+            <column name="map_quantity_stores" precision="20" />
+        </property>
+        <property name="mapStatus" type="int">
+            <column name="map_status" not-null="true" />
+        </property>
+        <property name="mapLmd" type="date">
+            <column name="map_lmd" length="10" not-null="true" />
+        </property>
+    </class>
+</hibernate-mapping>

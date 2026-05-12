@@ -1,0 +1,420 @@
+
+[0;34m========================================[0m
+[0;34mPHASE 1: AUTHENTICATION & USER SETUP[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 1.1 - Login as SUPERADMIN
+[1;33mTEST:[0m Login as SUPERADMIN
+[0;32m✓ PASS:[0m HTTP 200 - Login as SUPERADMIN
+SUPERADMIN Token: eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJyYWplc2gua3VtYXIiLCJpc3MiOiJwcm9jdXJlem9uZS1iYWNrZW5kIiwiaWF0IjoxNzYxMDMxMDg0LCJleHAiOjE3NjEwMzQ2ODQsInVpZCI6MSwiZW1wIjoxLCJlbXBJZCI6IkVNUDAwMSIsIm5hbWUiOiJSYWplc2ggS3VtYXIiLCJlbWFpbCI6InJhamVzaC5rdW1hckBuc2xpbmRpYS5jb20iLCJyb2xlcyI6WyJTVVBFUkFETUlOIl19.dRLPxVgbvFxAX45tUdSKG6j9h9R1JDuw7gPO18Y0VgmXwtyi6g_nPULQ3ipG8ajL
+SUPERADMIN Emp Number: 1
+[1;33mTEST:[0m 1.2 - Login as EMPLOYEE
+[1;33mTEST:[0m Login as EMPLOYEE
+[0;32m✓ PASS:[0m HTTP 200 - Login as EMPLOYEE
+EMPLOYEE Token: eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJwcml5YS5zaGFybWEiLCJpc3MiOiJwcm9jdXJlem9uZS1iYWNrZW5kIiwiaWF0IjoxNzYxMDMxMDg0LCJleHAiOjE3NjEwMzQ2ODQsInVpZCI6MiwiZW1wIjoyLCJlbXBJZCI6IkVNUDAwMiIsIm5hbWUiOiJQcml5YSBTaGFybWEiLCJlbWFpbCI6InByaXlhLnNoYXJtYUBuc2xpbmRpYS5jb20iLCJyb2xlcyI6WyJBRE1JTiJdfQ.UDUlOJgPppoGjb49knhRLIsxkQT28xopMBzEINyZqVr5LImHwtjs0rzLrpRaB_lK
+EMPLOYEE Emp Number: 2
+[1;33mTEST:[0m 1.3 - Login as DEPTHEAD
+[1;33mTEST:[0m Login as DEPTHEAD
+[0;32m✓ PASS:[0m HTTP 200 - Login as DEPTHEAD
+DEPTHEAD Token: eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJzdXJlc2gucmVkZHkiLCJpc3MiOiJwcm9jdXJlem9uZS1iYWNrZW5kIiwiaWF0IjoxNzYxMDMxMDg1LCJleHAiOjE3NjEwMzQ2ODUsInVpZCI6NCwiZW1wIjo0LCJlbXBJZCI6IkVNUDAwNCIsIm5hbWUiOiJTdXJlc2ggUmVkZHkiLCJlbWFpbCI6InN1cmVzaC5yZWRkeUBuc2xpbmRpYS5jb20iLCJyb2xlcyI6WyJQTEFOVE1BTkFHRVIiXX0.QxPC1iR9BDGU5fVnB2tJeYFDPcdN-JJ6zQEDdyRiTdxWCcm1gdYQE8B0ai1o0ADk
+DEPTHEAD Emp Number: 4
+[1;33mTEST:[0m 1.4 - Login as PROCUREMENT
+[1;33mTEST:[0m Login as PROCUREMENT
+[0;32m✓ PASS:[0m HTTP 200 - Login as PROCUREMENT
+PROCUREMENT Token: eyJhbGciOiJIUzM4NCJ9.eyJzdWIiOiJuZWhhLmd1cHRhIiwiaXNzIjoicHJvY3VyZXpvbmUtYmFja2VuZCIsImlhdCI6MTc2MTAzMTA4NSwiZXhwIjoxNzYxMDM0Njg1LCJ1aWQiOjksImVtcCI6OSwiZW1wSWQiOiJFTVAwMDkiLCJuYW1lIjoiTmVoYSBHdXB0YSIsImVtYWlsIjoibmVoYS5ndXB0YUBuc2xpbmRpYS5jb20iLCJyb2xlcyI6WyJQUk9DVVJFTUVOVCJdfQ.uXnedVJrKxJF0PGNDX4BN7oDq8Zj26R9JiViUj1pw9FnTD1wF4O3DP5tNPSJ_ExT
+PROCUREMENT Emp Number: 9
+[1;33mTEST:[0m 1.5 - Get current user (/auth/me)
+[1;33mTEST:[0m Get current user
+[0;32m✓ PASS:[0m HTTP 200 - Get current user
+
+[0;34m========================================[0m
+[0;34mPHASE 2: EMPLOYEE MANAGEMENT[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 2.1 - Create Employee
+[1;33mTEST:[0m Create Employee
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 400 - Create Employee
+Employee creation failed, using existing employee number 1
+[1;33mTEST:[0m 2.2 - Get All Employees
+[1;33mTEST:[0m Get All Employees
+[0;32m✓ PASS:[0m HTTP 200 - Get All Employees
+[1;33mTEST:[0m 2.3 - Get Employee by Number
+[0;31m✗ FAIL:[0m Skipped - no valid employee number from create
+[1;33mTEST:[0m 2.4 - Update Employee
+[0;31m✗ FAIL:[0m Skipped - no valid employee number from create
+[1;33mTEST:[0m 2.5 - Search Employees
+[1;33mTEST:[0m Search Employees
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Search Employees
+[1;33mTEST:[0m 2.6 - Assign EMPLOYEE Role
+[0;31m✗ FAIL:[0m Skipped - no valid employee number from create
+[1;33mTEST:[0m 2.7 - Get Employee Roles
+[0;31m✗ FAIL:[0m Skipped - no valid employee number from create
+[1;33mTEST:[0m 2.8 - Get Employees by Department
+[1;33mTEST:[0m Get Employees by Department
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get Employees by Department
+[1;33mTEST:[0m 2.9 - Deactivate Employee
+[0;31m✗ FAIL:[0m Skipped - no valid employee number from create
+[1;33mTEST:[0m 2.10 - Activate Employee
+[0;31m✗ FAIL:[0m Skipped - no valid employee number from create
+[1;33mTEST:[0m 2.11 - Get Employee Statistics
+[1;33mTEST:[0m Get Employee Statistics
+[0;32m✓ PASS:[0m HTTP 200 - Get Employee Statistics
+
+[0;34m========================================[0m
+[0;34mPHASE 3: USER MANAGEMENT[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 3.1 - Create User Account
+[1;33mTEST:[0m Create User Account
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 400 - Create User Account
+[1;33mTEST:[0m 3.2 - Get All Users
+[1;33mTEST:[0m Get All Users
+[0;32m✓ PASS:[0m HTTP 200 - Get All Users
+[1;33mTEST:[0m 3.3 - Get User by ID
+[1;33mTEST:[0m Get User by ID
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get User by ID
+[1;33mTEST:[0m 3.4 - Update User Profile
+[1;33mTEST:[0m Update User Profile
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Update User Profile
+[1;33mTEST:[0m 3.5 - Lock User Account
+[1;33mTEST:[0m Lock User Account
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Lock User Account
+[1;33mTEST:[0m 3.6 - Unlock User Account
+[1;33mTEST:[0m Unlock User Account
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Unlock User Account
+[1;33mTEST:[0m 3.7 - Change Password (Self)
+[1;33mTEST:[0m Change Password
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Change Password
+[1;33mTEST:[0m 3.8 - Reset Password (Admin)
+[1;33mTEST:[0m Reset Password
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Reset Password
+
+[0;34m========================================[0m
+[0;34mPHASE 4: VENDOR MANAGEMENT[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 4.1 - Create Vendor
+[1;33mTEST:[0m Create Vendor
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 400 - Create Vendor
+[1;33mTEST:[0m 4.2 - Get All Vendors
+[1;33mTEST:[0m Get All Vendors (as EMPLOYEE)
+[0;32m✓ PASS:[0m HTTP 200 - Get All Vendors (as EMPLOYEE)
+[1;33mTEST:[0m 4.3 - Get Vendor by ID
+[1;33mTEST:[0m Get Vendor by ID
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get Vendor by ID
+[1;33mTEST:[0m 4.4 - Get Active Vendors
+[1;33mTEST:[0m Get Active Vendors
+[0;32m✓ PASS:[0m HTTP 200 - Get Active Vendors
+[1;33mTEST:[0m 4.5 - Search Vendors
+[1;33mTEST:[0m Search Vendors
+[0;32m✓ PASS:[0m HTTP 200 - Search Vendors
+[1;33mTEST:[0m 4.6 - Update Vendor
+[1;33mTEST:[0m Update Vendor
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Update Vendor
+[1;33mTEST:[0m 4.7 - Rate Vendor
+[1;33mTEST:[0m Rate Vendor
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Rate Vendor
+[1;33mTEST:[0m 4.8 - Get Vendor Performance
+[1;33mTEST:[0m Get Vendor Performance
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Get Vendor Performance
+
+[0;34m========================================[0m
+[0;34mPHASE 5: INDENT CREATION & APPROVAL WORKFLOW[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 5.1 - Create Indent (EMPLOYEE)
+[1;33mTEST:[0m Create Indent
+[0;32m✓ PASS:[0m HTTP 201 - Create Indent
+New Indent ID: 1025
+[1;33mTEST:[0m 5.2 - Get All Indents
+[1;33mTEST:[0m Get All Indents
+[0;32m✓ PASS:[0m HTTP 200 - Get All Indents
+[1;33mTEST:[0m 5.3 - Get Indent by ID
+[1;33mTEST:[0m Get Indent by ID
+[0;32m✓ PASS:[0m HTTP 200 - Get Indent by ID
+[1;33mTEST:[0m 5.4 - Update Indent (Draft)
+[1;33mTEST:[0m Update Indent
+[0;32m✓ PASS:[0m HTTP 200 - Update Indent
+[1;33mTEST:[0m 5.5 - Search Indents
+[1;33mTEST:[0m Search Indents
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Search Indents
+[1;33mTEST:[0m 5.6 - Get Indents by Employee
+[1;33mTEST:[0m Get Indents by Employee
+[0;32m✓ PASS:[0m HTTP 200 - Get Indents by Employee
+[1;33mTEST:[0m 5.7 - Submit Indent for Approval
+[1;33mTEST:[0m Submit Indent for Approval
+[0;32m✓ PASS:[0m HTTP 200 - Submit Indent for Approval
+[1;33mTEST:[0m 5.8 - Get Indents by Status (Submitted)
+[1;33mTEST:[0m Get Indents by Status
+[0;32m✓ PASS:[0m HTTP 200 - Get Indents by Status
+[1;33mTEST:[0m 5.9 - Get Pending Approvals (DEPTHEAD)
+[1;33mTEST:[0m Get Pending Approvals
+[0;32m✓ PASS:[0m HTTP 200 - Get Pending Approvals
+[1;33mTEST:[0m 5.10 - Get Department Indents
+[1;33mTEST:[0m Get Department Indents
+[0;32m✓ PASS:[0m HTTP 200 - Get Department Indents
+[1;33mTEST:[0m 5.11 - Approve Indent (DEPTHEAD)
+[1;33mTEST:[0m Approve Indent (DEPTHEAD)
+[0;32m✓ PASS:[0m HTTP 200 - Approve Indent (DEPTHEAD)
+[1;33mTEST:[0m 5.12 - Get Approval Workflow History
+[1;33mTEST:[0m Get Approval Workflow History
+[0;32m✓ PASS:[0m HTTP 200 - Get Approval Workflow History
+[1;33mTEST:[0m 5.13 - Create Second Indent (for rejection test)
+[1;33mTEST:[0m Create Second Indent
+[0;32m✓ PASS:[0m HTTP 201 - Create Second Indent
+[1;33mTEST:[0m 5.14 - Reject Indent (DEPTHEAD)
+[1;33mTEST:[0m Reject Indent
+[0;32m✓ PASS:[0m HTTP 200 - Reject Indent
+
+[0;34m========================================[0m
+[0;34mPHASE 6: PURCHASE ORDER WORKFLOW[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 6.1 - Create Purchase Order
+[1;33mTEST:[0m Create Purchase Order
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 500 - Create Purchase Order
+[1;33mTEST:[0m 6.2 - Get All Purchase Orders
+[1;33mTEST:[0m Get All Purchase Orders
+[0;32m✓ PASS:[0m HTTP 200 - Get All Purchase Orders
+[1;33mTEST:[0m 6.3 - Get PO by ID
+[1;33mTEST:[0m Get PO by ID
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get PO by ID
+[1;33mTEST:[0m 6.4 - Get PO by Number
+[1;33mTEST:[0m Get PO by Number
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get PO by Number
+[1;33mTEST:[0m 6.5 - Search Purchase Orders
+[1;33mTEST:[0m Search Purchase Orders
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Search Purchase Orders
+[1;33mTEST:[0m 6.6 - Get POs by Vendor
+[1;33mTEST:[0m Get POs by Vendor
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get POs by Vendor
+[1;33mTEST:[0m 6.7 - Get POs by Status
+[1;33mTEST:[0m Get POs by Status
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get POs by Status
+[1;33mTEST:[0m 6.8 - Update Purchase Order
+[1;33mTEST:[0m Update Purchase Order
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Update Purchase Order
+[1;33mTEST:[0m 6.9 - Approve Purchase Order
+[1;33mTEST:[0m Approve Purchase Order
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Approve Purchase Order
+[1;33mTEST:[0m 6.10 - Get PO Statistics
+[1;33mTEST:[0m Get PO Statistics
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Get PO Statistics
+
+[0;34m========================================[0m
+[0;34mPHASE 7: AUTHORIZATION TESTS (Security)[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 7.1 - EMPLOYEE tries to approve indent (should fail with 403)
+[1;33mTEST:[0m EMPLOYEE denied approval (403)
+[0;31m✗ FAIL:[0m Expected HTTP 403, got HTTP 500 - EMPLOYEE denied approval (403)
+[1;33mTEST:[0m 7.2 - EMPLOYEE tries to create PO (should fail with 403)
+[1;33mTEST:[0m EMPLOYEE denied PO creation (403)
+[0;31m✗ FAIL:[0m Expected HTTP 403, got HTTP 400 - EMPLOYEE denied PO creation (403)
+[1;33mTEST:[0m 7.3 - Unauthenticated request (should fail with 401)
+[1;33mTEST:[0m Unauthenticated request denied (401)
+[0;31m✗ FAIL:[0m Expected HTTP 401, got HTTP 403 - Unauthenticated request denied (401)
+[1;33mTEST:[0m 7.4 - Invalid token (should fail with 401)
+[1;33mTEST:[0m Invalid token denied (401)
+[0;31m✗ FAIL:[0m Expected HTTP 401, got HTTP 403 - Invalid token denied (401)
+
+[0;34m========================================[0m
+[0;34mPHASE 8: MASTER DATA MANAGEMENT[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 8.1 - Get All Companies
+[1;33mTEST:[0m Get All Companies
+[0;32m✓ PASS:[0m HTTP 200 - Get All Companies
+[1;33mTEST:[0m 8.2 - Get Active Companies
+[1;33mTEST:[0m Get Active Companies
+[0;32m✓ PASS:[0m HTTP 200 - Get Active Companies
+[1;33mTEST:[0m 8.3 - Search Companies
+[1;33mTEST:[0m Search Companies
+[0;32m✓ PASS:[0m HTTP 200 - Search Companies
+[1;33mTEST:[0m 8.4 - Get Company by ID
+[1;33mTEST:[0m Get Company by ID
+[0;32m✓ PASS:[0m HTTP 200 - Get Company by ID
+[1;33mTEST:[0m 8.5 - Create Company
+[1;33mTEST:[0m Create Company
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 400 - Create Company
+[1;33mTEST:[0m 8.6 - Update Company
+[1;33mTEST:[0m Update Company
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Update Company
+[1;33mTEST:[0m 8.7 - Delete Company
+[1;33mTEST:[0m Delete Company
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Delete Company
+[1;33mTEST:[0m 8.8 - Get All Departments
+[1;33mTEST:[0m Get All Departments
+[0;32m✓ PASS:[0m HTTP 200 - Get All Departments
+[1;33mTEST:[0m 8.9 - Get Active Departments
+[1;33mTEST:[0m Get Active Departments
+[0;32m✓ PASS:[0m HTTP 200 - Get Active Departments
+[1;33mTEST:[0m 8.10 - Search Departments
+[1;33mTEST:[0m Search Departments
+[0;32m✓ PASS:[0m HTTP 200 - Search Departments
+[1;33mTEST:[0m 8.11 - Get Department by ID
+[1;33mTEST:[0m Get Department by ID
+[0;32m✓ PASS:[0m HTTP 200 - Get Department by ID
+[1;33mTEST:[0m 8.12 - Create Department
+[1;33mTEST:[0m Create Department
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 400 - Create Department
+[1;33mTEST:[0m 8.13 - Update Department
+[1;33mTEST:[0m Update Department
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Update Department
+[1;33mTEST:[0m 8.14 - Delete Department
+[1;33mTEST:[0m Delete Department
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Delete Department
+[1;33mTEST:[0m 8.15 - Get All Materials
+[1;33mTEST:[0m Get All Materials
+[0;32m✓ PASS:[0m HTTP 200 - Get All Materials
+[1;33mTEST:[0m 8.16 - Get Active Materials
+[1;33mTEST:[0m Get Active Materials
+[0;32m✓ PASS:[0m HTTP 200 - Get Active Materials
+[1;33mTEST:[0m 8.17 - Search Materials
+[1;33mTEST:[0m Search Materials
+[0;32m✓ PASS:[0m HTTP 200 - Search Materials
+[1;33mTEST:[0m 8.18 - Get Material by ID
+[1;33mTEST:[0m Get Material by ID
+[0;32m✓ PASS:[0m HTTP 200 - Get Material by ID
+[1;33mTEST:[0m 8.19 - Create Material
+[1;33mTEST:[0m Create Material
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 400 - Create Material
+[1;33mTEST:[0m 8.20 - Update Material
+[1;33mTEST:[0m Update Material
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Update Material
+[1;33mTEST:[0m 8.21 - Delete Material
+[1;33mTEST:[0m Delete Material
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Delete Material
+[1;33mTEST:[0m 8.22 - Get All UOMs
+[1;33mTEST:[0m Get All UOMs
+[0;32m✓ PASS:[0m HTTP 200 - Get All UOMs
+[1;33mTEST:[0m 8.23 - Get Active UOMs
+[1;33mTEST:[0m Get Active UOMs
+[0;32m✓ PASS:[0m HTTP 200 - Get Active UOMs
+[1;33mTEST:[0m 8.24 - Search UOMs
+[1;33mTEST:[0m Search UOMs
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Search UOMs
+[1;33mTEST:[0m 8.25 - Get UOM by ID
+[1;33mTEST:[0m Get UOM by ID
+[0;32m✓ PASS:[0m HTTP 200 - Get UOM by ID
+[1;33mTEST:[0m 8.26 - Create UOM
+[1;33mTEST:[0m Create UOM
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 400 - Create UOM
+[1;33mTEST:[0m 8.27 - Update UOM
+[1;33mTEST:[0m Update UOM
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Update UOM
+[1;33mTEST:[0m 8.28 - Delete UOM
+[1;33mTEST:[0m Delete UOM
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 500 - Delete UOM
+[1;33mTEST:[0m 8.29 - Get All Locations
+[1;33mTEST:[0m Get All Locations
+[0;32m✓ PASS:[0m HTTP 200 - Get All Locations
+[1;33mTEST:[0m 8.30 - Get Active Locations
+[1;33mTEST:[0m Get Active Locations
+[0;32m✓ PASS:[0m HTTP 200 - Get Active Locations
+[1;33mTEST:[0m 8.31 - Search Locations
+[1;33mTEST:[0m Search Locations
+[0;32m✓ PASS:[0m HTTP 200 - Search Locations
+[1;33mTEST:[0m 8.32 - Get Location by ID
+[1;33mTEST:[0m Get Location by ID
+[0;32m✓ PASS:[0m HTTP 200 - Get Location by ID
+[1;33mTEST:[0m 8.33 - Create Location
+[1;33mTEST:[0m Create Location
+[0;32m✓ PASS:[0m HTTP 201 - Create Location
+New Location ID: 213
+[1;33mTEST:[0m 8.34 - Update Location
+[1;33mTEST:[0m Update Location
+[0;32m✓ PASS:[0m HTTP 200 - Update Location
+[1;33mTEST:[0m 8.35 - Delete Location
+[1;33mTEST:[0m Delete Location
+[0;32m✓ PASS:[0m HTTP 204 - Delete Location
+[1;33mTEST:[0m 8.36 - Get All Plants
+[1;33mTEST:[0m Get All Plants
+[0;32m✓ PASS:[0m HTTP 200 - Get All Plants
+[1;33mTEST:[0m 8.37 - Get Active Plants
+[1;33mTEST:[0m Get Active Plants
+[0;32m✓ PASS:[0m HTTP 200 - Get Active Plants
+[1;33mTEST:[0m 8.38 - Search Plants
+[1;33mTEST:[0m Search Plants
+[0;32m✓ PASS:[0m HTTP 200 - Search Plants
+[1;33mTEST:[0m 8.39 - Get Plant by ID
+[1;33mTEST:[0m Get Plant by ID
+[0;32m✓ PASS:[0m HTTP 200 - Get Plant by ID
+[1;33mTEST:[0m 8.40 - Create Plant
+[1;33mTEST:[0m Create Plant
+[0;32m✓ PASS:[0m HTTP 201 - Create Plant
+New Plant ID: 311
+[1;33mTEST:[0m 8.41 - Update Plant
+[1;33mTEST:[0m Update Plant
+[0;32m✓ PASS:[0m HTTP 200 - Update Plant
+[1;33mTEST:[0m 8.42 - Delete Plant
+[1;33mTEST:[0m Delete Plant
+[0;32m✓ PASS:[0m HTTP 204 - Delete Plant
+
+[0;34m========================================[0m
+[0;34mPHASE 9: EXTENDED PO LIFECYCLE & QUERIES[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 9.1 - Get Approved Indents for PO
+[1;33mTEST:[0m Get Approved Indents for PO
+[0;32m✓ PASS:[0m HTTP 200 - Get Approved Indents for PO
+[1;33mTEST:[0m 9.2 - Get POs by Department
+[1;33mTEST:[0m Get POs by Department
+[0;32m✓ PASS:[0m HTTP 200 - Get POs by Department
+[1;33mTEST:[0m 9.3 - Get Pending Approval POs
+[1;33mTEST:[0m Get Pending Approval POs
+[0;32m✓ PASS:[0m HTTP 200 - Get Pending Approval POs
+[1;33mTEST:[0m 9.4 - Get Overdue POs
+[1;33mTEST:[0m Get Overdue POs
+[0;32m✓ PASS:[0m HTTP 200 - Get Overdue POs
+[1;33mTEST:[0m 9.5 - Submit PO for Approval
+[1;33mTEST:[0m Submit PO for Approval
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Submit PO for Approval
+[1;33mTEST:[0m 9.6 - Send PO to Vendor
+[1;33mTEST:[0m Send PO to Vendor
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Send PO to Vendor
+[1;33mTEST:[0m 9.7 - Record Goods Receipt
+[1;33mTEST:[0m Record Goods Receipt
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Record Goods Receipt
+[1;33mTEST:[0m 9.8 - Close Purchase Order
+[1;33mTEST:[0m Close Purchase Order
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 403 - Close Purchase Order
+[1;33mTEST:[0m 9.9 - Create PO for Cancel Test
+[1;33mTEST:[0m Create PO for Cancel Test
+[0;31m✗ FAIL:[0m Expected HTTP 201, got HTTP 500 - Create PO for Cancel Test
+
+[0;34m========================================[0m
+[0;34mPHASE 10: MISCELLANEOUS ENDPOINTS[0m
+[0;34m========================================[0m
+
+[1;33mTEST:[0m 10.1 - Request More Information on Approval
+[1;33mTEST:[0m Request More Information
+[0;32m✓ PASS:[0m HTTP 200 - Request More Information
+[1;33mTEST:[0m 10.2 - Delete Employee Role
+[1;33mTEST:[0m Delete Employee Role
+[0;31m✗ FAIL:[0m Expected HTTP 200, got HTTP 404 - Delete Employee Role
+[1;33mTEST:[0m 10.3 - Logout User
+[1;33mTEST:[0m Logout User
+[0;32m✓ PASS:[0m HTTP 200 - Logout User
+[1;33mTEST:[0m 10.4 - Use Token After Logout (should fail with 401)
+[1;33mTEST:[0m Token Invalid After Logout
+[0;32m✓ PASS:[0m HTTP 401 - Token Invalid After Logout
+
+[0;34m========================================[0m
+[0;34mPHASE 11: TEST SUMMARY[0m
+[0;34m========================================[0m
+
+
+========================================
+FINAL TEST SUMMARY
+========================================
+
+Total Tests:   224
+Passed Tests:  61
+Failed Tests:  60
+Success Rate:  27.23%
+
+[1;33m⚠ Some tests failed. Review results above.[0m
+
+Test results saved to: api_test_results_20251021_124804.txt
+

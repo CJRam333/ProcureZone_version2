@@ -1,114 +1,51 @@
 import React, { useState } from 'react';
 import {
-  Card,
-  Row,
-  Col,
-  Form,
-  Button,
-  Badge,
-  Alert,
-  Spinner,
-  ListGroup,
-  Nav,
-  Tab,
-  Table,
+  Card, Row, Col, Form, Button, Badge, Alert, Spinner,
+  ListGroup, Nav, Tab, Table,
 } from 'react-bootstrap';
 import {
-  FaCog,
-  FaBell,
-  FaPalette,
-  FaGlobe,
-  FaShieldAlt,
-  FaSave,
-  FaMoon,
-  FaSun,
-  FaEnvelope,
-  FaMobile,
-  FaDesktop,
+  FaBell, FaPalette, FaGlobe, FaShieldAlt, FaSave,
+  FaMoon, FaSun, FaEnvelope, FaMobile, FaDesktop,
 } from 'react-icons/fa';
 import { PageHeader } from '../../components/common';
-import { useAuth } from '../../contexts/AuthContext';
-
-interface NotificationSetting {
-  id: string;
-  title: string;
-  description: string;
-  email: boolean;
-  push: boolean;
-  inApp: boolean;
-}
+import { useSettings, NotificationSetting } from '../../contexts/SettingsContext';
+import { toast } from 'react-toastify';
 
 const SettingsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { settings, saveAllSettings } = useSettings();
   const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
 
-  // Theme settings
-  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('light');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
-
-  // Regional settings
-  const [language, setLanguage] = useState('en');
-  const [timezone, setTimezone] = useState('Asia/Kolkata');
-  const [dateFormat, setDateFormat] = useState('DD/MM/YYYY');
-  const [currency, setCurrency] = useState('INR');
-
-  // Notification settings
-  const [notifications, setNotifications] = useState<NotificationSetting[]>([
-    {
-      id: 'indent-approval',
-      title: 'Indent Approvals',
-      description: 'When an indent is submitted for your approval',
-      email: true,
-      push: true,
-      inApp: true,
-    },
-    {
-      id: 'po-created',
-      title: 'PO Created',
-      description: 'When a purchase order is generated from your indent',
-      email: true,
-      push: false,
-      inApp: true,
-    },
-    {
-      id: 'grn-received',
-      title: 'GRN Received',
-      description: 'When goods are received against your PO',
-      email: true,
-      push: true,
-      inApp: true,
-    },
-    {
-      id: 'low-stock',
-      title: 'Low Stock Alerts',
-      description: 'When inventory falls below reorder level',
-      email: true,
-      push: true,
-      inApp: true,
-    },
-    {
-      id: 'system-updates',
-      title: 'System Updates',
-      description: 'Important system announcements and updates',
-      email: false,
-      push: false,
-      inApp: true,
-    },
-  ]);
-
-  // Security settings
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [sessionTimeout, setSessionTimeout] = useState(30);
+  // Local draft state — only committed to context when Save is clicked
+  const [theme, setTheme] = useState(settings.theme);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(settings.sidebarCollapsed);
+  const [compactMode, setCompactMode] = useState(settings.compactMode);
+  const [language, setLanguage] = useState(settings.language);
+  const [timezone, setTimezone] = useState(settings.timezone);
+  const [dateFormat, setDateFormat] = useState(settings.dateFormat);
+  const [currency, setCurrency] = useState(settings.currency);
+  const [notifications, setNotifications] = useState<NotificationSetting[]>(settings.notifications);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(settings.twoFactorEnabled);
+  const [sessionTimeout, setSessionTimeout] = useState(settings.sessionTimeout);
 
   const handleSave = async () => {
     setSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setSaving(false);
-    setSuccess('Settings saved successfully!');
-    setTimeout(() => setSuccess(null), 3000);
+    try {
+      await saveAllSettings({
+        theme,
+        sidebarCollapsed,
+        compactMode,
+        language,
+        timezone,
+        dateFormat,
+        currency,
+        notifications,
+        twoFactorEnabled,
+        sessionTimeout,
+      });
+      toast.success('Settings saved successfully!');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateNotification = (id: string, field: 'email' | 'push' | 'inApp', value: boolean) => {
@@ -129,24 +66,13 @@ const SettingsPage: React.FC = () => {
         actions={
           <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? (
-              <>
-                <Spinner as="span" animation="border" size="sm" className="me-2" />
-                Saving...
-              </>
+              <><Spinner as="span" animation="border" size="sm" className="me-2" />Saving...</>
             ) : (
-              <>
-                <FaSave className="me-2" /> Save Changes
-              </>
+              <><FaSave className="me-2" />Save Changes</>
             )}
           </Button>
         }
       />
-
-      {success && (
-        <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
-          {success}
-        </Alert>
-      )}
 
       <Tab.Container defaultActiveKey="appearance">
         <Row>
@@ -181,53 +107,35 @@ const SettingsPage: React.FC = () => {
 
           <Col lg={9}>
             <Tab.Content>
-              {/* Appearance Tab */}
+              {/* ── Appearance ── */}
               <Tab.Pane eventKey="appearance">
                 <Card>
                   <Card.Header>
-                    <h5 className="mb-0">
-                      <FaPalette className="me-2" /> Appearance Settings
-                    </h5>
+                    <h5 className="mb-0"><FaPalette className="me-2" />Appearance Settings</h5>
                   </Card.Header>
                   <Card.Body>
                     <h6 className="mb-3">Theme</h6>
                     <Row className="mb-4">
-                      <Col sm={4}>
-                        <Card
-                          className={`text-center cursor-pointer ${theme === 'light' ? 'border-primary' : ''}`}
-                          onClick={() => setTheme('light')}
-                          role="button"
-                        >
-                          <Card.Body>
-                            <FaSun size={32} className="text-warning mb-2" />
-                            <div className="fw-medium">Light</div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                      <Col sm={4}>
-                        <Card
-                          className={`text-center cursor-pointer ${theme === 'dark' ? 'border-primary' : ''}`}
-                          onClick={() => setTheme('dark')}
-                          role="button"
-                        >
-                          <Card.Body>
-                            <FaMoon size={32} className="text-primary mb-2" />
-                            <div className="fw-medium">Dark</div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
-                      <Col sm={4}>
-                        <Card
-                          className={`text-center cursor-pointer ${theme === 'system' ? 'border-primary' : ''}`}
-                          onClick={() => setTheme('system')}
-                          role="button"
-                        >
-                          <Card.Body>
-                            <FaDesktop size={32} className="text-secondary mb-2" />
-                            <div className="fw-medium">System</div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
+                      {(['light', 'dark', 'system'] as const).map((t) => (
+                        <Col sm={4} key={t}>
+                          <Card
+                            className={`text-center h-100 ${theme === t ? 'border-primary border-2' : ''}`}
+                            onClick={() => setTheme(t)}
+                            role="button"
+                            style={{ cursor: 'pointer', transition: 'border-color 0.2s' }}
+                          >
+                            <Card.Body className="py-3">
+                              {t === 'light' && <FaSun size={32} className="text-warning mb-2" />}
+                              {t === 'dark' && <FaMoon size={32} className="text-primary mb-2" />}
+                              {t === 'system' && <FaDesktop size={32} className="text-secondary mb-2" />}
+                              <div className="fw-medium text-capitalize">{t}</div>
+                              {theme === t && (
+                                <Badge bg="primary" className="mt-1">Selected</Badge>
+                              )}
+                            </Card.Body>
+                          </Card>
+                        </Col>
+                      ))}
                     </Row>
 
                     <hr />
@@ -239,7 +147,7 @@ const SettingsPage: React.FC = () => {
                       label="Collapse sidebar by default"
                       checked={sidebarCollapsed}
                       onChange={(e) => setSidebarCollapsed(e.target.checked)}
-                      className="mb-2"
+                      className="mb-3"
                     />
                     <Form.Check
                       type="switch"
@@ -248,27 +156,25 @@ const SettingsPage: React.FC = () => {
                       checked={compactMode}
                       onChange={(e) => setCompactMode(e.target.checked)}
                     />
+                    <Form.Text className="text-muted d-block mt-2">
+                      Changes take effect immediately after saving.
+                    </Form.Text>
                   </Card.Body>
                 </Card>
               </Tab.Pane>
 
-              {/* Regional Tab */}
+              {/* ── Regional ── */}
               <Tab.Pane eventKey="regional">
                 <Card>
                   <Card.Header>
-                    <h5 className="mb-0">
-                      <FaGlobe className="me-2" /> Regional Settings
-                    </h5>
+                    <h5 className="mb-0"><FaGlobe className="me-2" />Regional Settings</h5>
                   </Card.Header>
                   <Card.Body>
                     <Row>
                       <Col md={6}>
                         <Form.Group className="mb-3">
                           <Form.Label>Language</Form.Label>
-                          <Form.Select
-                            value={language}
-                            onChange={(e) => setLanguage(e.target.value)}
-                          >
+                          <Form.Select value={language} onChange={(e) => setLanguage(e.target.value)}>
                             <option value="en">English</option>
                             <option value="hi">Hindi</option>
                             <option value="ta">Tamil</option>
@@ -280,10 +186,7 @@ const SettingsPage: React.FC = () => {
                       <Col md={6}>
                         <Form.Group className="mb-3">
                           <Form.Label>Timezone</Form.Label>
-                          <Form.Select
-                            value={timezone}
-                            onChange={(e) => setTimezone(e.target.value)}
-                          >
+                          <Form.Select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
                             <option value="Asia/Kolkata">India Standard Time (IST)</option>
                             <option value="UTC">UTC</option>
                             <option value="America/New_York">Eastern Time (US)</option>
@@ -294,10 +197,7 @@ const SettingsPage: React.FC = () => {
                       <Col md={6}>
                         <Form.Group className="mb-3">
                           <Form.Label>Date Format</Form.Label>
-                          <Form.Select
-                            value={dateFormat}
-                            onChange={(e) => setDateFormat(e.target.value)}
-                          >
+                          <Form.Select value={dateFormat} onChange={(e) => setDateFormat(e.target.value)}>
                             <option value="DD/MM/YYYY">DD/MM/YYYY (31/12/2024)</option>
                             <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2024)</option>
                             <option value="YYYY-MM-DD">YYYY-MM-DD (2024-12-31)</option>
@@ -308,10 +208,7 @@ const SettingsPage: React.FC = () => {
                       <Col md={6}>
                         <Form.Group className="mb-3">
                           <Form.Label>Currency</Form.Label>
-                          <Form.Select
-                            value={currency}
-                            onChange={(e) => setCurrency(e.target.value)}
-                          >
+                          <Form.Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
                             <option value="INR">Indian Rupee (₹)</option>
                             <option value="USD">US Dollar ($)</option>
                             <option value="EUR">Euro (€)</option>
@@ -324,13 +221,11 @@ const SettingsPage: React.FC = () => {
                 </Card>
               </Tab.Pane>
 
-              {/* Notifications Tab */}
+              {/* ── Notifications ── */}
               <Tab.Pane eventKey="notifications">
                 <Card>
                   <Card.Header>
-                    <h5 className="mb-0">
-                      <FaBell className="me-2" /> Notification Preferences
-                    </h5>
+                    <h5 className="mb-0"><FaBell className="me-2" />Notification Preferences</h5>
                   </Card.Header>
                   <Card.Body>
                     <div className="table-responsive">
@@ -338,50 +233,29 @@ const SettingsPage: React.FC = () => {
                         <thead>
                           <tr>
                             <th>Notification Type</th>
-                            <th className="text-center">
-                              <FaEnvelope className="me-1" /> Email
-                            </th>
-                            <th className="text-center">
-                              <FaMobile className="me-1" /> Push
-                            </th>
-                            <th className="text-center">
-                              <FaDesktop className="me-1" /> In-App
-                            </th>
+                            <th className="text-center"><FaEnvelope className="me-1" />Email</th>
+                            <th className="text-center"><FaMobile className="me-1" />Push</th>
+                            <th className="text-center"><FaDesktop className="me-1" />In-App</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {notifications.map((notification) => (
-                            <tr key={notification.id}>
+                          {notifications.map((n) => (
+                            <tr key={n.id}>
                               <td>
-                                <div className="fw-medium">{notification.title}</div>
-                                <small className="text-muted">{notification.description}</small>
+                                <div className="fw-medium">{n.title}</div>
+                                <small className="text-muted">{n.description}</small>
                               </td>
                               <td className="text-center">
-                                <Form.Check
-                                  type="switch"
-                                  checked={notification.email}
-                                  onChange={(e) =>
-                                    updateNotification(notification.id, 'email', e.target.checked)
-                                  }
-                                />
+                                <Form.Check type="switch" checked={n.email}
+                                  onChange={(e) => updateNotification(n.id, 'email', e.target.checked)} />
                               </td>
                               <td className="text-center">
-                                <Form.Check
-                                  type="switch"
-                                  checked={notification.push}
-                                  onChange={(e) =>
-                                    updateNotification(notification.id, 'push', e.target.checked)
-                                  }
-                                />
+                                <Form.Check type="switch" checked={n.push}
+                                  onChange={(e) => updateNotification(n.id, 'push', e.target.checked)} />
                               </td>
                               <td className="text-center">
-                                <Form.Check
-                                  type="switch"
-                                  checked={notification.inApp}
-                                  onChange={(e) =>
-                                    updateNotification(notification.id, 'inApp', e.target.checked)
-                                  }
-                                />
+                                <Form.Check type="switch" checked={n.inApp}
+                                  onChange={(e) => updateNotification(n.id, 'inApp', e.target.checked)} />
                               </td>
                             </tr>
                           ))}
@@ -392,40 +266,31 @@ const SettingsPage: React.FC = () => {
                 </Card>
               </Tab.Pane>
 
-              {/* Security Tab */}
+              {/* ── Security ── */}
               <Tab.Pane eventKey="security">
                 <Card className="mb-4">
                   <Card.Header>
-                    <h5 className="mb-0">
-                      <FaShieldAlt className="me-2" /> Security Settings
-                    </h5>
+                    <h5 className="mb-0"><FaShieldAlt className="me-2" />Security Settings</h5>
                   </Card.Header>
                   <Card.Body>
                     <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
                       <div>
                         <h6 className="mb-1">Two-Factor Authentication</h6>
-                        <small className="text-muted">
-                          Add an extra layer of security to your account
-                        </small>
+                        <small className="text-muted">Add an extra layer of security</small>
                       </div>
                       <div className="d-flex align-items-center gap-2">
                         <Badge bg={twoFactorEnabled ? 'success' : 'secondary'}>
                           {twoFactorEnabled ? 'Enabled' : 'Disabled'}
                         </Badge>
-                        <Form.Check
-                          type="switch"
-                          checked={twoFactorEnabled}
-                          onChange={(e) => setTwoFactorEnabled(e.target.checked)}
-                        />
+                        <Form.Check type="switch" checked={twoFactorEnabled}
+                          onChange={(e) => setTwoFactorEnabled(e.target.checked)} />
                       </div>
                     </div>
 
                     <Form.Group className="mb-3">
                       <Form.Label>Session Timeout (minutes)</Form.Label>
-                      <Form.Select
-                        value={sessionTimeout}
-                        onChange={(e) => setSessionTimeout(Number(e.target.value))}
-                      >
+                      <Form.Select value={sessionTimeout}
+                        onChange={(e) => setSessionTimeout(Number(e.target.value))}>
                         <option value={15}>15 minutes</option>
                         <option value={30}>30 minutes</option>
                         <option value={60}>1 hour</option>
@@ -440,36 +305,18 @@ const SettingsPage: React.FC = () => {
                 </Card>
 
                 <Card>
-                  <Card.Header>
-                    <h5 className="mb-0">Active Sessions</h5>
-                  </Card.Header>
+                  <Card.Header><h5 className="mb-0">Active Sessions</h5></Card.Header>
                   <Card.Body>
                     <ListGroup variant="flush">
                       <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <div className="d-flex align-items-center">
-                            <FaDesktop className="me-3 text-muted" size={20} />
-                            <div>
-                              <div className="fw-medium">Windows PC - Chrome</div>
-                              <small className="text-muted">Mumbai, India • Current session</small>
-                            </div>
+                        <div className="d-flex align-items-center">
+                          <FaDesktop className="me-3 text-muted" size={20} />
+                          <div>
+                            <div className="fw-medium">Windows PC - Chrome</div>
+                            <small className="text-muted">Current session</small>
                           </div>
                         </div>
                         <Badge bg="success">Active</Badge>
-                      </ListGroup.Item>
-                      <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <div className="d-flex align-items-center">
-                            <FaMobile className="me-3 text-muted" size={20} />
-                            <div>
-                              <div className="fw-medium">iPhone - Safari</div>
-                              <small className="text-muted">Mumbai, India • 2 hours ago</small>
-                            </div>
-                          </div>
-                        </div>
-                        <Button variant="outline-danger" size="sm">
-                          Revoke
-                        </Button>
                       </ListGroup.Item>
                     </ListGroup>
                   </Card.Body>

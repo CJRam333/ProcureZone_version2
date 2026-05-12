@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblMaterialMaster" table="tbl_material_master" catalog="seeds_indent">
+        <id name="materialId" type="java.lang.Integer">
+            <column name="material_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="material_lmu" not-null="true" />
+        </many-to-one>
+        <property name="materialCode" type="string">
+            <column name="material_code" length="200" />
+        </property>
+        <property name="materialName" type="string">
+            <column name="material_name" length="200" not-null="true" />
+        </property>
+        <property name="materialDesc" type="string">
+            <column name="material_desc" length="200" not-null="true" />
+        </property>
+                
+        <!--<property name="materialQuantityStores" type="big_decimal">
+            <column name="material_quantity_stores" precision="20" />
+        </property>-->
+        <property name="materialStatus" type="int">
+            <column name="material_status" not-null="true" />
+        </property>
+        <property name="materialLmd" type="date">
+            <column name="material_lmd" length="10" not-null="true" />
+        </property>
+        <set name="tblMapCompanyLocationMaterials" table="tbl_map_company_location_material" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="map_material" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapCompanyLocationMaterial" />
+        </set>
+    </class>
+</hibernate-mapping>

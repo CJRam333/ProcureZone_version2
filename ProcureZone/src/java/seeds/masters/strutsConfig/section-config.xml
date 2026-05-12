@@ -1,0 +1,34 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.masters.action.SectionAction" extends="struts-default">
+        <action name="sectionMasterList" class="seeds.masters.action.SectionAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/section_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/section_master_list.jsp</result>
+        </action>
+        <action name="addSection" class="seeds.masters.action.SectionAction" method="addSection" >            
+            <result name="success">/WEB-INF/jsp/masters/section_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/section_master_list.jsp</result>
+        </action>
+        <action name="saveSection" class="seeds.masters.action.SectionAction" method="saveSection" >            
+            <result name="success" type="redirect">sectionMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/section_master.jsp</result>
+        </action>
+        <action name="updateSection" class="seeds.masters.action.SectionAction" method="updateSection" >            
+            <result name="success">/WEB-INF/jsp/masters/section_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/section_master_list.jsp</result>            
+        </action>
+        <action name="deleteSection" class="seeds.masters.action.SectionAction" method="deleteSection" >            
+            <result name="success" type="redirect">sectionMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/section_master_list.jsp</result>
+        </action>
+        <action name="viewSection" class="seeds.masters.action.SectionAction" method="viewSection" >            
+            <result name="success">/WEB-INF/jsp/masters/section_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/section_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>

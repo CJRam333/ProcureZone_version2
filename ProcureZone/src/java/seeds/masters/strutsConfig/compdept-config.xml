@@ -1,0 +1,34 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.masters.action.CompDeptAction" extends="struts-default">
+        <action name="compDeptMasterList" class="seeds.masters.action.CompDeptAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_dept_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_dept_master_list.jsp</result>
+        </action>
+        <action name="addCompDept" class="seeds.masters.action.CompDeptAction" method="addCompDept" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_dept_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_dept_master_list.jsp</result>
+        </action>
+        <action name="saveCompDept" class="seeds.masters.action.CompDeptAction" method="saveCompDept" >            
+            <result name="success" type="redirect">compDeptMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_dept_master.jsp</result>
+        </action>
+        <action name="updateCompDept" class="seeds.masters.action.CompDeptAction" method="updateCompDept" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_dept_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_dept_master_list.jsp</result>            
+        </action>
+        <action name="deleteCompDept" class="seeds.masters.action.CompDeptAction" method="deleteCompDept" >            
+            <result name="success" type="redirect">compDeptMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_dept_master_list.jsp</result>
+        </action>
+        <action name="viewCompDept" class="seeds.masters.action.CompDeptAction" method="viewCompDept" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_dept_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_dept_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>

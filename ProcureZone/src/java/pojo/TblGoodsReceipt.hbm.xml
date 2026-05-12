@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblGoodsReceipt" table="tbl_goods_receipt" catalog="seeds_indent">
+        <id name="goodsReceiptId" type="java.lang.Integer">
+            <column name="goods_receipt_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMasterByGoodsReceiptLmu" class="pojo.TblEmpMaster" fetch="select">
+            <column name="goods_receipt_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByGoodsReceiptCreatedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="goods_receipt_createdby" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByGoodsReceiptApprovedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="goods_receipt_approvedby" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByGoodsReceiptFinalApprovedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="goods_receipt_final_approvedby" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByGoodsReceiptStoresby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="goods_receipt_storesby" />
+        </many-to-one>
+        <many-to-one name="tblIndentDetails" class="pojo.TblIndentDetails" fetch="select">
+            <column name="indent_details_id" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblIndentMaster" class="pojo.TblIndentMaster" fetch="select">
+            <column name="indent_id" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByGoodsReceiptFinalStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="goods_receipt_final_status" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByGoodsReceiptStoresbyStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="goods_receipt_storesby_status" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByGoodsReceiptApprovedStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="goods_receipt_approved_status" />
+        </many-to-one>
+        <property name="goodsReceiptQuantity" type="big_decimal">
+            <column name="goods_receipt_quantity" precision="20" />
+        </property>
+        <property name="goodsReceiptIssuedQuantity" type="big_decimal">
+            <column name="goods_receipt_issued_quantity" precision="20" />
+        </property>
+        <property name="goodsReceiptBalanceInventory" type="big_decimal">
+            <column name="goods_receipt_balance_inventory" precision="20" />
+        </property>
+        <property name="goodsReceiptOpeningQuantity" type="big_decimal">
+            <column name="goods_receipt_opening_quantity" precision="20" />
+        </property>
+        <property name="goodsReceiptCreatedDate" type="string">
+            <column name="goods_receipt_created_date" length="20" />
+        </property>
+        <property name="goodsReceiptCreatedRemarks" type="string">
+            <column name="goods_receipt_created_remarks" length="16777215" />
+        </property>
+        <property name="goodsReceiptApprovedbyDate" type="string">
+            <column name="goods_receipt_approvedby_date" length="20" />
+        </property>
+        <property name="goodsReceiptApprovedbyRemarks" type="string">
+            <column name="goods_receipt_approvedby_remarks" length="16777215" />
+        </property>
+        <property name="goodsReceiptFinalApprovedbyDate" type="string">
+            <column name="goods_receipt_final_approvedby_date" length="20" />
+        </property>
+        <property name="goodsReceiptFinalApprovedbyRemarks" type="string">
+            <column name="goods_receipt_final_approvedby_remarks" length="45" />
+        </property>
+        <property name="goodsReceiptRequestedQuantity" type="big_decimal">
+            <column name="goods_receipt_requested_quantity" precision="20" />
+        </property>
+        <property name="goodsReceiptBalanceQuantityStores" type="big_decimal">
+            <column name="goods_receipt_balance_quantity_stores" precision="20" />
+        </property>
+        <property name="goodsReceiptStoresbyDate" type="string">
+            <column name="goods_receipt_storesby_date" length="20" />
+        </property>
+        <property name="goodsReceiptStoresbyRemarks" type="string">
+            <column name="goods_receipt_storesby_remarks" length="16777215" />
+        </property>
+        <property name="goodsReceiptStatus" type="int">
+            <column name="goods_receipt_status" not-null="true" />
+        </property>
+        <property name="goodsReceiptLmd" type="string">
+            <column name="goods_receipt_lmd" length="20" not-null="true" />
+        </property>
+    </class>
+</hibernate-mapping>

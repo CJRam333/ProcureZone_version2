@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzIndentDetails" table="pz_tbl_indent_details" catalog="seeds_indent">
+        <id name="indentDetailsId" type="java.lang.Integer">
+            <column name="indent_details_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_details_lmu" />
+        </many-to-one>
+        <many-to-one name="tblIndentMaster" class="pojo.TbPzlIndentMastera" fetch="select">
+            <column name="indent_id" />
+        </many-to-one>
+        <many-to-one name="indentDetailsMaterial" class="pojo.TblPzScheduleMaterialmaster" fetch="select">
+            <column name="indent_details_material" />
+        </many-to-one>
+        <many-to-one name="tblUmoMaster" class="pojo.TblPzUmoMaster" fetch="select">
+            <column name="indent_details_umo" />
+        </many-to-one>
+        <property name="indentDetailsQty" type="big_decimal">
+            <column name="indent_details_qty" precision="20"  />
+        </property>
+        <property name="indentDetailsRmQty" type="big_decimal">
+            <column name="indent_details_rm_qty" precision="20" />
+        </property>
+        <property name="indentDetailsDeptQty" type="big_decimal">
+            <column name="indent_details_dept_qty" precision="20" />
+        </property>
+        <property name="indentDetailsStockAval" type="big_decimal">
+            <column name="indent_details_stock_aval" precision="20"  />
+        </property>
+        <property name="indentDetailsPricing" type="big_decimal">
+            <column name="indent_details_pricing" precision="20" />
+        </property>
+        <property name="indentDetailsPurpose" type="string">
+            <column name="indent_details_purpose" length="16777215" />
+        </property>
+        <property name="indentDetailsVendor" type="string">
+            <column name="indent_details_vendor" length="200" />
+        </property>
+        <property name="indentDetailsStatus" type="int">
+            <column name="indent_details_status" />
+        </property>
+        <property name="indentDetailsLmd" type="date">
+            <column name="indent_details_lmd" length="10"  />
+        </property>
+        
+       <property name="indentMateDesc" type="string">
+            <column name="indent_mat_desc" />
+        </property>
+        <property name="indentLoteNum" type="string">
+            <column name="indent_lot_number" />
+        </property>
+        
+        <property name="indentMatel" type="string">
+            <column name="indent_material" />
+        </property>
+        
+        <property name="indentStoLoc" type="string">
+            <column name="indent_storage_loc" />
+        </property>
+        
+        
+        
+        
+        
+        
+        
+        <property name="matStl" type="string">
+            <column name="stl" />
+        </property>
+        
+        <property name="matOdv" type="string">
+            <column name="odv" />
+        </property>
+        
+        <property name="matGot" type="string">
+            <column name="got" />
+        </property>
+        
+        <property name="matElisa" type="string">
+            <column name="elisa" />
+        </property>
+    
+        
+        
+        
+      <property name="sDCLS" type="string">
+            <column name="SDCLS"  />
+        </property>
+        
+        <property name="sTATS" type="string">
+            <column name="STATS"  />
+        </property>
+        
+        <property name="sKIPD" type="string">
+            <column name="SKIPD"  />
+        </property>
+        
+        <property name="iNSPDT" type="string">
+            <column name="INSPDT"  />
+        </property>
+        
+        <property name="mOISTURE" type="string">
+            <column name="MOISTURE"  />
+        </property>
+        
+        <property name="PURESEED" type="string">
+            <column name="PURE_SEED"  />
+        </property>
+        
+        <property name="INERTMATTER" type="string">
+            <column name="INERT_MATTER"  />
+        </property>
+        
+        <property name="OCSCOUNT" type="string">
+            <column name="OCS_COUNT"  />
+        </property>
+        
+        <property name="WEEDSEEDCOUNT" type="string">
+            <column name="WEED_SEED_COUNT"  />
+        </property>
+        
+        <property name="gRAIN" type="string">
+            <column name="GRAIN"  />
+        </property>
+        
+        <property name="BLACKSEEDS" type="string">
+            <column name="BLACK_SEEDS"  />
+        </property>
+        
+        <property name="PINHOLESEEDS" type="string">
+            <column name="PINHOLE_SEEDS"  />
+        </property>
+        
+        <property name="ODVRES" type="string">
+            <column name="ODV_RES"  />
+        </property>
+        
+        <property name="BULKDENSITY" type="string">
+            <column name="BULK_DENSITY"  />
+        </property>
+        
+        <property name="tHSW" type="string">
+            <column name="THSW"  />
+        </property>
+        
+        <property name="COLDVIGOURGERMNORMAL" type="string">
+            <column name="COLD_VIGOUR_GERM_NORMAL"  />
+        </property>
+        
+        <property name="FIRSTCOUNTNORMAL" type="string">
+            <column name="FIRST_COUNT_NORMAL"  />
+        </property>
+        
+        <property name="GERMNORMAL" type="string">
+            <column name="GERM_NORMAL"  />
+        </property>
+        
+        <property name="FETNORMAL" type="string">
+            <column name="FET_NORMAL"  />
+        </property>
+        
+        <property name="SOILCOUNTDAYS" type="string">
+            <column name="SOIL_COUNT_DAYS"  />
+        </property>
+        
+        <property name="AAVGERMNORMAL" type="string">
+            <column name="AAV_GERM_NORMAL"  />
+        </property>
+        
+        <property name="GOTGP" type="string">
+            <column name="GOT_GP"  />
+        </property>
+        
+        <property name="GOTFEMALE" type="string">
+            <column name="GOT_FEMALE"  />
+        </property>
+        
+        <property name="GOTOTHERS" type="string">
+            <column name="GOT_OTHERS"  />
+        </property>
+        
+        <property name="bG1" type="string">
+            <column name="BG1"  />
+        </property>
+        
+        <property name="bG2" type="string">
+            <column name="BG2"  />
+        </property>
+        
+        <property name="hT" type="string">
+            <column name="HT"  />
+        </property>
+        
+        <property name="fQR" type="string">
+            <column name="FQR"  />
+        </property>
+        
+        <property name="q1" type="string">
+            <column name="Q1"  />
+        </property>
+        
+        <property name="q2" type="string">
+            <column name="Q2"  />
+        </property>
+        
+        
+        <property name="q3" type="string">
+            <column name="Q3"  />
+        </property>
+        
+        <property name="q4" type="string">
+            <column name="Q4"  />
+        </property>
+        
+        <property name="q5" type="string">
+            <column name="Q5"  />
+        </property>
+        
+        <property name="q6" type="string">
+            <column name="Q6"  />
+        </property>
+        
+        <property name="q7" type="string">
+            <column name="Q7"  />
+        </property>
+        
+        <property name="q8" type="string">
+            <column name="Q8"  />
+        </property>
+        
+        <property name="q9" type="string">
+            <column name="Q9"  />
+        </property>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    </class>
+</hibernate-mapping>

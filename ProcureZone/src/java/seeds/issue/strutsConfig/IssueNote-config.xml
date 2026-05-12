@@ -1,0 +1,88 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <!-- Add your configuration elements here -->
+    <package name="seeds.issue.action.IssueNoteAction" extends="struts-default,json-default">
+        <action name="issueNoteRequestList" class="seeds.issue.action.IssueNoteAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="issueNoteRequestList1" class="seeds.issue.action.IssueNoteAction" method="getList1" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="getIssueNoteNo" class="seeds.issue.action.IssueNoteAction" method="getIssueNoteNo" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="addIssueNoteRequest" class="seeds.issue.action.IssueNoteAction" method="addIssueNoteRequest" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="getQuantity" class="seeds.issue.action.IssueNoteAction" method="getQuantity" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request.jsp</result>
+            <result type="json" >
+        <param name="root">result</param></result>
+        </action>        
+        <action name="saveIssueNoteRequest" class="seeds.issue.action.IssueNoteAction" method="saveIssueNoteRequest" >            
+            <result name="success" type="redirect">issueNoteRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request.jsp</result>
+        </action>
+        <action name="getIssueNoteDetails" class="seeds.issue.action.IssueNoteAction" method="getIssueNoteDetails" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_list.jsp</result>
+        </action>
+        <action name="issueNoteRequestRmList" class="seeds.issue.action.IssueNoteAction" method="getRmList" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_list.jsp</result>
+        </action>
+        <action name="issueNoteRequestRmList1" class="seeds.issue.action.IssueNoteAction" method="getRmList1" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_list.jsp</result>
+        </action>
+        <action name="getRmIssueNoteDetails" class="seeds.issue.action.IssueNoteAction" method="getRmIssueNoteDetails" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_list.jsp</result>
+        </action>
+        <action name="saveRmIssueNoteRequest" class="seeds.issue.action.IssueNoteAction" method="saveRmIssueNoteRequest" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm.jsp</result>            
+        </action>
+        <action name="issueNoteDetailsRmView" class="seeds.issue.action.IssueNoteAction" method="issueNoteDetailsRmView" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_rm_list.jsp</result>
+        </action>
+        <action name="issueNoteRequestStoresList" class="seeds.issue.action.IssueNoteAction" method="getStoresList" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_list.jsp</result>
+        </action>
+        <action name="issueNoteRequestStoresList1" class="seeds.issue.action.IssueNoteAction" method="getStoresList1" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_list.jsp</result>
+        </action>
+        <action name="getStoresIssueNoteDetails" class="seeds.issue.action.IssueNoteAction" method="getStoresIssueNoteDetails" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_list.jsp</result>
+        </action>
+        <action name="saveStoresIssueNoteRequest" class="seeds.issue.action.IssueNoteAction" method="saveStoresIssueNoteRequest" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores.jsp</result> 
+        </action>
+        <action name="issueNoteDetailsStoresView" class="seeds.issue.action.IssueNoteAction" method="issueNoteDetailsStoresView" >            
+            <result name="success">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/issuenote/seeds_issue_note_request_stores_list.jsp</result>
+        </action>
+        <!--<action name="mailService" class="seeds.issue.mailService.SapCsvImport" method="execute">
+            <result name="success" type="stream">
+                <param name="contentDisposition">attachment;filename=${file}</param>
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="bufferSize">1024666</param>
+            </result>
+        </action>-->
+    </package>
+</struts>

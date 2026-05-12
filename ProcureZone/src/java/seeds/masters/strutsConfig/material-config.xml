@@ -1,0 +1,54 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <constant name="struts.multipart.maxSize" value="30000000" />
+    <package name="seeds.masters.action.MaterialAction" extends="struts-default">
+        <interceptors>             
+            <interceptor-stack name="def">                 
+                <interceptor-ref name="defaultStack" /> 
+                <interceptor-ref name="fileUpload">
+                    <param name="maximumSize">1000000</param>
+                    <param name="allowedTypes">
+                        application/vnd.ms-excel,application/ms-excel
+                    </param>
+                </interceptor-ref>
+            </interceptor-stack> 
+        </interceptors> 
+        <default-interceptor-ref name="def" />
+        <action name="materialMasterList" class="seeds.masters.action.MaterialAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/material_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/material_master_list.jsp</result>
+        </action>
+        <action name="addMaterial" class="seeds.masters.action.MaterialAction" method="addMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/material_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/material_master_list.jsp</result>
+        </action>
+        <action name="saveMaterial" class="seeds.masters.action.MaterialAction" method="saveMaterial" >            
+            <result name="success" type="redirect">materialMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/material_master.jsp</result>
+        </action>
+        <action name="updateMaterial" class="seeds.masters.action.MaterialAction" method="updateMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/material_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/company_master_list.jsp</result>            
+        </action>
+        <action name="deleteMaterial" class="seeds.masters.action.MaterialAction" method="deleteMaterial" >            
+            <result name="success" type="redirect">materialMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/material_master_list.jsp</result>
+        </action>
+        <action name="viewMaterial" class="seeds.masters.action.MaterialAction" method="viewMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/material_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/material_master_list.jsp</result>            
+        </action>
+        <action name="importMaterial" class="seeds.masters.action.MaterialAction" method="importMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/material_master_import.jsp</result>            
+        </action>
+        <action name="importMaterialMaster" class="seeds.masters.action.MaterialAction" method="importMaterialMaster" >            
+            <result name="success">/WEB-INF/jsp/masters/material_master_import.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/material_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>

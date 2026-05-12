@@ -1,0 +1,175 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblEmpMaster" table="tbl_emp_master" catalog="seeds_indent">
+        <id name="empNumber" type="java.lang.Integer">
+            <column name="emp_number" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblDepartmentMaster" class="pojo.TblDepartmentMaster" fetch="select">
+            <column name="emp_department" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblLocationMaster" class="pojo.TblLocationMaster" fetch="select">
+            <column name="emp_location" not-null="true" />
+        </many-to-one>
+        <property name="empId" type="string">
+            <column name="emp_id" length="100" not-null="true" />
+        </property>
+        <property name="empName" type="string">
+            <column name="emp_name" length="100" not-null="true" />
+        </property>
+        <property name="empEmail" type="string">
+            <column name="emp_email" length="100" not-null="true" />
+        </property>
+        <property name="empPassword" type="string">
+            <column name="emp_password" length="500" not-null="true" />
+        </property>
+        <property name="empJoinDate" type="date">
+            <column name="emp_join_date" length="10" />
+        </property>
+        <property name="empDesignation" type="string">
+            <column name="emp_designation" length="100" not-null="true" />
+        </property>
+        <property name="empCostCenter" type="string">
+            <column name="emp_cost_center" length="500" />
+        </property>
+        <property name="empPath" type="string">
+            <column name="emp_path" length="16777215" />
+        </property>
+        <property name="empStatus" type="int">
+            <column name="emp_status" not-null="true" />
+        </property>
+        <property name="empLmd" type="date">
+            <column name="emp_lmd" length="10" not-null="true" />
+        </property>
+        
+        
+        <property name="empPlant" type="string">
+            <column name="emp_plant"  />
+        </property>
+        
+        
+        <set name="tblRolesMasters" table="tbl_roles_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="role_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblRolesMaster" />
+        </set>
+        <set name="tblMapEmpRolesesForEmpNumber" table="tbl_map_emp_roles" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="emp_number" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapEmpRoles" />
+        </set>
+        <set name="tblDepartmentMasters" table="tbl_department_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="dept_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblDepartmentMaster" />
+        </set>
+        <set name="tblMapEmpRolesesForEmpRolesLmu" table="tbl_map_emp_roles" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="emp_roles_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapEmpRoles" />
+        </set>
+        <set name="tblMapCompanyDepartments" table="tbl_map_company_department" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="map_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapCompanyDepartment" />
+        </set>
+        <set name="tblIndentMastersForIndentEmp" table="tbl_indent_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_emp" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblIndentMaster" />
+        </set>
+        <set name="tblIndentStatuses" table="tbl_indent_status" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_status" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblIndentStatus" />
+        </set>
+        <set name="tblIndentMastersForIndentLmu" table="tbl_indent_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblIndentMaster" />
+        </set>
+        <set name="tblIndentMastersForIndentFinalApprovedby" table="tbl_indent_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_final_approvedby" />
+            </key>
+            <one-to-many class="pojo.TblIndentMaster" />
+        </set>
+        <set name="tblIndentMastersForIndentCreatedby" table="tbl_indent_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_createdby" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblIndentMaster" />
+        </set>
+        <set name="tblMapCompanyLocations" table="tbl_map_company_location" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="map_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapCompanyLocation" />
+        </set>
+        <set name="tblIndentMastersForIndentApprovedby" table="tbl_indent_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_approvedby" />
+            </key>
+            <one-to-many class="pojo.TblIndentMaster" />
+        </set>
+        <set name="tblCompanyMasters" table="tbl_company_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="comp_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblCompanyMaster" />
+        </set>
+        <set name="tblSectionMasters" table="tbl_section_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="sec_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblSectionMaster" />
+        </set>
+        <set name="tblMapEmpReportingsForReportLmu" table="tbl_map_emp_reporting" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="report_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapEmpReporting" />
+        </set>
+        <set name="tblUserMastersForEmpNumber" table="tbl_user_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="emp_number" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblUserMaster" />
+        </set>
+        <set name="tblLocationMasters" table="tbl_location_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="loc_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblLocationMaster" />
+        </set>
+        <set name="tblUserMastersForUserLmu" table="tbl_user_master" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="user_lmu" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblUserMaster" />
+        </set>
+        <set name="tblMapEmpReportingsForReportSub" table="tbl_map_emp_reporting" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="report_sub" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapEmpReporting" />
+        </set>
+        <set name="tblMapEmpReportingsForReportSup" table="tbl_map_emp_reporting" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="report_sup" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapEmpReporting" />
+        </set>
+    </class>
+</hibernate-mapping>

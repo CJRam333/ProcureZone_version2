@@ -1,0 +1,526 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.indent.action.IndentAction" extends="struts-default,json-default">
+        
+        <action name="indentRequestList" class="seeds.indent.action.IndentAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_self.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        <action name="pzindentRequestList" class="plant.indent.action.PlantIndentAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+        </action>
+        
+        <action name="pzInventoryMgrRequestList" class="plant.indent.action.PlantIndentAction" method="getIMList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_Inventory_mgr_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_Inventory_mgr_list.jsp</result>
+        </action>
+        
+        <action name="pzDeoMgrRequestList" class="plant.indent.action.PlantIndentAction" method="getDeoList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_Deo_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_Deo_list.jsp</result>
+        </action>
+        
+        
+        <action name="pzQualityMgrRequestList" class="plant.indent.action.PlantIndentAction" method="getQualityMgrList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/qualitycontrol_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/qualitycontrol_list.jsp</result>
+        </action>
+        
+        <action name="pzQualityMgrRejectedIndentList" class="plant.indent.action.PlantIndentAction" method="getQualityMgrList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/qualitycontrol_rejected_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/qualitycontrol_rejected_list.jsp</result>
+        </action>
+        
+        
+        
+        <action name="pzIssueConfirmationList" class="plant.indent.action.PlantIndentAction" method="getIssueConfList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_issue_confirmation_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_issue_confirmation_list.jsp</result>
+        </action>
+        
+        
+        <action name="pzReceiptConfirmationList" class="plant.indent.action.PlantIndentAction" method="getRecConfList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_receipt_confirmation_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_receipt_confirmation_list.jsp</result>
+        </action>
+        
+        
+        
+        
+        <action name="pzFloorInchargeRequestList" class="plant.indent.action.PlantIndentAction" method="getFlinchargeList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_floor_incharge_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_floor_incharge_list.jsp</result>
+        </action>
+        
+        <action name="pzGRPRequestList" class="plant.indent.action.PlantIndentAction" method="getGRPList" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_Grp_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_Grp_list.jsp</result>
+        </action>
+        
+        
+        
+        
+        <action name="indentRequestList1" class="seeds.indent.action.IndentAction" method="getList1" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_self.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_self.jsp</result>
+        </action>
+        
+        <action name="indentRequestPzList1" class="plant.indent.action.PlantIndentAction" method="getList1" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        <action name="addIndentRequest" class="seeds.indent.action.IndentAction" method="addIndentRequest" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        
+        
+        
+<!--    <action name="addPlantIndentRequest" class="seeds.indent.action.PlantIndentAction" method="addPlantIndentRequest" >            -->
+        <action name="addPlantIndentRequest" class="plant.indent.action.PlantIndentAction" method="addIndentRequest"> 
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/header.jsp</result>
+        </action>
+        
+        <action name="deletePlantIndent" class="plant.indent.action.PlantIndentAction" method="deletePlantIndent"> 
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        <action name="deleteQmPlantIndent" class="plant.indent.action.PlantIndentAction" method="deleteQmPlantIndent"> 
+            <result name="success" type="redirect">pzQualityMgrRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        
+        <action name="addfloorMgrIndentRequest" class="plant.indent.action.PlantIndentAction" method="addIndentRequest"> 
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/header.jsp</result>
+        </action>
+        
+        <action name="indentIssueConfirmation" class="plant.indent.action.PlantIndentAction" method="addIndentRequest"> 
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_issue_confirmation.jsp</result>
+            <result name="input">/WEB-INF/jsp/header.jsp</result>
+        </action>
+        
+        <action name="addgoodsReceiptforplant" class="plant.indent.action.PlantIndentAction" method="addIndentRequest"> 
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+            <result name="input">/WEB-INF/jsp/header.jsp</result>
+        </action>
+        
+        <action name="addFloorInchargeforplant" class="plant.indent.action.PlantIndentAction" method="addIndentRequest"> 
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+            <result name="input">/WEB-INF/jsp/header.jsp</result>
+        </action>
+        
+        <action name="getLineCodea" class="plant.indent.action.PlantIndentAction" method="getLineCodea" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        <action name="getCropwiseMat" class="plant.indent.action.PlantIndentAction" method="getCropwiseMat" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        <action name="getCropTypepacproc" class="plant.indent.action.PlantIndentAction" method="getCropTypepacproc" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        
+        <action name="saveIndentRequest" class="seeds.indent.action.IndentAction" method="saveIndentRequest" >            
+            <result name="success" type="redirect">indentRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request.jsp</result>
+        </action>
+        
+        
+         <action name="saveIndentPzRequest" class="plant.indent.action.PlantIndentAction" method="saveIndentPzRequest" >            
+            <result name="success" type="redirect">pzindentRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        
+        <action name="savefmIndentPzRequest" class="plant.indent.action.PlantIndentAction" method="savefmIndentPzRequest" >            
+            <result name="success" type="redirect">pzInventoryMgrRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        <action name="saveQialityManagerIndentPzRequest" class="plant.indent.action.PlantIndentAction" method="saveQialityManagerIndentPzRequest" >            
+            <result name="success" type="redirect">pzQualityMgrRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/quality_control_page.jsp</result>
+        </action>
+        
+        <action name="saveDeoIndentPzRequest" class="plant.indent.action.PlantIndentAction" method="saveDeoIndentPzRequest" >            
+            <result name="success" type="redirect">pzDeoMgrRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+        </action>
+        
+        
+        
+        <action name="saveFlInchargeIndentPzRequest" class="plant.indent.action.PlantIndentAction" method="saveFlInchargeIndentPzRequest" >            
+            <result name="success" type="redirect">pzFloorInchargeRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+        </action>
+        
+        <action name="savePzGrnRequest" class="plant.indent.action.PlantIndentAction" method="savePzGrnRequest" >            
+            <result name="success" type="redirect">pzGRPRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_Grp.jsp</result>
+        </action>
+        
+        
+        <action name="savePzIssueConfirmation" class="plant.indent.action.PlantIndentAction" method="savePzIssueConfirmation" >            
+            <result name="success" type="redirect">pzInventoryMgrRequestList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        
+        <action name="savePzReceiptConfirmation" class="plant.indent.action.PlantIndentAction" method="savePzReceiptConfirmation" >            
+            <result name="success" type="redirect">pzReceiptConfirmationList.action</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        
+        
+        
+        
+        
+        
+        <action name="getIndentNo" class="seeds.indent.action.IndentAction" method="getIndentNo" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request.jsp</result>
+        </action>
+        
+        
+        <action name="getIndentnumbers" class="plant.indent.action.PlantIndentAction" method="getIndentnumbers" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+        </action>
+        
+        <action name="getDeoIndentnumbers" class="plant.indent.action.PlantIndentAction" method="getDeoIndentnumbers" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+        </action>
+        
+        <action name="getFlInchargeIndentnumbers" class="plant.indent.action.PlantIndentAction" method="getFlInchargeIndentnumbers" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+        </action>
+        
+        
+        <action name="getAllIndentDetails" class="plant.indent.action.PlantIndentAction" method="getAllIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+        </action>
+        
+        
+        
+        
+        <action name="getPlantDetails" class="plant.indent.action.PlantIndentAction" method="addIndentRequest" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        <action name="getCropGroup" class="plant.indent.action.PlantIndentAction" method="addIndentRequest" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+        </action>
+        
+        <action name="getflindentdetails" class="plant.indent.action.PlantIndentAction" method="getflindentdetails" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+        </action>
+        
+        <action name="getDeoindentdetails" class="plant.indent.action.PlantIndentAction" method="getDeoindentdetails" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+        </action>
+        
+        <action name="getFlInchargeindentdetails" class="plant.indent.action.PlantIndentAction" method="getFlInchargeindentdetails" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+        </action>
+        
+        
+        <action name="getmaterialsgroup" class="plant.indent.action.PlantIndentAction" method="getmaterialsgroup" >            
+            <result name="success" >/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request.jsp</result>
+            <result type="json" >
+        <param name="root">result</param></result>
+        </action>
+        
+        <action name="getAvailableStock" class="seeds.indent.action.IndentAction" method="getAvailableStock" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request.jsp</result>
+            <result type="json" >
+        <param name="root">result</param></result>
+        </action> 
+              
+        <action name="getSelfIndentDetails" class="seeds.indent.action.IndentAction" method="getSelfIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_self_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        <action name="getSelfIndentDetailsforDelete" class="plant.indent.action.PlantIndentAction" method="getSelfIndentDetailsforDelete" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/delete_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/delete_indent_request.jsp</result>
+        </action>
+        
+        <action name="getSelfIndentDetailsPz" class="plant.indent.action.PlantIndentAction" method="getSelfIndentDetailsPz" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/floor_manger_indent_request.jsp</result>
+        </action>
+        
+        <action name="getSelfIndentDetailsFlMger" class="plant.indent.action.PlantIndentAction" method="getSelfIndentDetailsFlMger" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+        </action>
+        
+        <action name="outputmateriallist" class="plant.indent.action.PlantIndentAction" method="getoutputmatList" >            
+            <result name="success">/WEB-INF/jsp/masters/output_material_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/output_material_master_list.jsp</result>
+        </action>
+        
+        
+        
+        <action name="empPlantRoleMap" class="plant.indent.action.PlantIndentAction" method="getPlantRoleMapMasters" >            
+            <result name="success">/WEB-INF/jsp/masters/emp_plant_role_map.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/output_material_master_list.jsp</result>
+        </action>
+        
+        
+        
+        
+        <action name="getSelfIndentDetailsDeoMger" class="plant.indent.action.PlantIndentAction" method="getSelfIndentDetailsDeoMger" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/goods_receipt_not_for_plant.jsp</result>
+        </action>
+        
+        <action name="getQualityCheckMgrDetails" class="plant.indent.action.PlantIndentAction" method="getQualityCheckMgrDetails" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/quality_control_page.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/quality_control_page.jsp</result>
+        </action>
+        
+        <action name="getSelfIndentDetailsFlIncharge" class="plant.indent.action.PlantIndentAction" method="getSelfIndentDetailsFlIncharge" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_floorIncharge_pz.jsp</result>
+        </action>
+        
+        <action name="getIssueConfirmation" class="plant.indent.action.PlantIndentAction" method="getSelfIndentIssueConfirmation" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_issue_confirmation.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_issue_confirmation.jsp</result>
+        </action>
+        
+        <action name="getIssueReceiptConfirmation" class="plant.indent.action.PlantIndentAction" method="getSelfIndentIssueReceiptConfirmation" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_recipt_confirmation.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_recipt_confirmation.jsp</result>
+        </action>
+        
+        
+        <action name="getGRNReceipt" class="plant.indent.action.PlantIndentAction" method="getGRNReceipt" >            
+            <result name="success">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_Grp.jsp</result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/indent_for_Grp.jsp</result>
+        </action>
+        
+        
+        
+        
+        
+        
+        <action name="rmIndentRequestList" class="seeds.indent.action.IndentAction" method="getRmList" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+        </action>
+        <action name="rmIndentRequestList1" class="seeds.indent.action.IndentAction" method="getRmList1" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+        </action>
+        <action name="saveRmIndentRequest" class="seeds.indent.action.IndentAction" method="saveRmIndentRequest" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_rm.jsp</result>            
+        </action>        
+        <action name="getRmIndentDetails" class="seeds.indent.action.IndentAction" method="getRmIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_rm.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+        </action>
+        <action name="getRmIndentDetailsView" class="seeds.indent.action.IndentAction" method="getRmIndentDetailsView" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_rm_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+        </action>
+        <action name="getRejectedIndentDetails" class="seeds.indent.action.IndentAction" method="getRejectedIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_rm_rejected.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+        </action>
+        <action name="deptHeadIndentRequestList" class="seeds.indent.action.IndentAction" method="getDeptHeadList" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="deptHeadIndentRequestList1" class="seeds.indent.action.IndentAction" method="getDeptHeadList1" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="getFinalIndentDetails" class="seeds.indent.action.IndentAction" method="getFinalIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_dept_head.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="saveFinalIndentRequest" class="seeds.indent.action.IndentAction" method="saveFinalIndentRequest" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_dept_head.jsp</result>            
+        </action>
+        <action name="getFinalIndentDetailsView" class="seeds.indent.action.IndentAction" method="getFinalIndentDetailsView" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_dept_head_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="getRmRejectedIndentDetails" class="seeds.indent.action.IndentAction" method="getRmRejectedIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_rm_rejected1.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="getFinalRejectedIndentDetails" class="seeds.indent.action.IndentAction" method="getFinalApprovedIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_dept_head_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="getProcurementList" class="seeds.indent.action.IndentAction" method="getProcurementList" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_procurement_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_procurement_list.jsp</result>
+        </action>
+        <action name="getProcurementList1" class="seeds.indent.action.IndentAction" method="getProcurementList1" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_procurement_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_procurement_list.jsp</result>
+        </action>
+        <action name="getProcurementIndentDetails" class="seeds.indent.action.IndentAction" method="getProcurementIndentDetails" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_procurement.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_procurement_list.jsp</result>
+        </action>
+        <action name="saveProcurementIndentRequest" class="seeds.indent.action.IndentAction" method="saveProcurementIndentRequest" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_procurement_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_procurement.jsp</result>
+        </action>
+        <action name="getProcurementIndentDetailsView" class="seeds.indent.action.IndentAction" method="getProcurementIndentDetailsView" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_request_procurement_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_procurement_list.jsp</result>
+        </action>
+        
+        
+        
+        
+        
+        
+        <action name="userProcurementReport" class="seeds.indent.action.IndentAction" method="IndentReportUser">
+            <result name="success" type="stream">
+                <param name="contentDisposition">attachment;filename=${file}</param>
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="bufferSize">1024666</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        
+        
+        
+        <action name="addoutputMaterial" class="plant.indent.action.PlantIndentAction" method="addoutputMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/output_material_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/output_material_master.jsp</result>
+        </action>
+        
+        <action name="getoutputPlantDetails" class="plant.indent.action.PlantIndentAction" method="getoutputPlantDetails" >            
+            <result name="success">/WEB-INF/jsp/masters/output_material_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/output_material_master.jsp</result>
+        </action>
+        
+        <action name="getoutputPlantDetails1" class="plant.indent.action.PlantIndentAction" method="getoutputPlantDetails1" >            
+            <result name="success">/WEB-INF/jsp/masters/emp_plant_role_map.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/emp_plant_role_map.jsp</result>
+        </action>
+        
+        <action name="saveEmpPlantRoleMap" class="plant.indent.action.PlantIndentAction" method="saveEmpPlantRoleMap" >            
+            <result name="success">/WEB-INF/jsp/masters/emp_plant_role_map_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/emp_plant_role_map.jsp</result>
+        </action>
+        
+        <action name="saveOutputMaterialdesc" class="plant.indent.action.PlantIndentAction" method="saveOutputMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/output_material_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/output_material_master.jsp</result>
+        </action>
+     
+        <action name="getListEmpMap" class="plant.indent.action.PlantIndentAction" method="getListEmpMap" >            
+            <result name="success">/WEB-INF/jsp/masters/emp_plant_role_map_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/emp_plant_role_map_list.jsp</result>
+        </action>
+        
+        
+        
+        
+        
+        <action name="userPzindentCreatedReport" class="plant.indent.action.PlantIndentAction" method="IndentReportUser">
+            <result name="success" type="stream">
+                <param name="contentDisposition">attachment;filename=${file}</param>
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="bufferSize">1024666</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/PlantIndentIsuueNote/plant_indent_request_list_self.jsp</result>
+        </action>
+        
+        
+        
+        
+        
+        
+        
+        <action name="rmProcurementReport" class="seeds.indent.action.IndentAction" method="IndentReportRm">
+            <result name="success" type="stream">
+                <param name="contentDisposition">attachment;filename=${file}</param>
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="bufferSize">1024666</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_rm.jsp</result>
+        </action>
+        <action name="deptProcurementReport" class="seeds.indent.action.IndentAction" method="IndentReportDept">
+            <result name="success" type="stream">
+                <param name="contentDisposition">attachment;filename=${file}</param>
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="bufferSize">1024666</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="procurementReport" class="seeds.indent.action.IndentAction" method="IndentReportProcurement">
+            <result name="success" type="stream">
+                <param name="contentDisposition">attachment;filename=${file}</param>
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="bufferSize">1024666</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_request_list_dept_head.jsp</result>
+        </action>
+        <action name="indentReport" class="seeds.indent.action.IndentAction" method="IndentReport" >            
+            <result name="success">/WEB-INF/jsp/indent/seeds_indent_report.jsp</result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_report.jsp</result>
+        </action>
+        <action name="detailedIndentReport" class="seeds.indent.action.IndentAction" method="detailedIndentReport">
+            <result name="success" type="stream">
+                <param name="contentDisposition">attachment;filename=${file}</param>
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="bufferSize">1024666</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/indent/seeds_indent_report.jsp</result>
+        </action>         
+    </package>
+</struts>

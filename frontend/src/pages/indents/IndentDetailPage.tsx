@@ -480,7 +480,7 @@ const IndentDetailPage: React.FC = () => {
                           <th>Description</th>
                           <th>UOM</th>
                           <th className="text-end">Qty</th>
-                          <th className="text-end">Est. Rate (₹)</th>
+                          {/* <th className="text-end">Est. Rate (₹)</th> */}
                           <th className="text-end">Est. Value (₹)</th>
                           <th>Remarks</th>
                         </tr>
@@ -504,7 +504,7 @@ const IndentDetailPage: React.FC = () => {
                                 <td>{item.materialName || item.materialDescription || 'N/A'}</td>
                                 <td><Badge bg="secondary">{item.unitOfMeasureCode || item.uomCode || 'N/A'}</Badge></td>
                                 <td className="text-end">{qty}</td>
-                                <td className="text-end">{new Intl.NumberFormat('en-IN').format(rate)}</td>
+                                {/* <td className="text-end">{new Intl.NumberFormat('en-IN').format(rate)}</td> */}
                                 <td className="text-end fw-medium">
                                   {new Intl.NumberFormat('en-IN').format(qty * rate)}
                                 </td>

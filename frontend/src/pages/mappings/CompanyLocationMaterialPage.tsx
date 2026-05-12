@@ -52,7 +52,11 @@ interface CompanyLocationMaterial {
     materialDescription?: string;
 }
 
-const CompanyLocationMaterialPage: React.FC = () => {
+interface CompanyLocationMaterialPageProps {
+    embedded?: boolean;
+}
+
+const CompanyLocationMaterialPage: React.FC<CompanyLocationMaterialPageProps> = ({ embedded = false }) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -92,7 +96,9 @@ const CompanyLocationMaterialPage: React.FC = () => {
     const { data: mappingsData, isLoading: loadingMappings, error } = useQuery({
         queryKey: ['company-location-materials'],
         queryFn: async () => {
-            const response = await apiClient.get('/company-location-materials');
+            const response = await apiClient.get('/company-location-materials', {
+                params: { page: 0, size: 500 }
+            });
             return response.data;
         },
     });
@@ -183,20 +189,23 @@ const CompanyLocationMaterialPage: React.FC = () => {
 
     return (
         <div>
-            <PageHeader
-                title="Company-Location-Material Mapping"
-                subtitle="Define which materials are available at which company locations"
-                breadcrumbs={[
-                    { label: 'Dashboard', path: '/dashboard' },
-                    { label: 'Mappings', path: '/mappings/company-departments' },
-                    { label: 'Company-Location-Material' },
-                ]}
-                actions={
-                    <Button variant="outline-secondary" onClick={() => navigate(-1)}>
-                        <FaArrowLeft className="me-2" /> Back
-                    </Button>
-                }
-            />
+            {!embedded && (
+                <PageHeader
+                    title="Company-Location-Material Mapping"
+                    subtitle="Define which materials are available at which company locations"
+                    breadcrumbs={[
+                        { label: 'Dashboard', path: '/dashboard' },
+                        { label: 'Masters', path: '/masters' },
+                        { label: 'Locations', path: '/masters/locations' },
+                        { label: 'Material Mapping' },
+                    ]}
+                    actions={
+                        <Button variant="outline-secondary" onClick={() => navigate(-1)}>
+                            <FaArrowLeft className="me-2" /> Back
+                        </Button>
+                    }
+                />
+            )}
 
             {error && (
                 <Alert variant="danger" className="mb-4">

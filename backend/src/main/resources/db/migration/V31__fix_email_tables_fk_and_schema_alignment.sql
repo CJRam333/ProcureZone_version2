@@ -1,0 +1,7 @@
+-- V31: Fix email tables FK and schema alignment
+-- -------------------------------------------------
+-- Legacy database already contains correct email
+-- template and email log schema.
+-- This migration is intentionally left blank.
+-- Purpose: Flyway version alignment only.
+-- -------------------------------------------------

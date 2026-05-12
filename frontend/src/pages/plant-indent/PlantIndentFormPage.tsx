@@ -419,7 +419,7 @@ const PlantIndentFormPage: React.FC = () => {
                   <th style={{ width: '300px' }}>Material</th>
                   <th style={{ width: '80px' }}>UOM</th>
                   <th style={{ width: '100px' }}>Qty</th>
-                  <th style={{ width: '120px' }}>Est. Rate</th>
+                  {/* <th style={{ width: '120px' }}>Est. Rate</th> */}
                   <th style={{ width: '120px' }}>Est. Value</th>
                   <th>Remarks</th>
                   <th style={{ width: '60px' }}></th>
@@ -501,6 +501,7 @@ const PlantIndentFormPage: React.FC = () => {
                         isInvalid={!!errors.items?.[index]?.requestedQuantity}
                       />
                     </td>
+                    {/* estimatedRate input hidden
                     <td>
                       <Form.Control
                         type="number"
@@ -509,6 +510,7 @@ const PlantIndentFormPage: React.FC = () => {
                         {...register(`items.${index}.estimatedRate`, { valueAsNumber: true })}
                       />
                     </td>
+                    */}
                     <td className="align-middle">
                       ₹{((watchItems[index]?.requestedQuantity || 0) * (watchItems[index]?.estimatedRate || 0)).toLocaleString()}
                     </td>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzProcPack" table="pz_tbl_proccess_packing" catalog="seeds_indent">
+      
+      <id name="colId" type="int">
+                  <column name="col_id" not-null="true"/>
+                  <generator class="identity"></generator>
+        </id>   
+        <property name="colCode" type="string">
+            <column name="col_code" length="100" not-null="true" />
+        </property>
+        <property name="colName" type="string">
+            <column name="col_name" length="100" not-null="true" />
+        </property>
+        
+        <property name="colStatus" type="int">
+            <column name="col_status"  not-null="true" />
+        </property>
+        
+       
+  </class>
+</hibernate-mapping>

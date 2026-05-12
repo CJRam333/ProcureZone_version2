@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblIndentMaster" table="tbl_indent_master" catalog="seeds_indent">
+        <id name="indentId" type="java.lang.Integer">
+            <column name="indent_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblCompanyMaster" class="pojo.TblCompanyMaster" fetch="select">
+            <column name="indent_company" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblDepartmentMaster" class="pojo.TblDepartmentMaster" fetch="select">
+            <column name="indent_dept" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIndentEmp" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_emp" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIndentLmu" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIndentFinalApprovedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_final_approvedby" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIndentProcurementby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_procurementby" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIndentCreatedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_createdby" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblEmpMasterByIndentApprovedby" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_approvedby" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByIndentFinalStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="indent_final_status" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByIndentProcurementStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="indent_procurement_status" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatusByIndentApprovedStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="indent_approved_status" />
+        </many-to-one>
+        <many-to-one name="tblSectionMaster" class="pojo.TblSectionMaster" fetch="select">
+            <column name="indent_sec" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblPlantMaster" class="pojo.TblPlantMaster" fetch="select">
+            <column name="indent_plant" not-null="true" />
+        </many-to-one>
+        <property name="indentNo" type="string">
+            <column name="indent_no" not-null="true" />
+        </property>
+        <property name="indentYear" type="string">
+            <column name="indent_year" length="45" not-null="true" />
+        </property>
+        <property name="indentDate" type="string">
+            <column name="indent_date" length="20" not-null="true" />
+        </property>
+        <property name="indentComments" type="string">
+            <column name="indent_comments" />
+        </property>
+        <property name="indentDeliveryDate" type="string">
+            <column name="indent_delivery_date" length="20" />
+        </property>
+        <property name="indentPoNumber" type="string">
+            <column name="indent_po_number" length="100" />
+        </property>
+        <property name="indentApprovedbyDate" type="string">
+            <column name="indent_approvedby_date" length="20" />
+        </property>
+        <property name="indentRemarks" type="string">
+            <column name="indent_remarks" length="16777215" />
+        </property>
+        <property name="indentFinalDate" type="string">
+            <column name="indent_final_date" length="20" />
+        </property>
+        <property name="indentFinalRemarks" type="string">
+            <column name="indent_final_remarks" length="16777215" />
+        </property>
+        <property name="indentStatus" type="int">
+            <column name="indent_status" not-null="true" />
+        </property>
+        <property name="indentLmd" type="date">
+            <column name="indent_lmd" length="10" not-null="true" />
+        </property>
+        <set name="tblIndentDetailses" table="tbl_indent_details" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_id" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblIndentDetails" />
+        </set>
+        <set name="tblIndentProcurementLogses" table="tbl_indent_procurement_logs" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="indent_procurement_indent" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblIndentProcurementLogs" />
+        </set>
+    </class>
+</hibernate-mapping>

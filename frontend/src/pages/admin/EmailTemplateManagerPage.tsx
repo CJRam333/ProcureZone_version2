@@ -12,14 +12,16 @@ import { toast } from 'react-toastify';
 
 interface EmailTemplate {
   id: number;
-  templateCode: string;
-  templateName: string;
+  code: string;          // backend field: template_code
+  name: string;          // backend field: template_name
   subject: string;
   body: string;
   description?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  type?: string;
+  category?: string;
+  status: number;        // 1=Active, 0=Inactive (backend integer)
+  lastModifiedDate?: string;
+  lastModifiedBy?: string;
 }
 
 // API functions for email templates
@@ -110,18 +112,18 @@ const EmailTemplateManagerPage: React.FC = () => {
 
   const columns = [
     {
-      key: 'templateCode',
+      key: 'code',
       label: 'Code',
       render: (row: EmailTemplate) => (
-        <Badge bg="secondary">{row.templateCode}</Badge>
+        <Badge bg="secondary">{row.code}</Badge>
       ),
     },
     {
-      key: 'templateName',
+      key: 'name',
       label: 'Template Name',
       render: (row: EmailTemplate) => (
         <div>
-          <strong>{row.templateName}</strong>
+          <strong>{row.name}</strong>
           {row.description && (
             <div className="text-muted small">{row.description}</div>
           )}
@@ -138,11 +140,11 @@ const EmailTemplateManagerPage: React.FC = () => {
       ),
     },
     {
-      key: 'isActive',
+      key: 'status',
       label: 'Status',
       render: (row: EmailTemplate) => (
-        <Badge bg={row.isActive ? 'success' : 'danger'}>
-          {row.isActive ? (
+        <Badge bg={row.status === 1 ? 'success' : 'danger'}>
+          {row.status === 1 ? (
             <><FaCheckCircle className="me-1" /> Active</>
           ) : (
             <><FaTimesCircle className="me-1" /> Inactive</>
@@ -151,9 +153,11 @@ const EmailTemplateManagerPage: React.FC = () => {
       ),
     },
     {
-      key: 'updatedAt',
+      key: 'lastModifiedDate',
       label: 'Last Updated',
-      render: (row: EmailTemplate) => new Date(row.updatedAt).toLocaleDateString(),
+      render: (row: EmailTemplate) => row.lastModifiedDate
+        ? new Date(row.lastModifiedDate).toLocaleDateString()
+        : '—',
     },
     {
       key: 'actions',
@@ -258,11 +262,11 @@ const EmailTemplateManagerPage: React.FC = () => {
               <Row className="mb-3">
                 <Col md={4}>
                   <strong>Code:</strong>
-                  <div><Badge bg="secondary">{selectedTemplate.templateCode}</Badge></div>
+                  <div><Badge bg="secondary">{selectedTemplate.code}</Badge></div>
                 </Col>
                 <Col md={8}>
                   <strong>Name:</strong>
-                  <div>{selectedTemplate.templateName}</div>
+                  <div>{selectedTemplate.name}</div>
                 </Col>
               </Row>
 

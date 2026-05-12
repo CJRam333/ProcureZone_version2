@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblIndentProcurementLogs" table="tbl_indent_procurement_logs" catalog="seeds_indent">
+        <id name="indentProcurementId" type="java.lang.Integer">
+            <column name="indent_procurement_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="indent_procurement_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblIndentMaster" class="pojo.TblIndentMaster" fetch="select">
+            <column name="indent_procurement_indent" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblIndentStatus" class="pojo.TblIndentStatus" fetch="select">
+            <column name="indent_procurement_indent_status" not-null="true" />
+        </many-to-one>
+        <property name="indentProcurementRemarks" type="string">
+            <column name="indent_procurement_remarks" />
+        </property>
+        <property name="indentProcurementDate" type="string">
+            <column name="indent_procurement_date" length="20" not-null="true" />
+        </property>
+        <property name="indentProcurementStatus" type="int">
+            <column name="indent_procurement_status" not-null="true" />
+        </property>
+        <property name="indentProcurementLmd" type="date">
+            <column name="indent_procurement_lmd" length="10" not-null="true" />
+        </property>
+    </class>
+</hibernate-mapping>

@@ -1,0 +1,373 @@
+================================================================================
+  PROCUREZONE — INTEGRATION STATUS REPORT
+  Last Updated: April 1, 2026
+  Developer: CJRam_NSL (janakiraama182@gmail.com)
+  Based on: Line-by-line comparison of frontend API files vs backend controllers
+================================================================================
+
+================================================================================
+LATEST CHANGES (March 21 – April 1, 2026)
+================================================================================
+
+  Plant Indent Module: ✅ FULLY INTEGRATED
+    - Backend entity re-mapped to pz_tbl_indent_masterb (correct legacy table)
+    - Form submission fixed (transformFormData sending correct fields)
+    - List view restored (Crop Type, Plant, UOM columns now populated)
+    - Detail view created (PlantIndentDetailPage.tsx — read-only)
+    - Edit/Delete actions added with status-aware guards
+    - Routing updated: :id → Detail, :id/edit → Form
+
+  Indent Status Display: ✅ FIXED
+    - Rejected indents now correctly show "Rejected" (not "PO_CREATED")
+    - Local status map always overrides backend-provided statusName string
+
+  Security (Boot-time): ✅ FIXED
+    - JwtAuthenticationFilter.java stray parenthesis compile error fixed
+    - Backend Spring Boot application starts cleanly
+
+  Rate Columns: ✅ HIDDEN (commented out, not deleted)
+    - IndentFormPage, IndentDetailPage, PlantIndentFormPage,
+      PlantIndentDetailPage, POFormPage, PODetailPage
+
+  Mock Vendors: ✅ ADDED
+    - POFormPage now shows 5 mock vendors when backend returns empty list
+    - Enables end-to-end PO creation testing
+
+  Git Attribution: ✅ COMMITTED
+    - All work committed under CJRam_NSL (janakiraama182@gmail.com)
+    - Both backend and frontend modules updated in version history
+
+================================================================================
+
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+  Backend:     100% complete (225 endpoints across 35 controllers)
+  Frontend:    ~70 pages built, all API modules created (25 files in src/api/)
+  Status Enums: ✅ FIXED (all 1-based now)
+  Base Paths:   ✅ MOSTLY CORRECT (a few sub-path mismatches remain)
+  
+  OVERALL: ~85% aligned. Need to fix ~12 specific issues before first
+  successful integration test.
+
+
+================================================================================
+MODULE-BY-MODULE COMPARISON
+================================================================================
+
+
+--- 1. AUTH MODULE ---
+Frontend: src/api/auth.ts + src/api/client.ts
+Backend:  AuthController.java (/api/v1/auth)
+
+  ENDPOINT PATHS:
+  ✅ POST /auth/login          — matches
+  ✅ POST /auth/logout         — matches  
+  ✅ GET  /auth/me             — matches
+  ❌ POST /auth/refresh        — DOES NOT EXIST in backend
+  ❌ POST /auth/change-password — DOES NOT EXIST in backend
+
+  ISSUES TO FIX:
+
+  Issue A1: Dead refresh token code in client.ts (lines 54-83)
+    Frontend tries to call /auth/refresh on 401.
+    This endpoint doesn't exist. The code will always fail silently and
+    redirect to login, which is correct behavior — but the dead code
+    should be removed to avoid confusion.
+    ACTION: Remove lines 54-83 in client.ts. On 401, directly clear
+    localStorage and redirect to /login.
+
+  Issue A2: LoginResponse type mismatch
+    Frontend expects: { accessToken, tokenType, expiresAt, refreshToken, user }
+    Backend returns:  { accessToken, user }
+    The fields "tokenType", "expiresAt", "refreshToken" don't exist in
+    the backend LoginResponse record.
+    ACTION: Remove tokenType, expiresAt, refreshToken from LoginResponse
+    interface. Or make them all optional (they already are optional for
+    refreshToken, but tokenType and expiresAt are required in the type).
+
+  Issue A3: UserInfo extra fields
+    Frontend expects: username, departmentId, departmentName, plantId,
+    plantName, permissions
+    Backend returns:  userId, employeeNumber, employeeId, displayName,
+    email, roles
+    The extra fields (departmentId, plantId, etc.) are NOT in the backend
+    response. They are marked optional in frontend, so won't crash, but
+    will always be undefined.
+    ACTION: No break, but UI that depends on these will show blanks.
+
+  Issue A4: .env file has JavaScript comment syntax
+    Line 1: "// Environment variables"
+    .env files don't support // comments. This line will be treated as
+    an env variable name, not a comment.
+    ACTION: Remove line 1 or change to # comment.
+
+
+--- 2. INDENT MODULE ---
+Frontend: src/api/indents.ts
+Backend:  IndentController.java (/api/v1/indents)
+          ApprovalController.java (/api/v1/approvals)
+
+  ENDPOINT PATHS:
+  ✅ GET    /indents            — matches (list)
+  ✅ GET    /indents/{id}       — matches
+  ✅ GET    /indents/number/{n} — matches
+  ✅ POST   /indents            — matches (create)
+  ✅ PUT    /indents/{id}       — matches (update)
+  ✅ POST   /indents/{id}/submit — matches
+  ✅ POST   /approvals/{id}/approve       — matches
+  ✅ POST   /approvals/{id}/reject        — matches
+  ✅ POST   /approvals/{id}/final-approve — matches
+  ✅ POST   /approvals/{id}/final-reject  — matches
+  ✅ GET    /approvals/pending            — matches
+  ✅ DELETE /indents/{id}                 — matches
+  ✅ GET    /indents/status/{status}      — matches
+  ✅ GET    /indents/employee/{empId}     — matches
+  ✅ GET    /indents/search               — matches
+  ✅ GET    /indents/statistics           — matches
+
+  ⚠️ POST  /approvals/{id}/request-info  — need to verify backend
+  ⚠️ GET   /approvals/{id}/history       — need to verify backend
+
+  ISSUES: NONE — this module looks well-aligned.
+
+
+--- 3. PURCHASE ORDER MODULE ---
+Frontend: src/api/purchaseOrders.ts
+Backend:  POController.java (/api/v1/pos)
+
+  ENDPOINT PATHS:
+  ✅ GET    /pos                 — matches (list)
+  ✅ GET    /pos/{id}            — matches
+  ✅ GET    /pos/number/{n}      — matches
+  ✅ POST   /pos                 — matches (create)
+  ✅ PUT    /pos/{id}            — matches (update)
+  ✅ POST   /pos/{id}/submit     — matches
+  ✅ POST   /pos/{id}/approve    — matches
+  ✅ POST   /pos/{id}/send-to-vendor — matches
+  ✅ POST   /pos/{id}/cancel     — matches
+  ✅ POST   /pos/{id}/close      — matches
+  ✅ POST   /pos/{id}/amend      — matches
+  ✅ GET    /pos/{id}/amendments — matches
+  ✅ GET    /pos/pending-approval — matches
+  ✅ GET    /pos/overdue          — matches
+
+  ❌ GET /pos/vendor/{vendorId}     — WRONG. Backend = /pos/by-vendor/{vendorId}
+  ❌ GET /pos/department/{deptId}   — WRONG. Backend = /pos/by-department/{deptId}
+  ❌ GET /pos/search                — may not exist. Backend has filtered list via GET /pos?status=X&searchTerm=Y
+  ❌ GET /pos/statistics            — WRONG. Backend = /pos/dashboard/statistics
+  ❌ GET /pos/{id}/pdf              — need to verify. Backend may have separate PDF controller.
+
+  ISSUES TO FIX:
+
+  Issue P1: Vendor POs path mismatch
+    Frontend: /pos/vendor/{vendorId}
+    Backend:  /pos/by-vendor/{vendorId}
+    ACTION: Change frontend to /pos/by-vendor/{vendorId}
+
+  Issue P2: Department POs path mismatch
+    Frontend: /pos/department/{deptId}
+    Backend:  /pos/by-department/{departmentId}
+    ACTION: Change frontend to /pos/by-department/{deptId}
+
+  Issue P3: Statistics path mismatch
+    Frontend: /pos/statistics
+    Backend:  /pos/dashboard/statistics
+    ACTION: Change frontend to /pos/dashboard/statistics
+
+  Issue P4: PO reject endpoint
+    Frontend sends: { reason: "..." }
+    Backend POController likely expects cancellation request body.
+    Need to verify request body format matches.
+
+  Issue P5: Commented-out getApprovedIndents ACTUALLY EXISTS in backend
+    Frontend has this commented out:
+      // getApprovedIndents: async (): Promise<any[]> => {
+      //     const response = await apiClient.get("/pos/approved-indents");
+    Backend HAS: GET /pos/approved-indents
+    ACTION: UNCOMMENT this in frontend — it works!
+
+
+--- 4. GRN MODULE ---
+Frontend: src/api/grn.ts
+Backend:  GRNController.java (/api/v1/grn)
+
+  ENDPOINT PATHS:
+  ✅ GET    /grn             — matches (list)
+  ✅ GET    /grn/{id}        — matches
+  ✅ GET    /grn/number/{n}  — matches
+  ✅ POST   /grn             — matches (create)
+  ✅ POST   /grn/{id}/inspect — matches (QC inspection)
+  ✅ POST   /grn/{id}/rm-approve   — matches
+  ✅ POST   /grn/{id}/rm-reject    — matches
+  ✅ POST   /grn/{id}/approve      — matches
+  ✅ POST   /grn/{id}/final-approve — matches
+  ✅ POST   /grn/{id}/store        — matches
+  ✅ POST   /grn/{id}/reject       — matches
+  ✅ GET    /grn/pending-inspection — matches
+  ✅ GET    /grn/pending-approval  — matches
+  ✅ GET    /grn/statistics        — matches
+
+  ❌ PUT /grn/{id}  — Frontend has update, but backend may not have PUT.
+     Need to verify GRNController for PUT endpoint.
+
+  ISSUES: MOSTLY ALIGNED. GRN is the best-aligned module.
+
+  Issue G1: GRN update (PUT /grn/{id})
+    Frontend has grnApi.update() but backend GRNController may not have
+    a PUT endpoint. GRNs might not be editable after creation.
+    ACTION: Verify and remove if backend doesn't support PUT.
+
+
+--- 5. ISSUE NOTE MODULE ---
+Frontend: src/api/issueNotes.ts
+Backend:  IssueNoteController.java (/api/v1/issue-notes)
+
+  ENDPOINT PATHS:
+  ✅ GET    /issue-notes             — matches (list)
+  ✅ GET    /issue-notes/{id}        — matches
+  ✅ POST   /issue-notes             — matches (create)
+  ✅ POST   /issue-notes/{id}/submit — matches
+  ✅ POST   /issue-notes/{id}/approve — matches
+  ✅ POST   /issue-notes/{id}/reject — matches
+  ✅ POST   /issue-notes/{id}/issue  — matches
+  ✅ POST   /issue-notes/{id}/cancel — matches
+  ✅ POST   /issue-notes/{id}/return — matches
+  ✅ GET    /issue-notes/pending-approval — matches
+  ✅ GET    /issue-notes/pending-issue    — matches
+  ✅ GET    /issue-notes/statistics       — matches
+
+  ❌ GET /issue-notes/number/{n}             — WRONG. Backend = /issue-notes/by-number?issueNoteNumber=X
+  ❌ POST /issue-notes/{id}/stores-reject    — WRONG. Backend = /issue-notes/{id}/reject-stores
+  ❌ GET /issue-notes/my                     — WRONG. Backend = /issue-notes/my-issue-notes
+  ❌ GET /issue-notes/department/{deptId}     — WRONG. Backend = /issue-notes/by-department/{deptId}
+  ❌ PUT /issue-notes/{id}                   — may not exist in backend
+  ❌ DELETE /issue-notes/{id}                — may not exist in backend
+
+  MISSING in frontend (exists in backend):
+  ❌ POST /issue-notes/{id}/rm-approve   — RM approval (frontend doesn't call this)
+  ❌ POST /issue-notes/{id}/rm-reject    — RM rejection (frontend doesn't call this)
+  ❌ GET  /issue-notes/pending-rm-approval — RM approval queue
+
+  ISSUES TO FIX:
+
+  Issue I1: Get by number path mismatch
+    Frontend: GET /issue-notes/number/{issueNumber}
+    Backend:  GET /issue-notes/by-number?issueNoteNumber=X
+    ACTION: Change to query param format
+
+  Issue I2: Stores reject path mismatch
+    Frontend: POST /issue-notes/{id}/stores-reject
+    Backend:  POST /issue-notes/{id}/reject-stores
+    ACTION: Change frontend to /reject-stores
+
+  Issue I3: My notes path mismatch
+    Frontend: GET /issue-notes/my
+    Backend:  GET /issue-notes/my-issue-notes
+    ACTION: Change frontend to /my-issue-notes
+
+  Issue I4: Department path mismatch
+    Frontend: GET /issue-notes/department/{deptId}
+    Backend:  GET /issue-notes/by-department/{deptId}
+    ACTION: Change frontend to /by-department/{deptId}
+
+  Issue I5: Missing RM approval endpoints
+    Backend has rm-approve, rm-reject, pending-rm-approval
+    Frontend doesn't call these.
+    ACTION: Add rmApprove(), rmReject(), getPendingRmApproval() to frontend
+
+
+--- 6. DASHBOARD MODULE ---
+Frontend: src/api/dashboard.ts
+Backend:  DashboardController.java (/api/v1/dashboard)
+
+  ✅ GET /dashboard/statistics          — matches
+  ✅ GET /dashboard/summary             — matches
+  ✅ GET /dashboard/indents/stats       — matches
+  ✅ GET /dashboard/purchase-orders/stats — matches
+  ✅ GET /dashboard/goods-receipts/stats — matches
+  ✅ GET /dashboard/issue-notes/stats   — matches
+  ✅ GET /dashboard/inventory/stats     — matches
+  ✅ GET /dashboard/vendors/stats       — matches
+  ✅ GET /dashboard/trends/monthly      — matches
+  ✅ GET /dashboard/breakdown/department — matches
+  ✅ GET /dashboard/top-materials       — matches
+  ✅ GET /dashboard/pending-approvals   — matches
+  ✅ GET /dashboard/alerts              — matches
+
+  ISSUES: NONE — 100% aligned! 🎉
+
+  NOTE: Frontend doesn't pass companyId/departmentId params that backend
+  supports. This means dashboard always shows ALL data. If filtering is
+  needed later, frontend just needs to add query params.
+
+
+--- 7. INVENTORY MODULE ---
+Frontend: src/api/inventory.ts
+Backend:  InventoryController.java (/api/v1/inventory)
+
+  Not fully compared yet — need to verify endpoint-by-endpoint.
+  Backend uses custom { success, count, data } wrapper which frontend
+  already handles correctly.
+
+  LIKELY STATUS: Mostly aligned (needs verification).
+
+
+================================================================================
+PRIORITY FIX LIST (12 items, ordered by impact)
+================================================================================
+
+  CRITICAL (will cause 404 errors):
+  1. client.ts: Remove dead /auth/refresh code (lines 54-83)
+  2. purchaseOrders.ts: /pos/vendor/ → /pos/by-vendor/
+  3. purchaseOrders.ts: /pos/department/ → /pos/by-department/
+  4. purchaseOrders.ts: /pos/statistics → /pos/dashboard/statistics
+  5. issueNotes.ts: /issue-notes/number/ → /issue-notes/by-number?issueNoteNumber=
+  6. issueNotes.ts: /stores-reject → /reject-stores
+  7. issueNotes.ts: /my → /my-issue-notes
+  8. issueNotes.ts: /department/ → /by-department/
+
+  IMPORTANT (missing functionality):
+  9.  issueNotes.ts: Add rmApprove(), rmReject(), getPendingRmApproval()
+  10. purchaseOrders.ts: Uncomment getApprovedIndents() — it works!
+  11. auth.ts: Fix LoginResponse type (remove tokenType, expiresAt)
+
+  LOW PRIORITY (cosmetic):
+  12. .env: Remove // comment on line 1 (use # instead)
+
+
+================================================================================
+WHAT'S ALREADY WORKING (NO CHANGES NEEDED)
+================================================================================
+
+  ✅ All base paths correct (/indents, /pos, /grn, /issue-notes, /dashboard)
+  ✅ All status enums 1-based
+  ✅ JWT token stored in localStorage, attached via Bearer header
+  ✅ Pagination uses 0-indexed pages with Spring Page<T> format
+  ✅ Inventory uses custom { success, count, data } wrapper
+  ✅ Dashboard all 13 endpoints match
+  ✅ GRN all 14 endpoints match
+  ✅ Indent all endpoints including approval workflow match
+  ✅ .env has correct VITE_API_BASE_URL=http://localhost:8080/api/v1
+
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+  1. Fix the 12 issues listed above (est. 1-2 hours)
+  2. Start backend server: mvn spring-boot:run
+  3. Start frontend dev server: npm run dev
+  4. Test login flow first (simplest end-to-end test)
+  5. Test dashboard (second simplest - read-only)
+  6. Test indent CRUD + approval workflow
+  7. Test PO creation from approved indent
+  8. Test GRN creation + inspection flow
+  9. Test inventory reads
+  10. Test issue note flow
+
+================================================================================
+END OF REPORT
+================================================================================

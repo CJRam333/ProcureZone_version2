@@ -1,0 +1,116 @@
+# ─── Java / Maven ────────────────────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+
+# ─── Node / Frontend ─────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+.npm/
+*.local
+
+# ─── Logs & Runtime ──────────────────────────────────────────────
+logs/
+*.log
+nohup.out
+app.log
+backend.log
+server.log
+spring-boot-inventory.log
+health.json
+
+# ─── IDE & Editor ────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.swp
+*.swo
+
+# ─── OS Artifacts ────────────────────────────────────────────────
+nul
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ─── Secrets – NEVER commit real credentials ─────────────────────
+# Keep application.yml out; use application.yml.example instead
+backend/src/main/resources/application.yml
+backend/src/main/resources/application-prod.yml
+backend/src/main/resources/application-staging.yml
+
+# ─── Build / Temp ────────────────────────────────────────────────
+*.tmp
+*.bak
+PassGen.class
+po-export.csv
+find_recursion.py
+
+# ─── Legacy Struts app build outputs ─────────────────────────────
+ProcureZone/build/
+ProcureZone/dist/
+ProcureZone/logs/
+ProcureZone/backend.log
+ProcureZone_frontend/
+
+# ─── Scattered root-level docs (canonical copies are in docs/) ───
+# Root-level duplicates
+BACKEND_IMPLEMENTATION_PROGRESS_DEC11.md
+BUSINESS_LOGIC_GAP_ANALYSIS.md
+COMPREHENSIVE_BUSINESS_LOGIC_GAP_ANALYSIS.md
+GAP_ANALYSIS_LEGACY_VS_NEW.md
+IMPLEMENTATION_PLAN_PHASE1.md
+PROGRESS_SUMMARY_DEC11.md
+PROJECT_TODO.md
+USER_STORIES_FOR_TESTING.md
+# Backend-root duplicates
+backend/OVERALL_WORK_SUMMARY.txt
+backend/INTEGRATION_STATUS.txt
+backend/FRONTEND_INTEGRATION_GUIDE.txt
+backend/BACKEND_COMPLETION_ROADMAP.md
+backend/COMPLETE_PROJECT_BRIEF_FOR_AI.md
+backend/COMPREHENSIVE_AUDIT_REPORT.md
+backend/DATABASE_SCHEMA_REFERENCE.md
+backend/DATABASE_SETUP_GUIDE.md
+backend/FEATURE_GAP_ANALYSIS.md
+backend/FINAL_BACKEND_READINESS_REPORT.md
+backend/FINAL_QA_REPORT.md
+backend/QA_AUDIT_REPORT.md
+backend/QA_AUDIT_REPORT_OLD.md
+backend/LEGACY-APPLICATION-DEEP-ANALYSIS.md
+backend/LEGACY-APPLICATION-DEEP-ANALYSIS.pdf
+backend/BACKEND-STATUS-AND-COMPLETION-PLAN.md
+# Frontend-root duplicates
+frontend/INTEGRATION_COMPLETION_REPORT.txt
+frontend/INTEGRATION_CHANGES_BRIEF.txt
+# Other backend noise files
+backend/crop_cols.txt
+backend/emp_reporting_schema.txt
+backend/indent_13.txt
+backend/indent_approval_cols.txt
+backend/indent_status.txt
+backend/indent_status_utf8.txt
+backend/issue_note_columns.txt
+backend/issue_note_det_cols.txt
+backend/legacy_workflow_tables.txt
+backend/login_error.txt
+backend/report_cols.txt
+backend/schema.txt
+backend/schema2.txt
+backend/schema_details.txt
+backend/schema_details2.txt
+backend/sql_describe.txt
+backend/sql_describe2.txt
+backend/status.txt
+backend/fix_password.sql
+backend/PassGen.java
+backend/nul

@@ -1,0 +1,3 @@
+-- Baseline placeholder for Flyway.
+-- Import the schema from database/final-DB_Data_Schema/DEFINITIVE_PROCUREZONE_SCHEMA.sql
+-- once the recreation effort transitions modules to the new Spring Boot backend.

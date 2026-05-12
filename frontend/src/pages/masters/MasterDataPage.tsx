@@ -15,6 +15,8 @@ import {
   FaHandshake,
   FaRuler,
   FaLeaf,
+  FaLink,
+  FaProjectDiagram,
 } from 'react-icons/fa';
 
 interface MasterCard {
@@ -131,6 +133,54 @@ const masterGroups: MasterGroup[] = [
         icon: <FaLeaf />,
         path: '/masters/crops',
         color: '#059669',
+      },
+    ],
+  },
+  {
+    title: 'Relationships & Mappings',
+    description: 'Configure relationships between organizational entities',
+    cards: [
+      {
+        title: 'Company-Department',
+        description: 'Assign departments to companies',
+        icon: <FaSitemap />,
+        path: '/masters/companies?tab=department-mapping',
+        color: '#2563eb',
+      },
+      {
+        title: 'Company-Location',
+        description: 'Assign locations to companies',
+        icon: <FaMapMarkerAlt />,
+        path: '/masters/companies?tab=location-mapping',
+        color: '#0891b2',
+      },
+      {
+        title: 'Employee-Role',
+        description: 'Assign roles to employees',
+        icon: <FaUserTag />,
+        path: '/masters/employees?tab=role-mapping',
+        color: '#ea580c',
+      },
+      {
+        title: 'Reporting Hierarchy',
+        description: 'Configure employee reporting structure',
+        icon: <FaProjectDiagram />,
+        path: '/masters/employees?tab=reporting-hierarchy',
+        color: '#d946ef',
+      },
+      {
+        title: 'Location-Material',
+        description: 'Materials available at locations',
+        icon: <FaCubes />,
+        path: '/masters/locations?tab=material-mapping',
+        color: '#ca8a04',
+      },
+      {
+        title: 'Plant-Material',
+        description: 'Material stock levels per plant',
+        icon: <FaLink />,
+        path: '/masters/plants?tab=material-mapping',
+        color: '#7c3aed',
       },
     ],
   },

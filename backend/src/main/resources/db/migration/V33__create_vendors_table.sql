@@ -1,0 +1,35 @@
+-- V33__create_vendors_table.sql
+-- Creates the tbl_vendors table for vendor management
+
+CREATE TABLE IF NOT EXISTS tbl_vendors (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_code VARCHAR(50) NOT NULL UNIQUE,
+    vendor_name VARCHAR(200) NOT NULL,
+    vendor_type VARCHAR(50),
+    contact_person VARCHAR(100),
+    contact_phone VARCHAR(20),
+    contact_email VARCHAR(100),
+    address_line1 VARCHAR(200),
+    address_line2 VARCHAR(200),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    country VARCHAR(100),
+    pincode VARCHAR(20),
+    gst_number VARCHAR(50),
+    pan_number VARCHAR(20),
+    payment_terms VARCHAR(100),
+    credit_period_days INT,
+    rating DOUBLE,
+    total_orders INT,
+    total_order_value DOUBLE,
+    on_time_delivery_rate DOUBLE,
+    quality_rating DOUBLE,
+    status INT,
+    remarks TEXT,
+    registration_date DATE,
+    last_order_date DATE,
+    created_by INT,
+    created_date DATETIME(6),
+    last_modified_by INT,
+    last_modified_date DATETIME(6)
+);

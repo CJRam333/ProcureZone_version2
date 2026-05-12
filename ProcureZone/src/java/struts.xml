@@ -1,0 +1,25 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<struts>
+    <include file="/seeds/login/strutsConfig/userConfig.xml"/>
+    <include file="seeds/masters/strutsConfig/company-config.xml"/>
+    <include file="seeds/masters/strutsConfig/location-config.xml"/>
+    <include file="seeds/masters/strutsConfig/department-config.xml"/>
+    <include file="seeds/masters/strutsConfig/section-config.xml"/>
+    <include file="seeds/masters/strutsConfig/comploc-config.xml"/>
+    <include file="seeds/masters/strutsConfig/compdept-config.xml"/>
+    <include file="seeds/masters/strutsConfig/roles-config.xml"/>
+    <include file="seeds/masters/strutsConfig/employee-config.xml"/>
+    <include file="seeds/masters/strutsConfig/user-config.xml"/>
+    <include file="seeds/masters/strutsConfig/reportto-config.xml"/>
+    <include file="seeds/masters/strutsConfig/emproles-config.xml"/>
+    <include file="seeds/indent/strutsConfig/indent-config.xml"/>
+    <include file="seeds/masters/strutsConfig/material-config.xml"/>
+    <include file="seeds/masters/strutsConfig/complocmaterial-config.xml"/>
+    <include file="seeds/masters/strutsConfig/plant-config.xml"/>
+    <include file="seeds/masters/strutsConfig/umo-config.xml"/>
+    <include file="seeds/masters/strutsConfig/compplantmaterial-config.xml"/>
+    <include file="seeds/issue/strutsConfig/IssueNote-config.xml"/>    
+</struts>

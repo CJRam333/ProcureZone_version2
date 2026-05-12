@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -33,7 +33,6 @@ import {
   FaHistory,
   FaEnvelope,
   FaLeaf,
-  FaLink,
 } from 'react-icons/fa';
 
 interface SidebarProps {
@@ -55,6 +54,7 @@ interface NavGroup {
   icon: React.ReactNode;
   roles?: string[];
   items: NavItem[];
+  groupKey: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = false, onMobileClose }) => {
@@ -62,11 +62,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
   const location = useLocation();
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
-  const toggleGroup = (groupLabel: string) => {
+  const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev =>
-      prev.includes(groupLabel)
-        ? prev.filter(g => g !== groupLabel)
-        : [...prev, groupLabel]
+      prev.includes(groupKey)
+        ? prev.filter(g => g !== groupKey)
+        : [...prev, groupKey]
     );
   };
 
@@ -122,16 +122,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
     },
     {
       path: '/confirmations/issue',
-      label: 'Issue Confirmation',
+      label: 'Confirmations',
       icon: <FaExclamationTriangle />,
-      // Issue confirmation workflow
-      roles: ['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'DEPTHEAD'],
-    },
-    {
-      path: '/confirmations/receipt',
-      label: 'Receipt Confirmation',
-      icon: <FaCheckCircle />,
-      // Receipt confirmation by departments
+      // Issue and receipt confirmation workflows
       roles: ['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'DEPTHEAD', 'EMPLOYEE'],
     },
     {
@@ -154,6 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
     label: 'Master Data',
     icon: <FaDatabase />,
     roles: ['SUPERADMIN', 'ADMIN'],
+    groupKey: 'masters',
     items: [
       { path: '/masters/companies', label: 'Companies', icon: <FaBuilding /> },
       { path: '/masters/plants', label: 'Plants', icon: <FaIndustry /> },
@@ -170,24 +164,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
     ],
   };
 
-  const mappingsGroup: NavGroup = {
-    label: 'Mappings',
-    icon: <FaLink />,
-    roles: ['SUPERADMIN', 'ADMIN'],
-    items: [
-      { path: '/mappings/company-departments', label: 'Company-Department', icon: <FaSitemap /> },
-      { path: '/mappings/company-locations', label: 'Company-Location', icon: <FaMapMarkerAlt /> },
-      { path: '/mappings/employee-roles', label: 'Employee-Role', icon: <FaUserTag /> },
-      { path: '/mappings/company-location-materials', label: 'Location-Material', icon: <FaCubes /> },
-      { path: '/mappings/plant-materials', label: 'Plant-Material', icon: <FaIndustry />, roles: ['SUPERADMIN', 'ADMIN', 'PLANTMANAGER'] },
-      { path: '/mappings/reporting-hierarchy', label: 'Reporting Hierarchy', icon: <FaUsers /> },
-    ],
-  };
-
   const adminGroup: NavGroup = {
     label: 'Administration',
     icon: <FaCog />,
     roles: ['SUPERADMIN', 'ADMIN', 'AUDITOR'],
+    groupKey: 'admin',
     items: [
       { path: '/admin/audit-logs', label: 'Audit Logs', icon: <FaHistory />, roles: ['SUPERADMIN', 'ADMIN', 'AUDITOR'] },
       { path: '/admin/email-templates', label: 'Email Templates', icon: <FaEnvelope />, roles: ['SUPERADMIN', 'ADMIN'] },
@@ -195,27 +176,76 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
     ],
   };
 
+  const navGroups: NavGroup[] = [masterDataGroup, adminGroup];
+
+  // Auto-expand sidebar group when URL matches a child route
+  useEffect(() => {
+    navGroups.forEach(group => {
+      const matchesChild = group.items.some(item => location.pathname.startsWith(item.path));
+      if (matchesChild && !expandedGroups.includes(group.groupKey)) {
+        setExpandedGroups(prev => [...prev, group.groupKey]);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
   const filteredNavItems = navItems.filter(
     (item) => !item.roles || hasAnyRole(item.roles)
   );
-
-  const isMasterDataVisible = !masterDataGroup.roles || hasAnyRole(masterDataGroup.roles);
-  const isMasterDataActive = location.pathname.startsWith('/masters');
-  const isMasterDataExpanded = expandedGroups.includes('masters');
-
-  const isMappingsVisible = !mappingsGroup.roles || hasAnyRole(mappingsGroup.roles);
-  const isMappingsActive = location.pathname.startsWith('/mappings');
-  const isMappingsExpanded = expandedGroups.includes('mappings');
-
-  const isAdminVisible = !adminGroup.roles || hasAnyRole(adminGroup.roles);
-  const isAdminActive = location.pathname.startsWith('/admin') || location.pathname === '/materials/import';
-  const isAdminExpanded = expandedGroups.includes('admin');
 
   // Handle nav link click to close mobile sidebar
   const handleNavClick = () => {
     if (mobileOpen && onMobileClose) {
       onMobileClose();
     }
+  };
+
+  const renderNavGroup = (group: NavGroup) => {
+    const isVisible = !group.roles || hasAnyRole(group.roles);
+    const isActive = group.items.some(item => location.pathname.startsWith(item.path));
+    const isExpanded = expandedGroups.includes(group.groupKey);
+
+    if (!isVisible) return null;
+
+    return (
+      <li key={group.groupKey} className="nav-item">
+        <button
+          className={`nav-link w-100 text-start d-flex align-items-center justify-content-between ${isActive ? 'active' : ''}`}
+          onClick={() => !collapsed && toggleGroup(group.groupKey)}
+          title={collapsed ? group.label : undefined}
+        >
+          <span className="d-flex align-items-center">
+            <span className="nav-icon">{group.icon}</span>
+            {!collapsed && <span className="nav-text">{group.label}</span>}
+          </span>
+          {!collapsed && (
+            <span className="ms-auto">
+              {isExpanded ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
+            </span>
+          )}
+        </button>
+        {!collapsed && isExpanded && (
+          <ul className="nav flex-column ms-3 submenu">
+            {group.items
+              .filter(item => !item.roles || hasAnyRole(item.roles))
+              .map((subItem) => (
+                <li key={subItem.path} className="nav-item">
+                  <NavLink
+                    to={subItem.path}
+                    className={({ isActive }) =>
+                      `nav-link py-1 ${isActive ? 'active' : ''}`
+                    }
+                    onClick={handleNavClick}
+                  >
+                    <span className="nav-icon small">{subItem.icon}</span>
+                    <span className="nav-text small">{subItem.label}</span>
+                  </NavLink>
+                </li>
+              ))}
+          </ul>
+        )}
+      </li>
+    );
   };
 
   return (
@@ -254,128 +284,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
           </li>
         ))}
 
-        {/* Master Data Group */}
-        {isMasterDataVisible && (
-          <li className="nav-item">
-            <button
-              className={`nav-link w-100 text-start d-flex align-items-center justify-content-between ${isMasterDataActive ? 'active' : ''}`}
-              onClick={() => !collapsed && toggleGroup('masters')}
-              title={collapsed ? 'Master Data' : undefined}
-            >
-              <span className="d-flex align-items-center">
-                <span className="nav-icon">{masterDataGroup.icon}</span>
-                {!collapsed && <span className="nav-text">{masterDataGroup.label}</span>}
-              </span>
-              {!collapsed && (
-                <span className="ms-auto">
-                  {isMasterDataExpanded ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
-                </span>
-              )}
-            </button>
-            {!collapsed && isMasterDataExpanded && (
-              <ul className="nav flex-column ms-3 submenu">
-                {masterDataGroup.items
-                  .filter(item => !item.roles || hasAnyRole(item.roles))
-                  .map((subItem) => (
-                    <li key={subItem.path} className="nav-item">
-                      <NavLink
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `nav-link py-1 ${isActive ? 'active' : ''}`
-                        }
-                        onClick={handleNavClick}
-                      >
-                        <span className="nav-icon small">{subItem.icon}</span>
-                        <span className="nav-text small">{subItem.label}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </li>
-        )}
-
-        {/* Mappings Group */}
-        {isMappingsVisible && (
-          <li className="nav-item">
-            <button
-              className={`nav-link w-100 text-start d-flex align-items-center justify-content-between ${isMappingsActive ? 'active' : ''}`}
-              onClick={() => !collapsed && toggleGroup('mappings')}
-              title={collapsed ? 'Mappings' : undefined}
-            >
-              <span className="d-flex align-items-center">
-                <span className="nav-icon">{mappingsGroup.icon}</span>
-                {!collapsed && <span className="nav-text">{mappingsGroup.label}</span>}
-              </span>
-              {!collapsed && (
-                <span className="ms-auto">
-                  {isMappingsExpanded ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
-                </span>
-              )}
-            </button>
-            {!collapsed && isMappingsExpanded && (
-              <ul className="nav flex-column ms-3 submenu">
-                {mappingsGroup.items
-                  .filter(item => !item.roles || hasAnyRole(item.roles))
-                  .map((subItem) => (
-                    <li key={subItem.path} className="nav-item">
-                      <NavLink
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `nav-link py-1 ${isActive ? 'active' : ''}`
-                        }
-                        onClick={handleNavClick}
-                      >
-                        <span className="nav-icon small">{subItem.icon}</span>
-                        <span className="nav-text small">{subItem.label}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </li>
-        )}
-
-        {/* Administration Group */}
-        {isAdminVisible && (
-          <li className="nav-item">
-            <button
-              className={`nav-link w-100 text-start d-flex align-items-center justify-content-between ${isAdminActive ? 'active' : ''}`}
-              onClick={() => !collapsed && toggleGroup('admin')}
-              title={collapsed ? 'Administration' : undefined}
-            >
-              <span className="d-flex align-items-center">
-                <span className="nav-icon">{adminGroup.icon}</span>
-                {!collapsed && <span className="nav-text">{adminGroup.label}</span>}
-              </span>
-              {!collapsed && (
-                <span className="ms-auto">
-                  {isAdminExpanded ? <FaChevronUp size={12} /> : <FaChevronDown size={12} />}
-                </span>
-              )}
-            </button>
-            {!collapsed && isAdminExpanded && (
-              <ul className="nav flex-column ms-3 submenu">
-                {adminGroup.items
-                  .filter(item => !item.roles || hasAnyRole(item.roles))
-                  .map((subItem) => (
-                    <li key={subItem.path} className="nav-item">
-                      <NavLink
-                        to={subItem.path}
-                        className={({ isActive }) =>
-                          `nav-link py-1 ${isActive ? 'active' : ''}`
-                        }
-                        onClick={handleNavClick}
-                      >
-                        <span className="nav-icon small">{subItem.icon}</span>
-                        <span className="nav-text small">{subItem.label}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-              </ul>
-            )}
-          </li>
-        )}
+        {/* Render nav groups (Master Data, Administration) */}
+        {navGroups.map(group => renderNavGroup(group))}
       </ul>
     </nav>
   );

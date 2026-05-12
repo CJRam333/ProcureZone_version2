@@ -1,79 +1,238 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, Button, Form, InputGroup, Table, Badge, Modal } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Card, Button, Badge, InputGroup, Form, Row, Col, Tabs, Tab } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { FaPlus, FaEdit, FaTrash, FaSearch, FaUsers, FaEye } from 'react-icons/fa';
-import { PageHeader, LoadingSpinner } from '../../components/common';
+import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaUsers, FaEye, FaUserTag, FaSitemap } from 'react-icons/fa';
+import { PageHeader, DataTable, ConfirmDialog } from '../../components/common';
 import { employeesApi, getErrorMessage } from '../../api';
 import type { Employee } from '../../api/employees';
+import EmployeeRoleMappingPage from '../mappings/EmployeeRoleMappingPage';
+import ReportingHierarchyPage from '../mappings/ReportingHierarchyPage';
 
 const EmployeesListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [deleteModal, setDeleteModal] = useState<{ show: boolean; id: number | null; name: string }>({ show: false, id: null, name: '' });
 
-  const { data, isLoading, error } = useQuery({ queryKey: ['employees'], queryFn: () => employeesApi.getAll(0, 100) });
-  const employees = data?.content ?? [];
+  // Pagination & search state
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteName, setDeleteName] = useState('');
+
+  // Tab state from URL for deep-linkable tabs
+  const activeTab = searchParams.get('tab') || 'list';
+  const setActiveTab = (tab: string) => {
+    setSearchParams(tab === 'list' ? {} : { tab });
+  };
+
+  // Server-side paginated query
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['employees', page, pageSize, searchTerm],
+    queryFn: () => employeesApi.getAll(page, pageSize, searchTerm || undefined),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => employeesApi.delete(id),
-    onSuccess: () => { toast.success('Employee deleted successfully'); queryClient.invalidateQueries({ queryKey: ['employees'] }); setDeleteModal({ show: false, id: null, name: '' }); },
+    onSuccess: () => {
+      toast.success('Employee deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      setDeleteId(null);
+      setDeleteName('');
+    },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  const filteredEmployees = useMemo(() => {
-    if (!searchTerm) return employees;
-    const term = searchTerm.toLowerCase();
-    return employees.filter((e: Employee) => 
-      e.empId?.toLowerCase().includes(term) || 
-      e.empName?.toLowerCase().includes(term) || 
-      e.empEmail?.toLowerCase().includes(term) ||
-      e.empDesignation?.toLowerCase().includes(term)
-    );
-  }, [employees, searchTerm]);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(0);
+    setSearchTerm(searchInput);
+  };
 
-  const formatDate = (d: any) => { if (!d) return '-'; try { const date = new Date(d); return isNaN(date.getTime()) ? '-' : date.toLocaleDateString(); } catch { return '-'; } };
+  const handleClearSearch = () => {
+    setSearchInput('');
+    setSearchTerm('');
+    setPage(0);
+  };
 
-  if (isLoading) return <LoadingSpinner text="Loading employees..." />;
+  const formatDate = (d: string | undefined | null) => {
+    if (!d) return '-';
+    try {
+      const date = new Date(d);
+      return isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
+    } catch {
+      return '-';
+    }
+  };
+
+  const columns = [
+    {
+      key: 'empId',
+      label: 'Emp ID',
+      width: '120px',
+      render: (row: Employee) => <code className="fw-bold text-primary">{row.empId}</code>,
+    },
+    {
+      key: 'empName',
+      label: 'Name',
+      render: (row: Employee) => (
+        <div className="d-flex align-items-center">
+          <FaUsers className="text-muted me-2" />
+          <span className="fw-medium">{row.empName}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'empEmail',
+      label: 'Email',
+      render: (row: Employee) => <span className="text-muted">{row.empEmail || '-'}</span>,
+    },
+    {
+      key: 'empDesignation',
+      label: 'Designation',
+      render: (row: Employee) => row.empDesignation || '-',
+    },
+    {
+      key: 'departmentName',
+      label: 'Department',
+      render: (row: Employee) => row.departmentName || '-',
+    },
+    {
+      key: 'empStatus',
+      label: 'Status',
+      width: '100px',
+      render: (row: Employee) => (
+        <Badge bg={row.empStatus === 1 ? 'success' : 'secondary'}>
+          {row.empStatus === 1 ? 'Active' : 'Inactive'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'empJoinDate',
+      label: 'Join Date',
+      width: '120px',
+      render: (row: Employee) => formatDate(row.empJoinDate),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      width: '150px',
+      render: (row: Employee) => (
+        <div className="d-flex gap-1">
+          <Button variant="outline-info" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/masters/employees/${row.id}`); }} title="View">
+            <FaEye />
+          </Button>
+          <Button variant="outline-primary" size="sm" onClick={(e) => { e.stopPropagation(); navigate(`/masters/employees/${row.id}/edit`); }} title="Edit">
+            <FaEdit />
+          </Button>
+          <Button variant="outline-danger" size="sm" onClick={(e) => { e.stopPropagation(); setDeleteId(row.id); setDeleteName(row.empName || ''); }} title="Delete">
+            <FaTrash />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   if (error) return <div className="alert alert-danger">{getErrorMessage(error)}</div>;
 
   return (
     <div>
-      <PageHeader title="Employees" subtitle="Manage employee records" breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Masters', path: '/masters' }, { label: 'Employees' }]} actions={<Button variant="primary" onClick={() => navigate('/masters/employees/new')}><FaPlus className="me-2" />Add Employee</Button>} />
-      <Card>
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <span><FaUsers className="me-2 text-primary" /><strong>Employees List</strong> ({filteredEmployees.length})</span>
-          <InputGroup style={{ width: '300px' }}><InputGroup.Text><FaSearch /></InputGroup.Text><Form.Control placeholder="Search employees..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></InputGroup>
-        </Card.Header>
-        <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead className="table-light"><tr><th>ID</th><th>Emp ID</th><th>Name</th><th>Email</th><th>Designation</th><th>Department</th><th>Status</th><th>Join Date</th><th className="text-center">Actions</th></tr></thead>
-            <tbody>
-              {filteredEmployees.length === 0 ? <tr><td colSpan={9} className="text-center py-4 text-muted">No employees found</td></tr> :
-                filteredEmployees.map((e: Employee) => (
-                  <tr key={e.id}>
-                    <td>{e.id}</td><td><code>{e.empId}</code></td><td className="fw-medium">{e.empName}</td><td>{e.empEmail || '-'}</td>
-                    <td>{e.empDesignation || '-'}</td><td>{e.departmentName || '-'}</td>
-                    <td><Badge bg={e.empStatus === 1 ? 'success' : 'secondary'}>{e.empStatus === 1 ? 'Active' : 'Inactive'}</Badge></td>
-                    <td>{formatDate(e.empJoinDate)}</td>
-                    <td className="text-center">
-                      <Button variant="outline-info" size="sm" className="me-1" onClick={() => navigate(`/masters/employees/${e.id}`)} title="View"><FaEye /></Button>
-                      <Button variant="outline-primary" size="sm" className="me-1" onClick={() => navigate(`/masters/employees/${e.id}/edit`)} title="Edit"><FaEdit /></Button>
-                      <Button variant="outline-danger" size="sm" onClick={() => setDeleteModal({ show: true, id: e.id, name: e.empName || '' })} title="Delete"><FaTrash /></Button>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </Table>
-        </Card.Body>
-      </Card>
-      <Modal show={deleteModal.show} onHide={() => setDeleteModal({ show: false, id: null, name: '' })} centered>
-        <Modal.Header closeButton><Modal.Title>Confirm Delete</Modal.Title></Modal.Header>
-        <Modal.Body>Are you sure you want to delete employee "<strong>{deleteModal.name}</strong>"?</Modal.Body>
-        <Modal.Footer><Button variant="secondary" onClick={() => setDeleteModal({ show: false, id: null, name: '' })}>Cancel</Button><Button variant="danger" disabled={deleteMutation.isPending} onClick={() => deleteModal.id && deleteMutation.mutate(deleteModal.id)}>{deleteMutation.isPending ? 'Deleting...' : 'Delete'}</Button></Modal.Footer>
-      </Modal>
+      <PageHeader
+        title="Employees"
+        subtitle="Manage employee records, roles, and reporting hierarchy"
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Masters', path: '/masters' },
+          { label: 'Employees' },
+        ]}
+        actions={
+          activeTab === 'list' ? (
+            <Button variant="primary" onClick={() => navigate('/masters/employees/new')}>
+              <FaPlus className="me-2" />Add Employee
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <Tabs
+        activeKey={activeTab}
+        onSelect={(k) => setActiveTab(k || 'list')}
+        className="mb-4"
+        id="employees-tabs"
+      >
+        <Tab eventKey="list" title={<><FaUsers className="me-2" />Employees</>}>
+          <Card>
+            <Card.Body>
+              {/* Search & Filters */}
+              <Row className="mb-3">
+                <Col md={6}>
+                  <Form onSubmit={handleSearch}>
+                    <InputGroup>
+                      <Form.Control
+                        type="text"
+                        placeholder="Search by ID, name, email, or designation..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                      />
+                      <Button type="submit" variant="outline-primary">
+                        <FaSearch />
+                      </Button>
+                      {searchTerm && (
+                        <Button variant="outline-secondary" onClick={handleClearSearch}>
+                          Clear
+                        </Button>
+                      )}
+                    </InputGroup>
+                  </Form>
+                </Col>
+                <Col md={6} className="text-end">
+                  <Button variant="outline-secondary" onClick={() => refetch()}>
+                    <FaSyncAlt className="me-2" />Refresh
+                  </Button>
+                </Col>
+              </Row>
+
+              {/* Server-side paginated DataTable */}
+              <DataTable
+                columns={columns}
+                data={data?.content || []}
+                keyField="id"
+                loading={isLoading}
+                emptyMessage={searchTerm ? `No employees found matching "${searchTerm}"` : 'No employees found'}
+                totalItems={data?.totalElements || 0}
+                currentPage={page}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => { setPageSize(size); setPage(0); }}
+                onRowClick={(row) => navigate(`/masters/employees/${row.id}`)}
+              />
+            </Card.Body>
+          </Card>
+        </Tab>
+
+        <Tab eventKey="role-mapping" title={<><FaUserTag className="me-2" />Role Mapping</>}>
+          <EmployeeRoleMappingPage embedded />
+        </Tab>
+
+        <Tab eventKey="reporting-hierarchy" title={<><FaSitemap className="me-2" />Reporting Hierarchy</>}>
+          <ReportingHierarchyPage embedded />
+        </Tab>
+      </Tabs>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        show={deleteId !== null}
+        title="Delete Employee"
+        message={`Are you sure you want to delete employee "${deleteName}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+        onCancel={() => { setDeleteId(null); setDeleteName(''); }}
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 };

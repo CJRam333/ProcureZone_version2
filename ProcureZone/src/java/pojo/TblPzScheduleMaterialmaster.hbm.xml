@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblPzScheduleMaterialmaster" table="pz_schedule_sap_material_master" catalog="seeds_indent">
+      
+      
+      <id name="companyId" type="java.lang.Integer">
+            <column name="company_id" />
+            <generator class="identity"></generator>
+        </id>
+        
+      <property name="companyCode" type="int">
+            <column name="company_code"  />
+        </property>
+        
+        <property name="plantCode" type="int">
+            <column name="plant_code" />
+        </property>
+        
+        <property name="storageLocation" type="string">
+            <column name="storage_location" />
+        </property>
+        
+        <property name="materialaCode" type="string">
+            <column name="material_code"  />
+        </property>
+        
+        <property name="materialaDesc" type="string">
+            <column name="material_desc" />
+        </property>
+        
+        <property name="materiaaUom" type="string">
+            <column name="material_uom" />
+        </property>
+        
+        <property name="matBatch" type="string">
+            <column name="batch" />
+        </property>
+        
+        <property name="matQuantity" type="big_decimal">
+            <column name="quantity" precision="20" />
+        </property>
+        
+        <property name="materialType" type="string">
+            <column name="material_type" />
+        </property>
+        
+        <property name="materialGroup" type="string">
+            <column name="material_group"  />
+        </property>
+        
+        <property name="matgroupDesc" type="string">
+            <column name="material_group_desc"  />
+        </property>
+        
+        <property name="varietyType" type="string">
+            <column name="variety_type" />
+        </property>
+        
+        <property name="matVariety" type="string">
+            <column name="variety" />
+        </property>
+        
+        <property name="cropType" type="string">
+            <column name="crop_type" />
+        </property>
+        
+        <property name="cropGroup" type="string">
+            <column name="crop_group"  />
+        </property>
+        
+        <property name="matStl" type="string">
+            <column name="stl" />
+        </property>
+        
+        <property name="matOdv" type="string">
+            <column name="odv" />
+        </property>
+        
+        <property name="matGot" type="string">
+            <column name="got" />
+        </property>
+        
+        <property name="matElisa" type="string">
+            <column name="elisa" />
+        </property>
+        
+        <property name="matStatus" type="int">
+            <column name="status" />
+        </property>
+        
+        <property name="matcodeId" type="int">
+            <column name="mat_code_id"  />
+        </property>
+        
+        
+        
+      <property name="sDCLS" type="string">
+            <column name="SDCLS"  />
+        </property>
+        
+        <property name="sTATS" type="string">
+            <column name="STATS"  />
+        </property>
+        
+        <property name="sKIPD" type="string">
+            <column name="SKIPD"  />
+        </property>
+        
+        <property name="iNSPDT" type="string">
+            <column name="INSPDT"  />
+        </property>
+        
+        <property name="mOISTURE" type="string">
+            <column name="MOISTURE"  />
+        </property>
+        
+        <property name="PURESEED" type="string">
+            <column name="PURE_SEED"  />
+        </property>
+        
+        <property name="INERTMATTER" type="string">
+            <column name="INERT_MATTER"  />
+        </property>
+        
+        <property name="OCSCOUNT" type="string">
+            <column name="OCS_COUNT"  />
+        </property>
+        
+        <property name="WEEDSEEDCOUNT" type="string">
+            <column name="WEED_SEED_COUNT"  />
+        </property>
+        
+        <property name="gRAIN" type="string">
+            <column name="GRAIN"  />
+        </property>
+        
+        <property name="BLACKSEEDS" type="string">
+            <column name="BLACK_SEEDS"  />
+        </property>
+        
+        <property name="PINHOLESEEDS" type="string">
+            <column name="PINHOLE_SEEDS"  />
+        </property>
+        
+        <property name="ODVRES" type="string">
+            <column name="ODV_RES"  />
+        </property>
+        
+        <property name="BULKDENSITY" type="string">
+            <column name="BULK_DENSITY"  />
+        </property>
+        
+        <property name="tHSW" type="string">
+            <column name="THSW"  />
+        </property>
+        
+        <property name="COLDVIGOURGERMNORMAL" type="string">
+            <column name="COLD_VIGOUR_GERM_NORMAL"  />
+        </property>
+        
+        <property name="FIRSTCOUNTNORMAL" type="string">
+            <column name="FIRST_COUNT_NORMAL"  />
+        </property>
+        
+        <property name="GERMNORMAL" type="string">
+            <column name="GERM_NORMAL"  />
+        </property>
+        
+        <property name="FETNORMAL" type="string">
+            <column name="FET_NORMAL"  />
+        </property>
+        
+        <property name="SOILCOUNTDAYS" type="string">
+            <column name="SOIL_COUNT_DAYS"  />
+        </property>
+        
+        <property name="AAVGERMNORMAL" type="string">
+            <column name="AAV_GERM_NORMAL"  />
+        </property>
+        
+        <property name="GOTGP" type="string">
+            <column name="GOT_GP"  />
+        </property>
+        
+        <property name="GOTFEMALE" type="string">
+            <column name="GOT_FEMALE"  />
+        </property>
+        
+        <property name="GOTOTHERS" type="string">
+            <column name="GOT_OTHERS"  />
+        </property>
+        
+        <property name="bG1" type="string">
+            <column name="BG1"  />
+        </property>
+        
+        <property name="bG2" type="string">
+            <column name="BG2"  />
+        </property>
+        
+        <property name="hT" type="string">
+            <column name="HT"  />
+        </property>
+        
+        <property name="fQR" type="string">
+            <column name="FQR"  />
+        </property>
+        
+        <property name="q1" type="string">
+            <column name="Q1"  />
+        </property>
+        
+        <property name="q2" type="string">
+            <column name="Q2"  />
+        </property>
+        
+        
+        <property name="q3" type="string">
+            <column name="Q3"  />
+        </property>
+        
+        <property name="q4" type="string">
+            <column name="Q4"  />
+        </property>
+        
+        <property name="q5" type="string">
+            <column name="Q5"  />
+        </property>
+        
+        <property name="q6" type="string">
+            <column name="Q6"  />
+        </property>
+        
+        <property name="q7" type="string">
+            <column name="Q7"  />
+        </property>
+        
+        <property name="q8" type="string">
+            <column name="Q8"  />
+        </property>
+        
+        <property name="q9" type="string">
+            <column name="Q9"  />
+        </property>
+        
+        
+  </class>
+  </hibernate-mapping>

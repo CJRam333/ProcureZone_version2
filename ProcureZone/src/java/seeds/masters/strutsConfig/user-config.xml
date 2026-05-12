@@ -1,0 +1,34 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.masters.action.UserAction" extends="struts-default">
+        <action name="userMasterList" class="seeds.masters.action.UserAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/user_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/user_master_list.jsp</result>
+        </action>
+        <action name="addUser" class="seeds.masters.action.UserAction" method="addUser" >            
+            <result name="success">/WEB-INF/jsp/masters/user_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/user_master_list.jsp</result>
+        </action>
+        <action name="saveUser" class="seeds.masters.action.UserAction" method="saveUser" >            
+            <result name="success" type="redirect">userMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/user_master.jsp</result>
+        </action>
+        <action name="updateUser" class="seeds.masters.action.UserAction" method="updateUser" >            
+            <result name="success">/WEB-INF/jsp/masters/user_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/user_master_list.jsp</result>            
+        </action>
+        <action name="deleteUser" class="seeds.masters.action.UserAction" method="deleteUser" >            
+            <result name="success" type="redirect">userMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/user_master_list.jsp</result>
+        </action>
+        <action name="viewUser" class="seeds.masters.action.UserAction" method="viewUser" >            
+            <result name="success">/WEB-INF/jsp/masters/user_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/user_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>

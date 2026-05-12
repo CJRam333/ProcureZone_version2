@@ -1,0 +1,34 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+   <package name="seeds.masters.action.CompPlantMaterialAction" extends="struts-default">
+        <action name="compPlantMaterialMasterList" class="seeds.masters.action.CompPlantMaterialAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_plant_material_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_plant_material_master_list.jsp</result>
+        </action>
+        <action name="addCompPlantMaterial" class="seeds.masters.action.CompPlantMaterialAction" method="addCompPlantMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_plant_material_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_plant_material_master_list.jsp</result>
+        </action>
+        <action name="saveCompPlantMaterial" class="seeds.masters.action.CompPlantMaterialAction" method="saveCompPlantMaterial" >            
+            <result name="success" type="redirect">compPlantMaterialMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_plant_material_master.jsp</result>
+        </action>
+        <action name="updateCompPlantMaterial" class="seeds.masters.action.CompPlantMaterialAction" method="updateCompPlantMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_plant_material_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_plant_material_master_list.jsp</result>            
+        </action>
+        <action name="deleteCompPlantMaterial" class="seeds.masters.action.CompPlantMaterialAction" method="deleteCompPlantMaterial" >            
+            <result name="success" type="redirect">compPlantMaterialMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_plant_material_master_list.jsp</result>
+        </action>
+        <action name="viewCompPlantMaterial" class="seeds.masters.action.CompPlantMaterialAction" method="viewCompPlantMaterial" >            
+            <result name="success">/WEB-INF/jsp/masters/map_comp_plant_material_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/map_comp_plant_material_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>

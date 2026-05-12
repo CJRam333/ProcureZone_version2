@@ -1,0 +1,296 @@
+-- =====================================================
+-- Scheduled Job Email Templates
+-- Migration: V26__add_scheduled_job_email_templates.sql
+-- Purpose: Email templates for automated scheduled job notifications
+-- =====================================================
+
+SET sql_safe_updates = 0;
+
+-- Template: Inventory Reorder Alert (Daily)
+INSERT IGNORE INTO
+    tbl_email_template (
+        template_code,
+        template_name,
+        template_subject,
+        template_body,
+        template_type,
+        template_category,
+        template_description,
+        template_placeholders,
+        is_html,
+        template_status,
+        template_lmd,
+        template_lmu
+    )
+VALUES (
+        'INVENTORY_REORDER_ALERT',
+        'Daily Inventory Reorder Alert',
+        'Inventory Reorder Alert - ${criticalCount} Critical, ${lowStockCount} Low Stock Items',
+        '<html><body>
+<h2 style="color: #d9534f;">Inventory Reorder Alert</h2>
+<p>Dear Procurement Team,</p>
+<p>The daily inventory scan has identified materials requiring immediate attention.</p>
+
+<h3 style="color: #d9534f;">⚠️ Critical Stock Items (${criticalCount})</h3>
+<p>These items are at zero or dangerously low levels:</p>
+${criticalItemsTable}
+
+<h3 style="color: #f0ad4e;">⚡ Low Stock Items (${lowStockCount})</h3>
+<p>These items are below reorder level:</p>
+${lowStockItemsTable}
+
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Total Value at Risk:</strong></td><td>₹${totalValueAtRisk}</td></tr>
+    <tr><td><strong>Report Generated:</strong></td><td>${generatedDate}</td></tr>
+</table>
+
+<p style="margin-top: 20px;"><strong>Action Required:</strong> Please review and initiate purchase orders for critical items immediately.</p>
+
+<p>Best regards,<br/>ProcureZone Automated System</p>
+</body></html>',
+        'ALERT',
+        'INVENTORY_MANAGEMENT',
+        'Daily automated alert for inventory items below reorder levels',
+        '["criticalCount", "lowStockCount", "criticalItemsTable", "lowStockItemsTable", "totalValueAtRisk", "generatedDate"]',
+        1,
+        1,
+        CURDATE(),
+        1
+    );
+
+-- Template: Pending Indent Reminder
+INSERT IGNORE INTO
+    tbl_email_template (
+        template_code,
+        template_name,
+        template_subject,
+        template_body,
+        template_type,
+        template_category,
+        template_description,
+        template_placeholders,
+        is_html,
+        template_status,
+        template_lmd,
+        template_lmu
+    )
+VALUES (
+        'PENDING_INDENT_REMINDER',
+        'Pending Indent Approval Reminder',
+        'Action Required: ${pendingCount} Indents Awaiting Your Approval',
+        '<html><body>
+<h2 style="color: #337ab7;">Pending Indent Approval Reminder</h2>
+<p>Dear ${approverName},</p>
+<p>You have <strong>${pendingCount} indent(s)</strong> awaiting your approval.</p>
+
+<h3>📋 Pending Indents Summary</h3>
+${pendingIndentsTable}
+
+<h3 style="color: #d9534f;">⏰ Overdue Indents (${overdueCount})</h3>
+<p>The following indents have been pending for more than 3 days:</p>
+${overdueIndentsTable}
+
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Total Pending Value:</strong></td><td>₹${totalPendingValue}</td></tr>
+    <tr><td><strong>Oldest Pending:</strong></td><td>${oldestPendingDays} days</td></tr>
+</table>
+
+<p style="margin-top: 20px;">
+    <a href="${approvalLink}" style="background: #337ab7; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+        Review Pending Indents
+    </a>
+</p>
+
+<p>Best regards,<br/>ProcureZone Automated System</p>
+</body></html>',
+        'NOTIFICATION',
+        'APPROVAL_WORKFLOW',
+        'Reminder email for approvers with pending indent approvals',
+        '["approverName", "pendingCount", "pendingIndentsTable", "overdueCount", "overdueIndentsTable", "totalPendingValue", "oldestPendingDays", "approvalLink"]',
+        1,
+        1,
+        CURDATE(),
+        1
+    );
+
+-- Template: Daily Inventory Summary
+INSERT IGNORE INTO
+    tbl_email_template (
+        template_code,
+        template_name,
+        template_subject,
+        template_body,
+        template_type,
+        template_category,
+        template_description,
+        template_placeholders,
+        is_html,
+        template_status,
+        template_lmd,
+        template_lmu
+    )
+VALUES (
+        'DAILY_INVENTORY_SUMMARY',
+        'Daily Inventory Summary Report',
+        'Daily Inventory Summary - ${reportDate}',
+        '<html><body>
+<h2 style="color: #5cb85c;">Daily Inventory Summary</h2>
+<p>Dear Team,</p>
+<p>Here is the daily inventory summary for <strong>${reportDate}</strong>.</p>
+
+<h3>📊 Overall Statistics</h3>
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Total Materials:</strong></td><td>${totalMaterials}</td></tr>
+    <tr><td><strong>Total Inventory Value:</strong></td><td>₹${totalInventoryValue}</td></tr>
+    <tr><td><strong>Low Stock Items:</strong></td><td style="color: #f0ad4e;">${lowStockCount}</td></tr>
+    <tr><td><strong>Critical Stock Items:</strong></td><td style="color: #d9534f;">${criticalStockCount}</td></tr>
+</table>
+
+<h3>📦 Today''s Transactions</h3>
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Goods Receipts:</strong></td><td>${receiptsCount} (₹${receiptsValue})</td></tr>
+    <tr><td><strong>Material Issues:</strong></td><td>${issuesCount} (₹${issuesValue})</td></tr>
+    <tr><td><strong>Adjustments:</strong></td><td>${adjustmentsCount}</td></tr>
+    <tr><td><strong>Net Movement:</strong></td><td style="color: ${netMovementColor};">${netMovement}</td></tr>
+</table>
+
+<h3>🔝 Top 10 Materials by Value</h3>
+${topMaterialsTable}
+
+<p style="margin-top: 20px;">For detailed reports, please access the ProcureZone dashboard.</p>
+
+<p>Best regards,<br/>ProcureZone Automated System</p>
+</body></html>',
+        'REPORT',
+        'INVENTORY_MANAGEMENT',
+        'Daily summary of inventory status and transactions',
+        '["reportDate", "totalMaterials", "totalInventoryValue", "lowStockCount", "criticalStockCount", "receiptsCount", "receiptsValue", "issuesCount", "issuesValue", "adjustmentsCount", "netMovement", "netMovementColor", "topMaterialsTable"]',
+        1,
+        1,
+        CURDATE(),
+        1
+    );
+
+-- Template: Monthly Procurement Analytics
+INSERT IGNORE INTO
+    tbl_email_template (
+        template_code,
+        template_name,
+        template_subject,
+        template_body,
+        template_type,
+        template_category,
+        template_description,
+        template_placeholders,
+        is_html,
+        template_status,
+        template_lmd,
+        template_lmu
+    )
+VALUES (
+        'MONTHLY_PROCUREMENT_ANALYTICS',
+        'Monthly Procurement Analytics Report',
+        'Monthly Procurement Analytics - ${monthYear}',
+        '<html><body>
+<h2 style="color: #5bc0de;">Monthly Procurement Analytics</h2>
+<p>Dear Management,</p>
+<p>Here is the procurement analytics report for <strong>${monthYear}</strong>.</p>
+
+<h3>📋 Indent Statistics</h3>
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Indents Created:</strong></td><td>${indentsCreated}</td></tr>
+    <tr><td><strong>Indents Approved:</strong></td><td>${indentsApproved}</td></tr>
+    <tr><td><strong>Approval Rate:</strong></td><td>${approvalRate}%</td></tr>
+    <tr><td><strong>Avg Approval Time:</strong></td><td>${avgApprovalDays} days</td></tr>
+</table>
+
+<h3>📦 Goods Receipt Statistics</h3>
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>GRNs Processed:</strong></td><td>${grnCount}</td></tr>
+    <tr><td><strong>Total GRN Value:</strong></td><td>₹${grnTotalValue}</td></tr>
+    <tr><td><strong>On-Time Delivery:</strong></td><td>${onTimeDeliveryRate}%</td></tr>
+</table>
+
+<h3>📤 Issue Note Statistics</h3>
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Issue Notes Created:</strong></td><td>${issueNoteCount}</td></tr>
+    <tr><td><strong>Total Issued Value:</strong></td><td>₹${issuedTotalValue}</td></tr>
+</table>
+
+<h3>💰 Inventory Transaction Summary</h3>
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Total Receipts:</strong></td><td>${totalReceipts}</td></tr>
+    <tr><td><strong>Total Issues:</strong></td><td>${totalIssues}</td></tr>
+    <tr><td><strong>Net Change:</strong></td><td>${netChange}</td></tr>
+</table>
+
+${trendsSection}
+
+<p style="margin-top: 20px;">For detailed analytics, please access the ProcureZone reporting dashboard.</p>
+
+<p>Best regards,<br/>ProcureZone Automated System</p>
+</body></html>',
+        'REPORT',
+        'PROCUREMENT_ANALYTICS',
+        'Monthly analytics report with procurement KPIs and trends',
+        '["monthYear", "indentsCreated", "indentsApproved", "approvalRate", "avgApprovalDays", "grnCount", "grnTotalValue", "onTimeDeliveryRate", "issueNoteCount", "issuedTotalValue", "totalReceipts", "totalIssues", "netChange", "trendsSection"]',
+        1,
+        1,
+        CURDATE(),
+        1
+    );
+
+-- Template: Data Cleanup Summary
+INSERT IGNORE INTO
+    tbl_email_template (
+        template_code,
+        template_name,
+        template_subject,
+        template_body,
+        template_type,
+        template_category,
+        template_description,
+        template_placeholders,
+        is_html,
+        template_status,
+        template_lmd,
+        template_lmu
+    )
+VALUES (
+        'DATA_CLEANUP_SUMMARY',
+        'Weekly Data Cleanup Summary',
+        'Data Cleanup Summary - ${cleanupDate}',
+        '<html><body>
+<h2 style="color: #5cb85c;">Weekly Data Cleanup Summary</h2>
+<p>Dear System Administrator,</p>
+<p>The weekly data cleanup job has completed. Here is the summary:</p>
+
+<h3>🗑️ Cleanup Statistics</h3>
+<table border="1" cellpadding="8" style="border-collapse: collapse;">
+    <tr><td><strong>Cleanup Date:</strong></td><td>${cleanupDate}</td></tr>
+    <tr><td><strong>Old Transactions Archived:</strong></td><td>${archivedTransactionCount}</td></tr>
+    <tr><td><strong>Expired Tokens Removed:</strong></td><td>${expiredTokenCount}</td></tr>
+    <tr><td><strong>Old Logs Purged:</strong></td><td>${purgedLogCount}</td></tr>
+    <tr><td><strong>Space Reclaimed:</strong></td><td>${spaceReclaimed} MB</td></tr>
+</table>
+
+<h3>📋 Status</h3>
+<p style="color: ${statusColor};"><strong>${cleanupStatus}</strong></p>
+
+${errorSection}
+
+<p>Best regards,<br/>ProcureZone Automated System</p>
+</body></html>',
+        'NOTIFICATION',
+        'SYSTEM_MAINTENANCE',
+        'Summary of weekly data cleanup operations',
+        '["cleanupDate", "archivedTransactionCount", "expiredTokenCount", "purgedLogCount", "spaceReclaimed", "statusColor", "cleanupStatus", "errorSection"]',
+        1,
+        1,
+        CURDATE(),
+        1
+    );
+
+-- =====================================================
+-- Migration Complete
+-- =====================================================

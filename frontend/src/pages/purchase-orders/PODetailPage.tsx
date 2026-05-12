@@ -316,7 +316,7 @@ const PODetailPage: React.FC = () => {
                           <th className="text-end">Ordered</th>
                           <th className="text-end">Received</th>
                           <th className="text-end">Pending</th>
-                          <th className="text-end">Rate (₹)</th>
+                          {/* <th className="text-end">Rate (₹)</th> */}
                           <th className="text-end">Amount (₹)</th>
                           <th>Progress</th>
                         </tr>
@@ -343,9 +343,7 @@ const PODetailPage: React.FC = () => {
                                 </span>
                               </td>
                               <td className="text-end text-warning">{item.pendingQuantity || 0}</td>
-                              <td className="text-end">
-                                {new Intl.NumberFormat('en-IN').format(item.unitRate)}
-                              </td>
+                              {/* <td className="text-end">{new Intl.NumberFormat('en-IN').format(item.unitRate)}</td> */}
                               <td className="text-end fw-medium">
                                 {new Intl.NumberFormat('en-IN').format(item.totalAmount)}
                               </td>

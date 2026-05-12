@@ -45,7 +45,11 @@ interface PageResponse<T> {
     totalPages: number;
 }
 
-const EmployeeRoleMappingPage: React.FC = () => {
+interface EmployeeRoleMappingPageProps {
+    embedded?: boolean;
+}
+
+const EmployeeRoleMappingPage: React.FC<EmployeeRoleMappingPageProps> = ({ embedded = false }) => {
     const queryClient = useQueryClient();
 
     const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
@@ -146,15 +150,18 @@ const EmployeeRoleMappingPage: React.FC = () => {
 
     return (
         <div>
-            <PageHeader
-                title="Employee-Role Mapping"
-                subtitle="Assign roles to employees"
-                breadcrumbs={[
-                    { label: 'Dashboard', path: '/dashboard' },
-                    { label: 'Masters', path: '/masters/employees' },
-                    { label: 'Employee-Role Mapping' },
-                ]}
-            />
+            {!embedded && (
+                <PageHeader
+                    title="Employee-Role Mapping"
+                    subtitle="Assign roles to employees"
+                    breadcrumbs={[
+                        { label: 'Dashboard', path: '/dashboard' },
+                        { label: 'Masters', path: '/masters' },
+                        { label: 'Employees', path: '/masters/employees' },
+                        { label: 'Role Mapping' },
+                    ]}
+                />
+            )}
 
             {error && (
                 <Alert variant="danger" dismissible onClose={() => setError(null)}>

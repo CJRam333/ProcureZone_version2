@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+  <class name="pojo.TblCropMaster" table="pz_crop_group" catalog="seeds_indent">
+      
+      <id name="cropcId" type="int">
+                  <column name="cropc_id" not-null="true"/>
+                  <generator class="identity"></generator>
+        </id>   
+        
+        
+        <property name="cropName" type="string">
+            <column name="crop_name"/>
+        </property>
+        
+        <property name="cropId" type="int">
+            <column name="crop_id" />
+        </property>
+        
+        <property name="divisionId" type="int">
+            <column name="division_id"  />
+        </property>
+        
+        <property name="divisionName" type="string">
+            <column name="division_name"  />
+        </property>
+        
+        <property name="cropStatus" type="int">
+            <column name="cropstatus"  />
+        </property>
+        
+        
+  </class>
+</hibernate-mapping>

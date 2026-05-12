@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblIssueNoteDetails" table="tbl_issue_note_details" catalog="seeds_indent" optimistic-lock="version">
+        <id name="issueNoteDetailsId" type="java.lang.Integer">
+            <column name="issue_note_details_id" />
+            <generator class="identity" />
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="issue_note_details_lmu" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblIssueNote" class="pojo.TblIssueNote" fetch="select">
+            <column name="issue_note_id" not-null="true" />
+        </many-to-one>
+        <many-to-one name="tblMaterialMaster" class="pojo.TblMaterialMaster" fetch="select">
+            <column name="issue_note_material" not-null="true" />
+        </many-to-one>
+        <property name="issueNoteDetailsQuantity" type="big_decimal">
+            <column name="issue_note_details_quantity" precision="20" />
+        </property>
+        <property name="issueNoteDetailsIssuedQuantity" type="big_decimal">
+            <column name="issue_note_details_issued_quantity" precision="20" />
+        </property>
+        <property name="issueNoteDetailsBalanceInventory" type="big_decimal">
+            <column name="issue_note_details_balance_inventory" precision="20" />
+        </property>
+        <property name="issueNoteDetailsOpeningQuantity" type="big_decimal">
+            <column name="issue_note_details_opening_quantity" precision="20" />
+        </property>
+        <property name="issueNoteDetailsRequestedQuantity" type="big_decimal">
+            <column name="issue_note_details_requested_quantity" precision="20" />
+        </property>
+        <property name="issueNoteDetailsQuantityStores" type="big_decimal">
+            <column name="issue_note_details_quantity_stores" precision="20" />
+        </property>
+        <property name="issueNoteDetailsStatus" type="int">
+            <column name="issue_note_details_status" not-null="true" />
+        </property>
+        <property name="issueNoteDetailsLmd" type="string">
+            <column name="issue_note_details_lmd" length="20" not-null="true" />
+        </property>
+    </class>
+</hibernate-mapping>

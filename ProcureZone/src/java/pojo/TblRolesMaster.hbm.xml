@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN"
+"http://hibernate.sourceforge.net/hibernate-mapping-3.0.dtd">
+<!-- Generated Aug 6, 2013 11:30:30 AM by Hibernate Tools 3.2.1.GA -->
+<hibernate-mapping>
+    <class name="pojo.TblRolesMaster" table="tbl_roles_master" catalog="seeds_indent">
+        <id name="roleId" type="java.lang.Integer">
+            <column name="role_id" />
+            <generator class="identity"></generator>
+        </id>
+        <many-to-one name="tblEmpMaster" class="pojo.TblEmpMaster" fetch="select">
+            <column name="role_lmu" not-null="true" />
+        </many-to-one>
+        <property name="roleCode" type="string">
+            <column name="role_code" length="100" />
+        </property>
+        <property name="roleName" type="string">
+            <column name="role_name" length="100" not-null="true" />
+        </property>
+        <property name="roleView" type="string">
+            <column name="role_view" length="100" />
+        </property>
+        <property name="roleAdd" type="string">
+            <column name="role_add" length="100" />
+        </property>
+        <property name="roleEdit" type="string">
+            <column name="role_edit" length="100" />
+        </property>
+        <property name="roleDelete" type="string">
+            <column name="role_delete" length="100" />
+        </property>
+        <property name="roleStatus" type="int">
+            <column name="role_status" not-null="true" />
+        </property>
+        <property name="roleLmd" type="date">
+            <column name="role_lmd" length="10" not-null="true" />
+        </property>
+        <set name="tblMapEmpRoleses" table="tbl_map_emp_roles" inverse="true" lazy="true" fetch="select">
+            <key>
+                <column name="role_id" not-null="true" />
+            </key>
+            <one-to-many class="pojo.TblMapEmpRoles" />
+        </set>
+    </class>
+</hibernate-mapping>

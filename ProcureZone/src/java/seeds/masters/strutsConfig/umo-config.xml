@@ -1,0 +1,34 @@
+<!DOCTYPE struts PUBLIC
+"-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+"http://struts.apache.org/dtds/struts-2.0.dtd">
+
+<!-- Author: ramesh.avv -->
+ 
+<struts>
+    <package name="seeds.masters.action.UmoAction" extends="struts-default">
+        <action name="umoMasterList" class="seeds.masters.action.UmoAction" method="getList" >            
+            <result name="success">/WEB-INF/jsp/masters/umo_master_list.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/umo_master_list.jsp</result>
+        </action>
+        <action name="addUmo" class="seeds.masters.action.UmoAction" method="addUmo" >            
+            <result name="success">/WEB-INF/jsp/masters/umo_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/umo_master_list.jsp</result>
+        </action>
+        <action name="saveUmo" class="seeds.masters.action.UmoAction" method="saveUmo" >            
+            <result name="success" type="redirect">umoMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/umo_master.jsp</result>
+        </action>
+        <action name="updateUmo" class="seeds.masters.action.UmoAction" method="updateUmo" >            
+            <result name="success">/WEB-INF/jsp/masters/umo_master.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/umo_master_list.jsp</result>            
+        </action>
+        <action name="deleteUmo" class="seeds.masters.action.UmoAction" method="deleteUmo" >            
+            <result name="success" type="redirect">umoMasterList.action</result>
+            <result name="input">/WEB-INF/jsp/masters/umo_master_list.jsp</result>
+        </action>
+        <action name="viewUmo" class="seeds.masters.action.UmoAction" method="viewUmo" >            
+            <result name="success">/WEB-INF/jsp/masters/umo_master_view.jsp</result>
+            <result name="input">/WEB-INF/jsp/masters/umo_master_list.jsp</result>            
+        </action>
+    </package>
+</struts>
