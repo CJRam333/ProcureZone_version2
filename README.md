@@ -81,4 +81,10 @@ See [docs/](docs/) for all project documentation including:
 | neha.gupta | PROCUREMENT | password123 |
 | lakshmi.nambiar | STOREKEEPER | password123 |
 
+##For future pushes from PowerShell, always use this sequence:
+cd d:\New_ProcureZone\Net-Beans\Net-Beans
+git add -A
+git commit -m "your message here"
+git push origin master
+
 > Full test user list: [docs/testing/USER_STORIES_FOR_TESTING.md](docs/testing/USER_STORIES_FOR_TESTING.md)
