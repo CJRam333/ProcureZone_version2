@@ -1,0 +1,9 @@
+﻿Field	Type	Null	Key	Default	Extra
+report_id	int	NO	PRI	NULL	auto_increment
+report_sub	int	NO	MUL	NULL	
+report_sup	int	NO	MUL	NULL	
+report_start	date	NO		NULL	
+report_end	date	NO		NULL	
+report_status	int	NO		NULL	
+report_lmu	int	NO	MUL	NULL	
+report_lmd	date	NO		NULL	

@@ -1,0 +1,15 @@
+﻿Field	Type	Null	Key	Default	Extra
+indent_details_id	int	NO	PRI	NULL	auto_increment
+indent_id	int	NO	MUL	NULL	
+indent_details_material	int	NO	MUL	NULL	
+indent_details_umo	int	NO	MUL	NULL	
+indent_details_qty	decimal(20,2)	NO		NULL	
+indent_details_rm_qty	decimal(20,2)	YES		NULL	
+indent_details_dept_qty	decimal(20,2)	YES		NULL	
+indent_details_stock_aval	decimal(20,2)	NO		NULL	
+indent_details_pricing	decimal(20,2)	YES		0.00	
+indent_details_purpose	mediumtext	YES		NULL	
+indent_details_vendor	varchar(200)	YES		NULL	
+indent_details_status	int	NO		NULL	
+indent_details_lmu	int	NO	MUL	NULL	
+indent_details_lmd	date	NO		NULL	

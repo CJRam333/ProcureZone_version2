@@ -1,0 +1,26 @@
+﻿indent_id	int	NO	PRI	NULL	auto_increment
+indent_no	varchar(13)	NO		NULL	
+indent_emp	int	NO	MUL	NULL	
+indent_company	int	NO	MUL	NULL	
+indent_dept	int	NO	MUL	NULL	
+indent_sec	int	NO	MUL	NULL	
+indent_plant	int	NO	MUL	NULL	
+indent_year	varchar(45)	NO		NULL	
+indent_date	varchar(20)	NO		NULL	
+indent_comments	tinytext	YES		NULL	
+indent_delivery_date	varchar(20)	YES		NULL	
+indent_po_number	varchar(100)	YES		NULL	
+indent_createdby	int	NO	MUL	NULL	
+indent_approvedby	int	YES	MUL	NULL	
+indent_approved_status	int	YES	MUL	NULL	
+indent_approvedby_date	varchar(20)	YES		NULL	
+indent_remarks	mediumtext	YES		NULL	
+indent_final_approvedby	int	YES	MUL	NULL	
+indent_final_status	int	YES	MUL	NULL	
+indent_final_date	varchar(20)	YES		NULL	
+indent_final_remarks	mediumtext	YES		NULL	
+indent_procurementby	int	YES	MUL	NULL	
+indent_procurement_status	int	YES	MUL	NULL	
+indent_status	int	NO		NULL	
+indent_lmu	int	NO	MUL	NULL	
+indent_lmd	date	NO		NULL	

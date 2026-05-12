@@ -1,0 +1,13 @@
+﻿COLUMN_NAME
+issue_note_details_id
+issue_note_id
+issue_note_material
+issue_note_details_quantity
+issue_note_details_issued_quantity
+issue_note_details_balance_inventory
+issue_note_details_opening_quantity
+issue_note_details_requested_quantity
+issue_note_details_quantity_stores
+issue_note_details_status
+issue_note_details_lmu
+issue_note_details_lmd

@@ -1,0 +1,10 @@
+﻿indent_approvedby	int	YES	MUL	NULL	
+indent_approved_status	int	YES	MUL	NULL	
+indent_approvedby_date	datetime	YES		NULL	
+indent_remarks	mediumtext	YES		NULL	
+indent_final_approvedby	int	YES	MUL	NULL	
+indent_final_status	int	YES	MUL	NULL	
+indent_final_date	datetime	YES		NULL	
+indent_final_remarks	mediumtext	YES		NULL	
+indent_procurementby	int	YES	MUL	NULL	
+indent_procurement_status	int	YES	MUL	NULL	

@@ -1,0 +1,6 @@
+﻿COLUMN_NAME	DATA_TYPE
+id	int
+diivision_name	varchar
+division_code	int
+division_id	int
+status	int

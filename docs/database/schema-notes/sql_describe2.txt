@@ -1,0 +1,8 @@
+﻿Field	Type	Null	Key	Default	Extra
+map_id	int	NO	PRI	NULL	auto_increment
+map_comp	int	NO	MUL	NULL	
+map_loc	int	NO	MUL	NULL	
+map_material	int	NO	MUL	NULL	
+map_status	int	NO		NULL	
+map_lmu	int	NO	MUL	NULL	
+map_lmd	date	NO		NULL	
