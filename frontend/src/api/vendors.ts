@@ -154,15 +154,19 @@ export const vendorsApi = {
         return response.data;
     },
 
-    // --- Commented out: endpoints not confirmed on backend ---
-    // activate: async (id: number): Promise<Vendor> => {
-    //     const response = await apiClient.post<Vendor>(`/vendors/${id}/activate`);
-    //     return response.data;
-    // },
-    // deactivate: async (id: number): Promise<Vendor> => {
-    //     const response = await apiClient.post<Vendor>(`/vendors/${id}/deactivate`);
-    //     return response.data;
-    // },
+    // Backend UpdateVendorRequest accepts status: Integer (1=Active, 2=Inactive, 3=Blacklisted)
+    activate: async (id: number): Promise<Vendor> => {
+        const response = await apiClient.put<Vendor>(`/vendors/${id}`, { status: 1 });
+        return response.data;
+    },
+    deactivate: async (id: number): Promise<Vendor> => {
+        const response = await apiClient.put<Vendor>(`/vendors/${id}`, { status: 2 }); // 2 = Inactive
+        return response.data;
+    },
+    blacklist: async (id: number): Promise<Vendor> => {
+        const response = await apiClient.put<Vendor>(`/vendors/${id}`, { status: 3 }); // 3 = Blacklisted
+        return response.data;
+    },
     // blacklist: async (id: number, reason: string): Promise<Vendor> => {
     //     const response = await apiClient.post<Vendor>(`/vendors/${id}/blacklist`, { reason });
     //     return response.data;

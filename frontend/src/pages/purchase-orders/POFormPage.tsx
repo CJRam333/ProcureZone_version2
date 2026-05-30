@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Form, Button, Row, Col, Table, Badge, InputGroup, Alert } from 'react-bootstrap';
+import { Card, Form, Button, Row, Col, Table, Badge } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { toast } from 'react-toastify';
@@ -12,30 +12,31 @@ import {
   FaTrash,
   FaShoppingCart,
   FaFileInvoice,
-  FaSearch,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { purchaseOrdersApi, vendorsApi, materialsApi, indentsApi, getErrorMessage } from '../../api';
-import type { POCreateRequest, POItemCreateRequest, Vendor, Material } from '../../api';
+import type { POCreateRequest, POLineItemRequest, UpdatePORequest } from '../../api/purchaseOrders';
+import type { Vendor } from '../../api/vendors';
 
+// ── Form-only data shape (internal, not sent to backend directly) ──
 interface FormData {
   vendorId: number | null;
   indentId?: number | null;
-  deliveryDate: string;
+  deliveryDate: string;           // maps to expectedDeliveryDate (create) / deliveryDate (update)
   paymentTerms: string;
-  deliveryTerms: string;
-  remarks: string;
-  items: POItemFormData[];
+  termsConditions: string;        // was: deliveryTerms
+  notes: string;                  // was: remarks
+  items: POItemFormData[];        // renamed to lineItems only in payload
 }
 
 interface POItemFormData {
   materialId: number | null;
-  indentItemId?: number | null;
-  orderedQuantity: number;
-  unitRate: number;
+  indentDetailId?: number | null; // was: indentItemId
+  quantity: number;               // was: orderedQuantity
+  unitPrice: number;              // was: unitRate
   taxRate: number;
   deliveryDate: string;
-  remarks: string;
+  notes: string;                  // was: remarks
 }
 
 const POFormPage: React.FC = () => {
@@ -45,7 +46,7 @@ const POFormPage: React.FC = () => {
   const isEditMode = !!id;
 
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-  const [materialSearch, setMaterialSearch] = useState('');
+  const [materialSearch] = useState('');
 
   const { register, handleSubmit, control, watch, setValue, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: {
@@ -53,9 +54,9 @@ const POFormPage: React.FC = () => {
       indentId: null,
       deliveryDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
       paymentTerms: 'Net 30',
-      deliveryTerms: 'Ex-Works',
-      remarks: '',
-      items: [{ materialId: null, indentItemId: null, orderedQuantity: 1, unitRate: 0, taxRate: 18, deliveryDate: '', remarks: '' }],
+      termsConditions: 'Ex-Works',
+      notes: '',
+      items: [{ materialId: null, indentDetailId: null, quantity: 1, unitPrice: 0, taxRate: 18, deliveryDate: '', notes: '' }],
     },
   });
 
@@ -81,15 +82,7 @@ const POFormPage: React.FC = () => {
     queryKey: ['vendors-active'],
     queryFn: () => vendorsApi.list({ page: 0, size: 100, isActive: true }),
   });
-  const vendors = vendorsData?.content?.length
-    ? vendorsData.content
-    : [
-        { id: 1, vendorName: 'Agro Seeds India Ltd', vendorCode: 'AGRO001', contactPerson: 'Ramesh Kumar', contactEmail: 'ramesh@agroseeds.com', contactPhone: '9876543210', gstNumber: '29AACCV1234F1Z5' },
-        { id: 2, vendorName: 'Bharat Fertilizers Pvt Ltd', vendorCode: 'BFA002', contactPerson: 'Sunil Mehta', contactEmail: 'sunil@bharatfert.com', contactPhone: '9876501234', gstNumber: '27AABCV5678G1Z1' },
-        { id: 3, vendorName: 'Green Crop Suppliers', vendorCode: 'GCS003', contactPerson: 'Anita Rao', contactEmail: 'anita@greencrop.in', contactPhone: '9845612300', gstNumber: '36AADCV9012H1Z3' },
-        { id: 4, vendorName: 'National Agro Traders', vendorCode: 'NAT004', contactPerson: 'Vijay Sharma', contactEmail: 'vijay@natagro.com', contactPhone: '9123456780', gstNumber: '07AABCN3456I1Z7' },
-        { id: 5, vendorName: 'Pioneer Seed Corporation', vendorCode: 'PSC005', contactPerson: 'Priya Nair', contactEmail: 'priya@pioneerseed.co.in', contactPhone: '9988776655', gstNumber: '32AABCP7890J1Z2' },
-      ];
+  const vendors: Vendor[] = vendorsData?.content ?? [];
 
   // Fetch materials
   const { data: materialsData } = useQuery({
@@ -98,7 +91,7 @@ const POFormPage: React.FC = () => {
   });
   const materials = materialsData?.content || [];
 
-  // Fetch passed indent details if selected
+  // Fetch indent details when an indent is selected
   const selectedIndentId = watch('indentId');
   const { data: selectedIndent } = useQuery({
     queryKey: ['indent', selectedIndentId],
@@ -109,20 +102,20 @@ const POFormPage: React.FC = () => {
   // Populate form from selected indent
   useEffect(() => {
     if (selectedIndent && !isEditMode) {
-      // Check if we should populate (e.g. if items are empty or just have the default empty row)
       const currentItems = watch('items');
       const isDefaultState = currentItems.length === 1 && !currentItems[0].materialId;
 
       if (isDefaultState || currentItems.length === 0) {
-        // Map indent items to PO items
-        const poItems = selectedIndent.items.map(item => ({
+        // Fallback: indent API may use `items` or `details` naming
+        const indentLines = selectedIndent.details ?? [];
+        const poItems: POItemFormData[] = indentLines.map((item: any) => ({
           materialId: item.materialId,
-          indentItemId: item.id, // Map indent item ID
-          orderedQuantity: item.deptQuantity || item.rmQuantity || item.quantity,
-          unitRate: item.pricing || 0,
-          taxRate: 18, // Default tax rate
+          indentDetailId: item.id,                              // indent detail ID
+          quantity: item.deptQuantity || item.rmQuantity || item.quantity,
+          unitPrice: item.pricing || 0,
+          taxRate: 18,
           deliveryDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-          remarks: item.purpose || '',
+          notes: item.purpose || '',
         }));
 
         setValue('items', poItems);
@@ -136,19 +129,19 @@ const POFormPage: React.FC = () => {
     if (existingPO) {
       reset({
         vendorId: existingPO.vendorId,
-        indentId: existingPO.indentId || null,
-        deliveryDate: existingPO.deliveryDate?.split('T')[0] || '',
+        indentId: existingPO.indentId ?? null,
+        deliveryDate: existingPO.expectedDeliveryDate?.split('T')[0] || existingPO.deliveryDate?.split('T')[0] || '',
         paymentTerms: existingPO.paymentTerms || '',
-        deliveryTerms: existingPO.deliveryTerms || '',
-        remarks: existingPO.remarks || '',
-        items: existingPO.items?.map(item => ({
+        termsConditions: existingPO.termsConditions || '',
+        notes: existingPO.notes || '',
+        items: existingPO.details?.map(item => ({
           materialId: item.materialId,
-          indentItemId: item.indentItemId || null,
-          orderedQuantity: item.orderedQuantity,
-          unitRate: item.unitRate,
-          taxRate: item.taxRate,
-          deliveryDate: item.deliveryDate?.split('T')[0] || '',
-          remarks: item.remarks || '',
+          indentDetailId: item.indentDetailId ?? null,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxRate: item.taxRate ?? 0,
+          deliveryDate: item.expectedDeliveryDate?.split('T')[0] || '',
+          notes: item.notes || '',
         })) || [],
       });
       const vendor = vendors.find(v => v.id === existingPO.vendorId);
@@ -167,9 +160,9 @@ const POFormPage: React.FC = () => {
     onError: (error) => toast.error(getErrorMessage(error)),
   });
 
-  // Update mutation
+  // Update mutation — backend accepts header fields only (no line items)
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<POCreateRequest>) => purchaseOrdersApi.update(Number(id), data),
+    mutationFn: (data: UpdatePORequest) => purchaseOrdersApi.update(Number(id), data),
     onSuccess: () => {
       toast.success('Purchase Order updated successfully');
       queryClient.invalidateQueries({ queryKey: ['pos'] });
@@ -189,31 +182,38 @@ const POFormPage: React.FC = () => {
       return;
     }
 
-    const validItems: POItemCreateRequest[] = data.items
-      .filter(item => item.materialId)
-      .map(item => ({
-        materialId: item.materialId!,
-        indentItemId: item.indentItemId || undefined,
-        orderedQuantity: item.orderedQuantity,
-        unitRate: item.unitRate,
-        taxRate: item.taxRate,
-        deliveryDate: item.deliveryDate || undefined,
-        remarks: item.remarks || undefined,
-      }));
-
-    const payload: POCreateRequest = {
-      vendorId: data.vendorId,
-      indentId: data.indentId || undefined,
-      deliveryDate: data.deliveryDate,
-      paymentTerms: data.paymentTerms,
-      deliveryTerms: data.deliveryTerms,
-      remarks: data.remarks || undefined,
-      items: validItems,
-    };
-
     if (isEditMode) {
-      updateMutation.mutate(payload);
+      // Edit mode: only header fields can be updated
+      const updatePayload: UpdatePORequest = {
+        deliveryDate: data.deliveryDate || undefined,
+        paymentTerms: data.paymentTerms || undefined,
+        termsConditions: data.termsConditions || undefined,
+        notes: data.notes || undefined,
+      };
+      updateMutation.mutate(updatePayload);
     } else {
+      // Create mode: full payload with line items
+      const lineItems: POLineItemRequest[] = data.items
+        .filter(item => item.materialId)
+        .map(item => ({
+          indentDetailId: item.indentDetailId!,   // required by backend
+          materialId: item.materialId!,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxRate: item.taxRate,
+          expectedDeliveryDate: item.deliveryDate || undefined,
+          notes: item.notes || undefined,
+        }));
+
+      const payload: POCreateRequest = {
+        indentId: data.indentId!,                 // required by backend
+        vendorId: data.vendorId,
+        expectedDeliveryDate: data.deliveryDate,
+        paymentTerms: data.paymentTerms,
+        termsConditions: data.termsConditions,
+        notes: data.notes || undefined,
+        lineItems,
+      };
       createMutation.mutate(payload);
     }
   };
@@ -225,11 +225,11 @@ const POFormPage: React.FC = () => {
   };
 
   const addItem = () => {
-    append({ materialId: null, indentItemId: null, orderedQuantity: 1, unitRate: 0, taxRate: 18, deliveryDate: '', remarks: '' });
+    append({ materialId: null, indentDetailId: null, quantity: 1, unitPrice: 0, taxRate: 18, deliveryDate: '', notes: '' });
   };
 
   const calculateItemTotal = (item: POItemFormData) => {
-    const subtotal = item.orderedQuantity * item.unitRate;
+    const subtotal = item.quantity * item.unitPrice;
     const tax = subtotal * (item.taxRate / 100);
     return subtotal + tax;
   };
@@ -240,7 +240,7 @@ const POFormPage: React.FC = () => {
 
     watchItems.forEach(item => {
       if (item.materialId) {
-        const itemSubtotal = item.orderedQuantity * item.unitRate;
+        const itemSubtotal = item.quantity * item.unitPrice;
         subtotal += itemSubtotal;
         taxTotal += itemSubtotal * (item.taxRate / 100);
       }
@@ -290,6 +290,7 @@ const POFormPage: React.FC = () => {
                         {...register('vendorId', { required: 'Vendor is required', valueAsNumber: true })}
                         onChange={(e) => handleVendorChange(Number(e.target.value))}
                         isInvalid={!!errors.vendorId}
+                        disabled={isEditMode}
                       >
                         <option value="">Select Vendor</option>
                         {vendors.map(v => (
@@ -299,19 +300,22 @@ const POFormPage: React.FC = () => {
                       <Form.Control.Feedback type="invalid">{errors.vendorId?.message}</Form.Control.Feedback>
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
-                    <Form.Group className="mb-3">
-                      <Form.Label>From Indent (Optional)</Form.Label>
-                      <Form.Select {...register('indentId', { valueAsNumber: true })}>
-                        <option value="">Direct PO (No Indent)</option>
-                        {approvedIndents.map((indent: any) => (
-                          <option key={indent.id} value={indent.id}>
-                            {indent.indentNo} - {indent.departmentName} ({format(new Date(indent.indentDate), 'dd/MM/yyyy')})
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
+                  {!isEditMode && (
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>From Approved Indent <span className="text-danger">*</span></Form.Label>
+                        <Form.Select {...register('indentId', { required: !isEditMode ? 'Indent is required' : false, valueAsNumber: true })}>
+                          <option value="">Select Approved Indent</option>
+                          {approvedIndents.map((indent) => (
+                            <option key={indent.indentId} value={indent.indentId}>
+                              {indent.indentNumber} — {indent.departmentName} ({format(new Date(indent.indentDate), 'dd/MM/yyyy')})
+                            </option>
+                          ))}
+                        </Form.Select>
+                        {errors.indentId && <div className="text-danger small mt-1">{errors.indentId.message}</div>}
+                      </Form.Group>
+                    </Col>
+                  )}
                 </Row>
                 <Row>
                   <Col md={4}>
@@ -340,8 +344,8 @@ const POFormPage: React.FC = () => {
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Delivery Terms</Form.Label>
-                      <Form.Select {...register('deliveryTerms')}>
+                      <Form.Label>Terms & Conditions</Form.Label>
+                      <Form.Select {...register('termsConditions')}>
                         <option value="Ex-Works">Ex-Works</option>
                         <option value="FOR Destination">FOR Destination</option>
                         <option value="CIF">CIF</option>
@@ -351,128 +355,155 @@ const POFormPage: React.FC = () => {
                   </Col>
                 </Row>
                 <Form.Group className="mb-3">
-                  <Form.Label>Remarks</Form.Label>
+                  <Form.Label>Notes</Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={2}
                     placeholder="Additional notes or instructions..."
-                    {...register('remarks')}
+                    {...register('notes')}
                   />
                 </Form.Group>
               </Card.Body>
             </Card>
 
-            {/* Line Items */}
-            <Card className="mb-3">
-              <Card.Header className="d-flex justify-content-between align-items-center">
-                <span>
-                  <FaFileInvoice className="me-2 text-success" />
-                  <span className="fw-bold">Order Items</span>
-                </span>
-                <Button variant="outline-primary" size="sm" onClick={addItem}>
-                  <FaPlus className="me-1" /> Add Item
-                </Button>
-              </Card.Header>
-              <Card.Body className="p-0">
-                <Table responsive className="mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: '40px' }}>#</th>
-                      <th style={{ minWidth: '250px' }}>Material</th>
-                      <th style={{ width: '80px' }}>UOM</th>
-                      <th style={{ width: '100px' }}>Qty</th>
-                      {/* <th style={{ width: '120px' }}>Rate (₹)</th> */}
-                      <th style={{ width: '80px' }}>Tax %</th>
-                      <th style={{ width: '120px' }}>Total (₹)</th>
-                      <th style={{ width: '50px' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fields.length === 0 ? (
+            {/* Line Items — shown only for create mode (backend doesn't allow line item changes on update) */}
+            {!isEditMode && (
+              <Card className="mb-3">
+                <Card.Header className="d-flex justify-content-between align-items-center">
+                  <span>
+                    <FaFileInvoice className="me-2 text-success" />
+                    <span className="fw-bold">Order Items</span>
+                  </span>
+                  <Button variant="outline-primary" size="sm" onClick={addItem}>
+                    <FaPlus className="me-1" /> Add Item
+                  </Button>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <Table responsive className="mb-0">
+                    <thead className="table-light">
                       <tr>
-                        <td colSpan={8} className="text-center py-4 text-muted">
-                          No items added. Click "Add Item" to start.
-                        </td>
+                        <th style={{ width: '40px' }}>#</th>
+                        <th style={{ minWidth: '250px' }}>Material</th>
+                        <th style={{ width: '80px' }}>UOM</th>
+                        <th style={{ width: '100px' }}>Qty</th>
+                        <th style={{ width: '80px' }}>Tax %</th>
+                        <th style={{ width: '120px' }}>Total (₹)</th>
+                        <th style={{ width: '50px' }}></th>
                       </tr>
-                    ) : (
-                      fields.map((field, index) => {
-                        const material = getMaterialInfo(watchItems[index]?.materialId);
-                        const itemTotal = calculateItemTotal(watchItems[index] || { orderedQuantity: 0, unitRate: 0, taxRate: 0 });
+                    </thead>
+                    <tbody>
+                      {fields.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-4 text-muted">
+                            Select an approved indent above to load items automatically, or click "Add Item".
+                          </td>
+                        </tr>
+                      ) : (
+                        fields.map((field, index) => {
+                          const material = getMaterialInfo(watchItems[index]?.materialId);
+                          const itemTotal = calculateItemTotal(watchItems[index] || { quantity: 0, unitPrice: 0, taxRate: 0 } as POItemFormData);
 
-                        return (
-                          <tr key={field.id}>
-                            <td className="align-middle text-center">{index + 1}</td>
-                            <td>
-                              <Form.Select
-                                {...register(`items.${index}.materialId`, { valueAsNumber: true })}
-                                size="sm"
-                              >
-                                <option value="">Select Material</option>
-                                {materials.map(m => (
-                                  <option key={m.id} value={m.id}>
-                                    {m.code} - {m.name}
-                                  </option>
-                                ))}
-                              </Form.Select>
-                            </td>
-                            <td className="align-middle text-center">
-                              <Badge bg="secondary">-</Badge>
-                            </td>
-                            <td>
-                              <Form.Control
-                                type="number"
-                                min="1"
-                                step="1"
-                                {...register(`items.${index}.orderedQuantity`, { valueAsNumber: true, min: 1 })}
-                                size="sm"
-                              />
-                            </td>
-                            {/* unitRate input hidden
-                            <td>
-                              <Form.Control
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                {...register(`items.${index}.unitRate`, { valueAsNumber: true, min: 0 })}
-                                size="sm"
-                              />
-                            </td>
-                            */}
-                            <td>
-                              <Form.Select
-                                {...register(`items.${index}.taxRate`, { valueAsNumber: true })}
-                                size="sm"
-                              >
-                                <option value={0}>0%</option>
-                                <option value={5}>5%</option>
-                                <option value={12}>12%</option>
-                                <option value={18}>18%</option>
-                                <option value={28}>28%</option>
-                              </Form.Select>
-                            </td>
-                            <td className="align-middle text-end fw-bold">
-                              ₹{itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="align-middle text-center">
-                              {fields.length > 1 && (
-                                <Button
-                                  variant="outline-danger"
+                          return (
+                            <tr key={field.id}>
+                              <td className="align-middle text-center">{index + 1}</td>
+                              <td>
+                                <Form.Select
+                                  {...register(`items.${index}.materialId`, { valueAsNumber: true })}
                                   size="sm"
-                                  onClick={() => remove(index)}
-                                  title="Remove"
                                 >
-                                  <FaTrash />
-                                </Button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </Table>
-              </Card.Body>
-            </Card>
+                                  <option value="">Select Material</option>
+                                  {materials.map(m => (
+                                    <option key={m.id} value={m.id}>
+                                      {m.code} - {m.name}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                              </td>
+                              <td className="align-middle text-center">
+                                <Badge bg="secondary">{material?.uomCode || '-'}</Badge>
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  {...register(`items.${index}.quantity`, { valueAsNumber: true, min: 1 })}
+                                  size="sm"
+                                />
+                              </td>
+                              <td>
+                                <Form.Select
+                                  {...register(`items.${index}.taxRate`, { valueAsNumber: true })}
+                                  size="sm"
+                                >
+                                  <option value={0}>0%</option>
+                                  <option value={5}>5%</option>
+                                  <option value={12}>12%</option>
+                                  <option value={18}>18%</option>
+                                  <option value={28}>28%</option>
+                                </Form.Select>
+                              </td>
+                              <td className="align-middle text-end fw-bold">
+                                ₹{itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="align-middle text-center">
+                                {fields.length > 1 && (
+                                  <Button
+                                    variant="outline-danger"
+                                    size="sm"
+                                    onClick={() => remove(index)}
+                                    title="Remove"
+                                  >
+                                    <FaTrash />
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </Table>
+                </Card.Body>
+              </Card>
+            )}
+
+            {/* Edit mode: line items are read-only */}
+            {isEditMode && existingPO && existingPO.details.length > 0 && (
+              <Card className="mb-3">
+                <Card.Header>
+                  <FaFileInvoice className="me-2 text-success" />
+                  <span className="fw-bold">Order Items (read-only)</span>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <Table responsive className="mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>#</th>
+                        <th>Material</th>
+                        <th className="text-end">Qty</th>
+                        <th className="text-end">Unit Price</th>
+                        <th className="text-end">Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {existingPO.details.map((item, index) => (
+                        <tr key={item.id}>
+                          <td>{index + 1}</td>
+                          <td>
+                            <div className="fw-medium">{item.materialCode}</div>
+                            <small className="text-muted">{item.materialDescription}</small>
+                          </td>
+                          <td className="text-end">{item.quantity} {item.unitOfMeasure}</td>
+                          <td className="text-end">₹{item.unitPrice.toLocaleString('en-IN')}</td>
+                          <td className="text-end fw-bold">₹{item.lineTotal.toLocaleString('en-IN')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </Card.Body>
+              </Card>
+            )}
           </Col>
 
           <Col lg={4}>
@@ -502,26 +533,28 @@ const POFormPage: React.FC = () => {
             )}
 
             {/* Order Summary */}
-            <Card className="mb-3">
-              <Card.Header>
-                <span className="fw-bold">Order Summary</span>
-              </Card.Header>
-              <Card.Body>
-                <div className="d-flex justify-content-between mb-2">
-                  <span>Subtotal:</span>
-                  <span>₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="d-flex justify-content-between mb-2">
-                  <span>Tax:</span>
-                  <span>₹{totals.taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-                <hr />
-                <div className="d-flex justify-content-between fw-bold fs-5">
-                  <span>Grand Total:</span>
-                  <span className="text-primary">₹{totals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                </div>
-              </Card.Body>
-            </Card>
+            {!isEditMode && (
+              <Card className="mb-3">
+                <Card.Header>
+                  <span className="fw-bold">Order Summary</span>
+                </Card.Header>
+                <Card.Body>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Subtotal:</span>
+                    <span>₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="d-flex justify-content-between mb-2">
+                    <span>Tax:</span>
+                    <span>₹{totals.taxTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <hr />
+                  <div className="d-flex justify-content-between fw-bold fs-5">
+                    <span>Grand Total:</span>
+                    <span className="text-primary">₹{totals.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </Card.Body>
+              </Card>
+            )}
 
             {/* Action Buttons */}
             <Card>

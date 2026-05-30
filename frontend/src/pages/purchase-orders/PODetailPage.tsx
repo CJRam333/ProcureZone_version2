@@ -70,18 +70,18 @@ const PODetailPage: React.FC = () => {
     onError: (err) => setError(getErrorMessage(err)),
   });
 
-  // Permissions based on status (using backend POStatus: 1=Draft, 2=Submitted, 3=Approved, etc.)
-  const canEdit = po?.status === POStatus.DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']);
-  const canConfirm = po?.status === POStatus.SUBMITTED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD']);
-  const canCancel = po && po.status !== POStatus.CANCELLED && po.status !== POStatus.CLOSED && po.status !== POStatus.FULLY_RECEIVED && hasAnyRole(['SUPERADMIN', 'ADMIN']);
-  const canCreateGRN = po && [POStatus.SENT_TO_VENDOR, POStatus.PARTIALLY_RECEIVED].includes(po.status) &&
+  // Permissions based on poStatus (backend POStatus: 1=Draft, 2=Submitted, 3=Approved, etc.)
+  const canEdit = po?.poStatus === POStatus.DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']);
+  const canConfirm = po?.poStatus === POStatus.SUBMITTED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD']);
+  const canCancel = po && po.poStatus !== POStatus.CANCELLED && po.poStatus !== POStatus.CLOSED && po.poStatus !== POStatus.FULLY_RECEIVED && hasAnyRole(['SUPERADMIN', 'ADMIN']);
+  const canCreateGRN = po && [POStatus.SENT_TO_VENDOR, POStatus.PARTIALLY_RECEIVED].includes(po.poStatus) &&
     hasAnyRole(['SUPERADMIN', 'ADMIN', 'STOREKEEPER']);
-  const canAmend = po && [POStatus.APPROVED, POStatus.SENT_TO_VENDOR, POStatus.PARTIALLY_RECEIVED].includes(po.status) &&
+  const canAmend = po && [POStatus.APPROVED, POStatus.SENT_TO_VENDOR, POStatus.PARTIALLY_RECEIVED].includes(po.poStatus) &&
     hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']);
 
-  // Status display mapping
-  const getStatusDisplay = (status: POStatus): { text: string; variant: string } => {
-    const statusMap: Record<POStatus, { text: string; variant: string }> = {
+  // Status display mapping — keyed by numeric poStatus code
+  const getStatusDisplay = (status: number): { text: string; variant: string } => {
+    const statusMap: Record<number, { text: string; variant: string }> = {
       [POStatus.DRAFT]: { text: 'Draft', variant: 'secondary' },
       [POStatus.SUBMITTED]: { text: 'Pending Approval', variant: 'warning' },
       [POStatus.APPROVED]: { text: 'Approved', variant: 'primary' },
@@ -111,17 +111,17 @@ const PODetailPage: React.FC = () => {
     );
   }
 
-  const statusInfo = getStatusDisplay(po.status);
+  const statusInfo = getStatusDisplay(po.poStatus);
 
-  // Calculate totals from items
-  const subtotal = po.items.reduce(
-    (sum, item) => sum + (item.orderedQuantity * item.unitRate),
+  // Calculate totals from details (backend line items)
+  const subtotal = po.details.reduce(
+    (sum, item) => sum + (item.quantity * item.unitPrice),
     0
   );
 
   // Calculate delivery progress
-  const totalOrdered = po.items.reduce((sum, item) => sum + item.orderedQuantity, 0);
-  const totalReceived = po.items.reduce((sum, item) => sum + (item.receivedQuantity || 0), 0);
+  const totalOrdered = po.details.reduce((sum, item) => sum + item.quantity, 0);
+  const totalReceived = po.details.reduce((sum, item) => sum + (item.receivedQuantity || 0), 0);
   const deliveryProgress = totalOrdered > 0 ? (totalReceived / totalOrdered) * 100 : 0;
 
   return (
@@ -167,9 +167,9 @@ const PODetailPage: React.FC = () => {
             </div>
             <div className="vr d-none d-sm-block" />
             <div>
-              <small className="text-muted d-block">Total Amount</small>
+              <small className="text-muted d-block">Net Amount</small>
               <strong className="text-primary fs-5">
-                ₹{new Intl.NumberFormat('en-IN').format(po.grandTotal)}
+                ₹{new Intl.NumberFormat('en-IN').format(po.netAmount)}
               </strong>
             </div>
             <div className="vr d-none d-sm-block" />
@@ -229,9 +229,13 @@ const PODetailPage: React.FC = () => {
                       <strong>{format(new Date(po.poDate), 'PPP')}</strong>
                     </Col>
                     <Col sm={6}>
-                      <small className="text-muted d-block">Delivery Date</small>
+                      <small className="text-muted d-block">Expected Delivery</small>
                       <strong>
-                        {po.deliveryDate ? format(new Date(po.deliveryDate), 'PPP') : 'Not specified'}
+                        {po.expectedDeliveryDate
+                          ? format(new Date(po.expectedDeliveryDate), 'PPP')
+                          : po.deliveryDate
+                          ? format(new Date(po.deliveryDate), 'PPP')
+                          : 'Not specified'}
                       </strong>
                     </Col>
                     <Col sm={6}>
@@ -239,12 +243,12 @@ const PODetailPage: React.FC = () => {
                       <strong>{po.paymentTerms || 'Not specified'}</strong>
                     </Col>
                     <Col sm={6}>
-                      <small className="text-muted d-block">Delivery Terms</small>
-                      <strong>{po.deliveryTerms || 'Not specified'}</strong>
+                      <small className="text-muted d-block">Terms & Conditions</small>
+                      <strong>{po.termsConditions || 'Not specified'}</strong>
                     </Col>
                     <Col sm={6}>
-                      <small className="text-muted d-block">Plant</small>
-                      <strong>{po.plantName}</strong>
+                      <small className="text-muted d-block">Department</small>
+                      <strong>{po.departmentName || 'Not specified'}</strong>
                     </Col>
                     {po.indentNumber && po.indentId && (
                       <Col sm={12}>
@@ -258,10 +262,10 @@ const PODetailPage: React.FC = () => {
                         </Button>
                       </Col>
                     )}
-                    {po.remarks && (
+                    {po.notes && (
                       <Col sm={12}>
-                        <small className="text-muted d-block">Remarks</small>
-                        <p className="mb-0">{po.remarks}</p>
+                        <small className="text-muted d-block">Notes</small>
+                        <p className="mb-0">{po.notes}</p>
                       </Col>
                     )}
                   </Row>
@@ -299,11 +303,11 @@ const PODetailPage: React.FC = () => {
               </Card>
             </Col>
 
-            {/* Items */}
+            {/* Line Items */}
             <Col xs={12}>
               <Card>
                 <Card.Header>
-                  <h5 className="mb-0">Items ({po.items.length})</h5>
+                  <h5 className="mb-0">Items ({po.details.length})</h5>
                 </Card.Header>
                 <Card.Body className="p-0">
                   <div className="table-responsive">
@@ -316,15 +320,14 @@ const PODetailPage: React.FC = () => {
                           <th className="text-end">Ordered</th>
                           <th className="text-end">Received</th>
                           <th className="text-end">Pending</th>
-                          {/* <th className="text-end">Rate (₹)</th> */}
                           <th className="text-end">Amount (₹)</th>
                           <th>Progress</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {po.items.map((item, index) => {
-                          const itemProgress = item.orderedQuantity > 0
-                            ? ((item.receivedQuantity || 0) / item.orderedQuantity) * 100
+                        {po.details.map((item, index) => {
+                          const itemProgress = item.quantity > 0
+                            ? ((item.receivedQuantity || 0) / item.quantity) * 100
                             : 0;
                           return (
                             <tr key={item.id}>
@@ -334,18 +337,17 @@ const PODetailPage: React.FC = () => {
                                 <small className="text-muted">{item.materialDescription}</small>
                               </td>
                               <td>
-                                <Badge bg="secondary">{item.uomCode}</Badge>
+                                <Badge bg="secondary">{item.unitOfMeasure ?? '-'}</Badge>
                               </td>
-                              <td className="text-end">{item.orderedQuantity}</td>
+                              <td className="text-end">{item.quantity}</td>
                               <td className="text-end">
-                                <span className={item.receivedQuantity >= item.orderedQuantity ? 'text-success' : ''}>
+                                <span className={item.receivedQuantity >= item.quantity ? 'text-success' : ''}>
                                   {item.receivedQuantity || 0}
                                 </span>
                               </td>
                               <td className="text-end text-warning">{item.pendingQuantity || 0}</td>
-                              {/* <td className="text-end">{new Intl.NumberFormat('en-IN').format(item.unitRate)}</td> */}
                               <td className="text-end fw-medium">
-                                {new Intl.NumberFormat('en-IN').format(item.totalAmount)}
+                                {new Intl.NumberFormat('en-IN').format(item.lineTotal)}
                               </td>
                               <td style={{ width: '100px' }}>
                                 <ProgressBar
@@ -360,23 +362,23 @@ const PODetailPage: React.FC = () => {
                       </tbody>
                       <tfoot className="bg-light">
                         <tr>
-                          <td colSpan={7} className="text-end">Subtotal:</td>
+                          <td colSpan={6} className="text-end">Subtotal:</td>
                           <td className="text-end fw-medium">
                             {new Intl.NumberFormat('en-IN').format(subtotal)}
                           </td>
                           <td></td>
                         </tr>
                         <tr>
-                          <td colSpan={7} className="text-end">Tax:</td>
+                          <td colSpan={6} className="text-end">Tax:</td>
                           <td className="text-end">
                             {new Intl.NumberFormat('en-IN').format(po.taxAmount)}
                           </td>
                           <td></td>
                         </tr>
                         <tr className="fw-bold">
-                          <td colSpan={7} className="text-end">Grand Total:</td>
+                          <td colSpan={6} className="text-end">Net Total:</td>
                           <td className="text-end text-primary">
-                            ₹{new Intl.NumberFormat('en-IN').format(po.grandTotal)}
+                            ₹{new Intl.NumberFormat('en-IN').format(po.netAmount)}
                           </td>
                           <td></td>
                         </tr>
@@ -415,7 +417,7 @@ const PODetailPage: React.FC = () => {
                         <td className="text-primary">{amendment.amendedValue}</td>
                         <td>{amendment.amendmentReason}</td>
                         <td>{amendment.amendedByName}</td>
-                        <td>{format(new Date(amendment.amendedAt), 'PPP')}</td>
+                        <td>{format(new Date(amendment.amendedDate), 'PPP')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -435,28 +437,52 @@ const PODetailPage: React.FC = () => {
                   <div className="timeline-content">
                     <strong>Created</strong>
                     <p className="text-muted mb-0">
-                      PO created on {format(new Date(po.createdAt), 'PPpp')}
+                      PO created on {po.createdDate
+                        ? format(new Date(po.createdDate), 'PPpp')
+                        : 'Unknown'}
                     </p>
                   </div>
                 </div>
-                {po.confirmedAt && (
+                {po.approvedDate && (
                   <div className="timeline-item">
                     <div className="timeline-marker bg-success"></div>
                     <div className="timeline-content">
-                      <strong>Confirmed</strong>
+                      <strong>Approved</strong>
                       <p className="text-muted mb-0">
-                        Confirmed by {po.confirmedByName} on {format(new Date(po.confirmedAt), 'PPpp')}
+                        Approved on {format(new Date(po.approvedDate), 'PPpp')}
                       </p>
                     </div>
                   </div>
                 )}
-                {po.updatedAt !== po.createdAt && (
+                {po.sentToVendorDate && (
                   <div className="timeline-item">
                     <div className="timeline-marker bg-info"></div>
                     <div className="timeline-content">
+                      <strong>Sent to Vendor</strong>
+                      <p className="text-muted mb-0">
+                        Sent on {format(new Date(po.sentToVendorDate), 'PPpp')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {po.lastModifiedDate && po.lastModifiedDate !== po.createdDate && (
+                  <div className="timeline-item">
+                    <div className="timeline-marker bg-warning"></div>
+                    <div className="timeline-content">
                       <strong>Last Updated</strong>
                       <p className="text-muted mb-0">
-                        Modified on {format(new Date(po.updatedAt), 'PPpp')}
+                        Modified on {format(new Date(po.lastModifiedDate), 'PPpp')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {po.cancellationReason && po.cancelledDate && (
+                  <div className="timeline-item">
+                    <div className="timeline-marker bg-danger"></div>
+                    <div className="timeline-content">
+                      <strong>Cancelled</strong>
+                      <p className="text-muted mb-0">
+                        Cancelled on {format(new Date(po.cancelledDate), 'PPpp')} — {po.cancellationReason}
                       </p>
                     </div>
                   </div>
@@ -475,7 +501,7 @@ const PODetailPage: React.FC = () => {
         <Modal.Body>
           <p>Are you sure you want to confirm PO <strong>{po.poNumber}</strong>?</p>
           <p className="text-muted">
-            Total Amount: <strong>₹{new Intl.NumberFormat('en-IN').format(po.grandTotal)}</strong>
+            Net Amount: <strong>₹{new Intl.NumberFormat('en-IN').format(po.netAmount)}</strong>
           </p>
         </Modal.Body>
         <Modal.Footer>

@@ -22,7 +22,7 @@ import {
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner, StatusBadge } from '../../components/common';
 import { purchaseOrdersApi, getErrorMessage } from '../../api';
-import { POStatus } from '../../api/purchaseOrders';
+import { POStatus, AmendPORequest } from '../../api/purchaseOrders';
 
 const POAmendmentPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -48,16 +48,17 @@ const POAmendmentPage: React.FC = () => {
         enabled: !!id,
     });
 
-    // Fetch Amendments history
-    const { data: amendments = [] } = useQuery({
+    // Fetch amendment history — returns POAmendmentHistory wrapper
+    const { data: amendmentHistory } = useQuery({
         queryKey: ['po-amendments', id],
         queryFn: () => purchaseOrdersApi.getAmendments(Number(id)),
         enabled: !!id,
     });
+    const amendments = amendmentHistory?.amendments ?? [];
 
-    // Amendment mutation
+    // Amendment mutation — sends AmendPORequest (full field values, not fieldName/newValue pair)
     const amendMutation = useMutation({
-        mutationFn: (data: { fieldName: string; newValue: string; amendmentReason: string }) =>
+        mutationFn: (data: AmendPORequest) =>
             purchaseOrdersApi.amend(Number(id), data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['po', id] });
@@ -72,7 +73,12 @@ const POAmendmentPage: React.FC = () => {
         },
     });
 
-    const handleAmendClick = (field: string, label: string, value: string, type: 'text' | 'date' | 'number' = 'text') => {
+    const handleAmendClick = (
+        field: string,
+        label: string,
+        value: string,
+        type: 'text' | 'date' | 'number' = 'text'
+    ) => {
         setSelectedField({ key: field, label, currentValue: value, type });
         setNewValue(value);
         setReason('');
@@ -81,19 +87,37 @@ const POAmendmentPage: React.FC = () => {
     };
 
     const handleSubmitAmendment = () => {
-        if (!selectedField || !newValue || !reason) return;
+        if (!selectedField || !newValue.trim() || !reason.trim()) return;
+        if (reason.trim().length < 10) {
+            setError('Amendment reason must be at least 10 characters');
+            return;
+        }
 
-        amendMutation.mutate({
-            fieldName: selectedField.key,
-            newValue,
-            amendmentReason: reason,
-        });
+        // Build AmendPORequest by mapping the selected field key to the correct request field
+        const request: AmendPORequest = { amendmentReason: reason.trim() };
+        switch (selectedField.key) {
+            case 'deliveryDate':     request.deliveryDate = newValue; break;
+            case 'deliveryAddress':  request.deliveryAddress = newValue; break;
+            case 'paymentTerms':     request.paymentTerms = newValue; break;
+            case 'termsConditions':  request.termsConditions = newValue; break;
+            case 'notes':            request.notes = newValue; break;
+            case 'priority':         request.priority = newValue; break;
+            default:
+                setError(`Field "${selectedField.key}" is not amendable`);
+                return;
+        }
+        amendMutation.mutate(request);
     };
 
     if (isLoading) return <LoadingSpinner />;
     if (!po) return <Alert variant="danger">Purchase Order not found</Alert>;
 
-    const isAmendable = po.status === POStatus.APPROVED || po.status === POStatus.SUBMITTED;
+    // Amendable when APPROVED, SENT_TO_VENDOR, or PARTIALLY_RECEIVED
+    const isAmendable = [
+        POStatus.APPROVED,
+        POStatus.SENT_TO_VENDOR,
+        POStatus.PARTIALLY_RECEIVED,
+    ].includes(po.poStatus);
 
     return (
         <div>
@@ -115,8 +139,8 @@ const POAmendmentPage: React.FC = () => {
             {!isAmendable && (
                 <Alert variant="warning" className="mb-4">
                     <FaHistory className="me-2" />
-                    This Purchase Order cannot be amended in its current status ({po.statusName}).
-                    Only Confirmed or Pending Confirmation POs can be amended.
+                    This Purchase Order cannot be amended in its current status ({po.poStatusName ?? String(po.poStatus)}).
+                    Only Approved, Sent-to-Vendor, or Partially-Received POs can be amended.
                 </Alert>
             )}
 
@@ -142,13 +166,24 @@ const POAmendmentPage: React.FC = () => {
                                 <tbody>
                                     <tr>
                                         <td>Delivery Date</td>
-                                        <td>{new Date(po.deliveryDate).toLocaleDateString()}</td>
+                                        <td>
+                                            {po.deliveryDate
+                                                ? new Date(po.deliveryDate).toLocaleDateString()
+                                                : po.expectedDeliveryDate
+                                                ? new Date(po.expectedDeliveryDate).toLocaleDateString()
+                                                : '-'}
+                                        </td>
                                         <td>
                                             <Button
                                                 variant="outline-primary"
                                                 size="sm"
                                                 disabled={!isAmendable}
-                                                onClick={() => handleAmendClick('deliveryDate', 'Delivery Date', po.deliveryDate.split('T')[0], 'date')}
+                                                onClick={() => handleAmendClick(
+                                                    'deliveryDate',
+                                                    'Delivery Date',
+                                                    (po.deliveryDate ?? po.expectedDeliveryDate ?? '').split('T')[0],
+                                                    'date'
+                                                )}
                                             >
                                                 <FaEdit /> Amend
                                             </Button>
@@ -156,41 +191,55 @@ const POAmendmentPage: React.FC = () => {
                                     </tr>
                                     <tr>
                                         <td>Payment Terms</td>
-                                        <td>{po.paymentTerms}</td>
+                                        <td>{po.paymentTerms ?? '-'}</td>
                                         <td>
                                             <Button
                                                 variant="outline-primary"
                                                 size="sm"
                                                 disabled={!isAmendable}
-                                                onClick={() => handleAmendClick('paymentTerms', 'Payment Terms', po.paymentTerms)}
+                                                onClick={() => handleAmendClick('paymentTerms', 'Payment Terms', po.paymentTerms ?? '')}
                                             >
                                                 <FaEdit /> Amend
                                             </Button>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td>Delivery Terms</td>
-                                        <td>{po.deliveryTerms}</td>
+                                        <td>Terms & Conditions</td>
+                                        <td>{po.termsConditions ?? '-'}</td>
                                         <td>
                                             <Button
                                                 variant="outline-primary"
                                                 size="sm"
                                                 disabled={!isAmendable}
-                                                onClick={() => handleAmendClick('deliveryTerms', 'Delivery Terms', po.deliveryTerms)}
+                                                onClick={() => handleAmendClick('termsConditions', 'Terms & Conditions', po.termsConditions ?? '')}
                                             >
                                                 <FaEdit /> Amend
                                             </Button>
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td>Remarks</td>
-                                        <td>{po.remarks || '-'}</td>
+                                        <td>Delivery Address</td>
+                                        <td>{po.deliveryAddress ?? '-'}</td>
                                         <td>
                                             <Button
                                                 variant="outline-primary"
                                                 size="sm"
                                                 disabled={!isAmendable}
-                                                onClick={() => handleAmendClick('remarks', 'Remarks', po.remarks || '')}
+                                                onClick={() => handleAmendClick('deliveryAddress', 'Delivery Address', po.deliveryAddress ?? '')}
+                                            >
+                                                <FaEdit /> Amend
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>Notes</td>
+                                        <td>{po.notes ?? '-'}</td>
+                                        <td>
+                                            <Button
+                                                variant="outline-primary"
+                                                size="sm"
+                                                disabled={!isAmendable}
+                                                onClick={() => handleAmendClick('notes', 'Notes', po.notes ?? '')}
                                             >
                                                 <FaEdit /> Amend
                                             </Button>
@@ -207,6 +256,9 @@ const POAmendmentPage: React.FC = () => {
                             <h5 className="mb-0">
                                 <FaHistory className="me-2" />
                                 Amendment History
+                                {amendmentHistory && (
+                                    <Badge bg="secondary" className="ms-2">{amendmentHistory.totalAmendments}</Badge>
+                                )}
                             </h5>
                         </Card.Header>
                         <Card.Body>
@@ -234,7 +286,7 @@ const POAmendmentPage: React.FC = () => {
                                                     <td className="text-muted"><small>{amendment.originalValue}</small></td>
                                                     <td className="text-primary"><small>{amendment.amendedValue}</small></td>
                                                     <td>{amendment.amendmentReason}</td>
-                                                    <td>{new Date(amendment.amendedAt).toLocaleDateString()}</td>
+                                                    <td>{new Date(amendment.amendedDate).toLocaleDateString()}</td>
                                                     <td>
                                                         <Badge bg="success">{amendment.status}</Badge>
                                                     </td>
@@ -266,17 +318,17 @@ const POAmendmentPage: React.FC = () => {
                                 <strong>{new Date(po.poDate).toLocaleDateString()}</strong>
                             </div>
                             <div className="mb-3">
-                                <label className="text-muted small d-block">Total Amount</label>
+                                <label className="text-muted small d-block">Net Amount</label>
                                 <div className="h4 text-primary">
                                     {new Intl.NumberFormat('en-IN', {
                                         style: 'currency',
                                         currency: 'INR',
-                                    }).format(po.grandTotal)}
+                                    }).format(po.netAmount)}
                                 </div>
                             </div>
                             <div className="mb-3">
                                 <label className="text-muted small d-block">Status</label>
-                                <StatusBadge status={po.statusName} />
+                                <StatusBadge status={po.poStatusName ?? String(po.poStatus)} />
                             </div>
                         </Card.Body>
                     </Card>
@@ -312,7 +364,10 @@ const POAmendmentPage: React.FC = () => {
                         </Form.Group>
 
                         <Form.Group className="mb-3">
-                            <Form.Label>Reason for Amendment <span className="text-danger">*</span></Form.Label>
+                            <Form.Label>
+                                Reason for Amendment <span className="text-danger">*</span>
+                                <small className="text-muted ms-1">(min. 10 characters)</small>
+                            </Form.Label>
                             <Form.Control
                                 as="textarea"
                                 rows={3}
@@ -320,6 +375,9 @@ const POAmendmentPage: React.FC = () => {
                                 onChange={(e) => setReason(e.target.value)}
                                 placeholder="Please explain why this change is required..."
                             />
+                            <Form.Text className="text-muted">
+                                {reason.length}/10 minimum characters
+                            </Form.Text>
                         </Form.Group>
                     </Form>
                 </Modal.Body>
@@ -330,7 +388,7 @@ const POAmendmentPage: React.FC = () => {
                     <Button
                         variant="primary"
                         onClick={handleSubmitAmendment}
-                        disabled={!newValue || !reason || amendMutation.isPending}
+                        disabled={!newValue.trim() || !reason.trim() || reason.trim().length < 10 || amendMutation.isPending}
                     >
                         {amendMutation.isPending ? (
                             <>

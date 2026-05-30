@@ -78,7 +78,7 @@ export interface PlantIndentCreateRequest {
 
 export interface PlantIndentDetailCreateRequest {
     materialId: number;
-    unitOfMeasureId: number;
+    unitOfMeasureId?: number; // optional: form allows submission without UOM; backend validates server-side
     quantity: number;
     stockAvailable?: number;
     pricing?: number;

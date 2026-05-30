@@ -153,8 +153,8 @@ const IndentFormPage: React.FC = () => {
   // Load existing data in edit mode
   useEffect(() => {
     if (existingIndent) {
-      // Handle both backend response formats (details vs items)
-      const detailItems = (existingIndent as any).details ?? (existingIndent as any).items ?? [];
+      // Backend response uses 'details' (canonical field from IndentResponse)
+      const detailItems = existingIndent.details ?? [];
       reset({
         companyId: (existingIndent as any).companyId || companiesData?.content?.[0]?.id || 0,
         departmentId: (existingIndent as any).departmentId || 0,

@@ -111,12 +111,12 @@ const GRNDetailPage: React.FC = () => {
     const item = React.useMemo(() => {
         if (!grn || !indent) return null;
         // Find indent item
-        const indentItem = indent.items.find((i: any) => i.id === grn.indentDetailsId);
+        const indentItem = (indent.details ?? []).find((i: any) => i.id === grn.indentDetailsId);
         return {
             id: grn.id,
             materialCode: indentItem?.materialCode || 'N/A',
-            materialDescription: indentItem?.materialDescription || 'Unknown Material',
-            uomCode: indentItem?.uomCode || 'N/A',
+            materialDescription: indentItem?.materialName || 'Unknown Material',
+            uomCode: indentItem?.unitOfMeasureCode || 'N/A',
             orderedQuantity: grn.requestedQuantity || 0, // Approx
             receivedQuantity: grn.receivedQuantity,
             acceptedQuantity: 0, // Not in GRN response (QC info missing?)

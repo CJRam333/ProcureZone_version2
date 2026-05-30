@@ -5,6 +5,7 @@ export interface Plant {
     code: string;
     name: string;
     status: number;
+    companyId?: number; // optional: not returned by backend today; used as fallback key in plant-material mappings
     createdAt?: string;
     updatedAt?: string;
 }

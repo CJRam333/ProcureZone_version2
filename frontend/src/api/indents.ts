@@ -57,7 +57,6 @@ export interface Indent {
     rejectionReason?: string;
     cancellationReason?: string;
     totalEstimatedValue?: number;
-    items?: IndentItem[];
     createdAt?: string;
     updatedAt?: string;
 }

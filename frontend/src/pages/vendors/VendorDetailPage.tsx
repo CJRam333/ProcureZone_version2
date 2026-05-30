@@ -346,12 +346,12 @@ const VendorDetailPage: React.FC = () => {
                                                     </td>
                                                     <td>{po.poDate ? format(new Date(po.poDate), 'dd MMM yyyy') : 'N/A'}</td>
                                                     <td>
-                                                        <Badge bg={po.status >= 2 ? 'success' : 'warning'}>
-                                                            {po.statusName || 'PENDING'}
+                                                        <Badge bg={po.poStatus >= 2 ? 'success' : 'warning'}>
+                                                            {po.poStatusName || 'PENDING'}
                                                         </Badge>
                                                     </td>
                                                     <td className="text-end">
-                                                        {new Intl.NumberFormat('en-IN').format(po.totalAmount || 0)}
+                                                        {new Intl.NumberFormat('en-IN').format(po.netAmount || 0)}
                                                     </td>
                                                     <td>
                                                         <Button

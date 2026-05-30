@@ -23,6 +23,7 @@ import {
 } from 'react-icons/fa';
 import { PageHeader, DataTable, StatusBadge } from '../../components/common';
 import { grnApi, getErrorMessage } from '../../api';
+import { GRNStatus } from '../../api/grn';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface GRNFilters {
@@ -61,36 +62,30 @@ const GRNListPage: React.FC = () => {
       }),
   });
 
-  // Status options - values must match backend GRNStatus enum numeric values
+  // Status options — numeric values match GoodsReceipt.java entity (1-7)
   const statusOptions = [
     { value: '', label: 'All Statuses' },
-    { value: '0', label: 'Draft' },
-    { value: '1', label: 'Pending QC' },
-    { value: '2', label: 'QC Approved' },
-    { value: '3', label: 'QC Rejected' },
-    { value: '4', label: 'Posted/Completed' },
-    { value: '5', label: 'Cancelled' },
+    { value: '1', label: 'Created' },
+    { value: '2', label: 'Inspected' },
+    { value: '3', label: 'RM Approved' },
+    { value: '4', label: 'Approved' },
+    { value: '5', label: 'Final Approved' },
+    { value: '6', label: 'Stored' },
+    { value: '7', label: 'Rejected' },
   ];
 
-  // Status color mapping - supports both numeric and string status values
-  const getStatusVariant = (status: string | number): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' => {
-    const statusStr = String(status);
-    const variants: Record<string, 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info'> = {
-      '0': 'secondary',      // DRAFT
-      'DRAFT': 'secondary',
-      '1': 'warning',        // PENDING_QC
-      'PENDING_QC': 'warning',
-      '2': 'info',           // QC_APPROVED
-      'QC_APPROVED': 'info',
-      '3': 'danger',         // QC_REJECTED
-      'QC_REJECTED': 'danger',
-      '4': 'success',        // POSTED/COMPLETED
-      'COMPLETED': 'success',
-      'POSTED': 'success',
-      '5': 'danger',         // CANCELLED
-      'CANCELLED': 'danger',
+  // Status color mapping — keyed by GRNStatus numeric values (1-7)
+  const getStatusVariant = (status: number): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' => {
+    const variants: Record<number, 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info'> = {
+      [GRNStatus.CREATED]:       'secondary', // 1 — pending inspection
+      [GRNStatus.INSPECTED]:     'info',      // 2 — pending RM approval
+      [GRNStatus.RM_APPROVED]:   'primary',   // 3 — pending dept-head approval
+      [GRNStatus.APPROVED]:      'primary',   // 4 — pending final approval
+      [GRNStatus.FINAL_APPROVED]:'success',   // 5 — pending storage
+      [GRNStatus.STORED]:        'success',   // 6 — goods in inventory
+      [GRNStatus.REJECTED]:      'danger',    // 7
     };
-    return variants[statusStr] || 'secondary';
+    return variants[status] || 'secondary';
   };
 
   // Safe date formatter
@@ -142,7 +137,8 @@ const GRNListPage: React.FC = () => {
       key: 'status',
       label: 'Status',
       render: (row: any) => (
-        <StatusBadge status={row.status} variant={getStatusVariant(row.status)} />
+        // Use statusName from API response for display; fall back to numeric value only if absent
+        <StatusBadge status={row.statusName || String(row.status)} variant={getStatusVariant(row.status)} />
       ),
     },
     {
@@ -158,7 +154,7 @@ const GRNListPage: React.FC = () => {
           >
             <FaEye />
           </Button>
-          {row.status === 'DRAFT' && hasAnyRole(['ADMIN', 'GRN_CREATOR']) && (
+          {row.status === GRNStatus.CREATED && hasAnyRole(['ADMIN', 'GRN_CREATOR']) && (
             <Button
               variant="outline-secondary"
               size="sm"
@@ -168,11 +164,11 @@ const GRNListPage: React.FC = () => {
               <FaEdit />
             </Button>
           )}
-          {row.status === 'PENDING_QC' && hasAnyRole(['ADMIN', 'QC_INSPECTOR']) && (
+          {row.status === GRNStatus.CREATED && hasAnyRole(['ADMIN', 'QC_INSPECTOR']) && (
             <Button
               variant="outline-info"
               size="sm"
-              onClick={() => navigate(`/grn/${row.id}/qc`)}
+              onClick={() => navigate(`/grn/${row.id}/inspect`)}
               title="QC Inspection"
             >
               <FaClipboardCheck />

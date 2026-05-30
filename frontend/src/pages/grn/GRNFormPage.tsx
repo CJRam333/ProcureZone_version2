@@ -81,7 +81,7 @@ const GRNFormPage: React.FC = () => {
   // Fetch POs for selection (only confirmed POs with pending deliveries)
   const { data: posResponse } = useQuery({
     queryKey: ['pos-for-grn'],
-    queryFn: () => purchaseOrdersApi.list({ status: POStatus.CONFIRMED, size: 100 }),
+    queryFn: () => purchaseOrdersApi.list({ status: POStatus.SENT_TO_VENDOR, size: 100 }),
   });
 
   // Fetch selected PO details
@@ -95,13 +95,13 @@ const GRNFormPage: React.FC = () => {
   React.useEffect(() => {
     if (selectedPo) {
       setValue('poId', selectedPo.id);
-      const grnItems = selectedPo.items
-        ?.filter((item: any) => item.pendingQuantity > 0)
-        .map((item: any) => ({
+      const grnItems = selectedPo.details
+        ?.filter((item) => item.pendingQuantity > 0)
+        .map((item) => ({
           poDetailId: item.id,
           materialId: item.materialId,
           materialCode: item.materialCode,
-          materialDescription: item.materialDescription,
+          materialDescription: item.materialDescription ?? '',
           orderedQuantity: item.quantity,
           previouslyReceived: item.receivedQuantity || 0,
           pendingQuantity: item.pendingQuantity,
@@ -122,17 +122,17 @@ const GRNFormPage: React.FC = () => {
       const validItems = data.items.filter(item => item.receivedQuantity > 0);
 
       const promises = validItems.map(item => {
-        const originalPoItem = selectedPo?.items.find((i: any) => i.id === item.poDetailId);
+        const originalPoItem = selectedPo?.details.find((i) => i.id === item.poDetailId);
 
-        if (!selectedPo?.indentId || !originalPoItem?.indentItemId) {
+        if (!selectedPo?.indentId || !originalPoItem?.indentDetailId) {
           throw new Error(`Missing Indent Information for item ${item.materialCode}. Cannot create GRN.`);
         }
 
         const grnRequest = {
           indentId: selectedPo.indentId,
-          indentDetailsId: originalPoItem.indentItemId,
+          indentDetailsId: originalPoItem.indentDetailId,
           receivedQuantity: item.receivedQuantity,
-          rate: originalPoItem.unitRate,
+          rate: originalPoItem.unitPrice,
           vendorName: selectedPo.vendorName,
           openingQuantity: 0,
           comments: `${data.remarks || ''}\nChallan: ${data.challanNumber} (${data.challanDate})\nVehicle: ${data.vehicleNumber || 'N/A'}\nTransporter: ${data.transporterName || 'N/A'}\nItem Remarks: ${item.remarks || ''}`.trim(),

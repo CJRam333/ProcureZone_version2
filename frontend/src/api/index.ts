@@ -100,12 +100,16 @@ export {
 } from "./purchaseOrders";
 export type {
     PurchaseOrder,
-    POItem,
+    PODetail,
+    POSummaryResponse,
     POAmendment,
+    POAmendmentHistory,
     POCreateRequest,
-    POItemCreateRequest,
-    POSearchParams,
+    POLineItemRequest,
+    UpdatePORequest,
     AmendPORequest,
+    POSearchParams,
+    ApprovedIndentDTO,
 } from "./purchaseOrders";
 
 export { grnApi, GRNStatus } from "./grn";

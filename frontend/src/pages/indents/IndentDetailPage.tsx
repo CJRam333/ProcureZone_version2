@@ -170,8 +170,8 @@ const IndentDetailPage: React.FC = () => {
   const finalApprovedByName = indent.finalApprovedByName ?? '';
   const finalApprovedDate = indent.finalApprovedDate ?? '';
 
-  // Get details array (backend returns 'details', frontend interface had 'items')
-  const details = indent.details ?? indent.items ?? [];
+  // Get details array — backend IndentResponse uses 'details' (canonical)
+  const details = indent.details ?? [];
 
   // Calculate total value from details
   const totalValue = details.reduce(

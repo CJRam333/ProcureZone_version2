@@ -203,9 +203,9 @@ const CompanyPlantMaterialPage: React.FC<CompanyPlantMaterialPageProps> = ({ emb
       companyId: selectedPlant?.companyId || 1, // companyId required by backend
       plantId: formData.plantId,
       materialId: formData.materialId,
-      quantity: formData.maxQuantity ? String(formData.maxQuantity) : undefined,
-      reorderLevel: formData.reorderLevel ? String(formData.reorderLevel) : undefined,
-      maxLevel: formData.maxQuantity ? String(formData.maxQuantity) : undefined,
+      quantity: formData.maxQuantity || undefined,
+      reorderLevel: formData.reorderLevel || undefined,
+      maxLevel: formData.maxQuantity || undefined,
       status: formData.isActive ? 1 : 0,
     };
 
