@@ -20,10 +20,9 @@ import com.nslindia.procurezone.auth.exception.InactiveUserException;
 import com.nslindia.procurezone.auth.exception.InvalidCredentialsException;
 import com.nslindia.procurezone.common.web.RequestUtils;
 import com.nslindia.procurezone.identity.Employee;
+import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.identity.EmployeeRole;
 import com.nslindia.procurezone.identity.Role;
-import com.nslindia.procurezone.identity.UserAccount;
-import com.nslindia.procurezone.identity.UserAccountRepository;
 import com.nslindia.procurezone.security.JwtService;
 import com.nslindia.procurezone.security.PasswordService;
 import com.nslindia.procurezone.security.PasswordService.PasswordVerificationResult;
@@ -36,15 +35,15 @@ public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
-    private final UserAccountRepository userAccountRepository;
+    private final EmployeeRepository employeeRepository;
     private final PasswordService passwordService;
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
     private final AuditService auditService;
 
-    public AuthService(UserAccountRepository userAccountRepository, PasswordService passwordService,
+    public AuthService(EmployeeRepository employeeRepository, PasswordService passwordService,
             JwtService jwtService, TokenBlacklistService tokenBlacklistService, AuditService auditService) {
-        this.userAccountRepository = userAccountRepository;
+        this.employeeRepository = employeeRepository;
         this.passwordService = passwordService;
         this.jwtService = jwtService;
         this.tokenBlacklistService = tokenBlacklistService;
@@ -61,29 +60,36 @@ public class AuthService {
         }
 
         try {
-            UserAccount userAccount = userAccountRepository.findUserForLogin(username)
+            // Load Employee directly by email (case-insensitive).
+            // Source: tbl_emp_master.emp_email  (replaces tbl_user_master.user_name lookup)
+            Employee employee = employeeRepository.findByEmailIgnoreCase(username)
                     .orElseThrow(() -> {
                         auditService.logAuthentication(username, false, ipAddress);
                         return new InvalidCredentialsException();
                     });
 
-            Employee employee = userAccount.getEmployee();
-            if (employee == null || !userAccount.isActive() || !employee.isActive()) {
+            // Single status check — employee active status only.
+            // Source: tbl_emp_master.emp_status == 1
+            if (!employee.isActive()) {
                 auditService.logAuthentication(username, false, ipAddress);
                 throw new InactiveUserException();
             }
 
-            String storedHash = resolveStoredHash(userAccount);
+            // Verify password against emp_password (MD5).
+            // Source: tbl_emp_master.emp_password
+            // PasswordService.verifyPassword() detects MD5 vs BCrypt automatically.
+            String storedHash = employee.getLegacyPasswordHash();
             PasswordVerificationResult verification = passwordService.verifyPassword(request.password(), storedHash);
             if (!verification.successful()) {
                 auditService.logAuthentication(username, false, ipAddress);
-                log.warn("Invalid password for user: {}", username);
+                log.warn("Invalid password for employee: {}", username);
                 throw new InvalidCredentialsException();
             }
             if (verification.legacyMatch()) {
-                log.debug("Legacy MD5 password match detected for user {}", username);
+                log.debug("MD5 password match for employee {}", username);
             }
 
+            // Role aggregation — identical logic, source unchanged: tbl_map_emp_roles + tbl_roles_master
             Set<Role> activeRoles = employee.getEmployeeRoles().stream()
                     .filter(er -> er.isActive())
                     .map(EmployeeRole::getRole)
@@ -93,18 +99,23 @@ public class AuthService {
 
             Set<String> roleCodes = activeRoles.stream()
                     .map(Role::getCode)
+                    .map(com.nslindia.procurezone.security.RoleNormalizer::normalize)
                     .collect(Collectors.toCollection(LinkedHashSet::new));
 
-            boolean canView = activeRoles.stream().anyMatch(r -> "1".equals(r.getCanView()) || "true".equalsIgnoreCase(r.getCanView()));
-            boolean canAdd = activeRoles.stream().anyMatch(r -> "1".equals(r.getCanAdd()) || "true".equalsIgnoreCase(r.getCanAdd()));
-            boolean canEdit = activeRoles.stream().anyMatch(r -> "1".equals(r.getCanEdit()) || "true".equalsIgnoreCase(r.getCanEdit()));
+            boolean canView   = activeRoles.stream().anyMatch(r -> "1".equals(r.getCanView())   || "true".equalsIgnoreCase(r.getCanView()));
+            boolean canAdd    = activeRoles.stream().anyMatch(r -> "1".equals(r.getCanAdd())    || "true".equalsIgnoreCase(r.getCanAdd()));
+            boolean canEdit   = activeRoles.stream().anyMatch(r -> "1".equals(r.getCanEdit())   || "true".equalsIgnoreCase(r.getCanEdit()));
             boolean canDelete = activeRoles.stream().anyMatch(r -> "1".equals(r.getCanDelete()) || "true".equalsIgnoreCase(r.getCanDelete()));
 
+            // userId = emp_number as Long.
+            // Replaces tbl_user_master.user_id. JWT "uid" claim carries emp_number.
+            Long userId = employee.getEmployeeNumber().longValue();
+
             UserPrincipal principal = new UserPrincipal(
-                    userAccount.getId(),
+                    userId,
                     employee.getEmployeeNumber(),
                     employee.getEmployeeId(),
-                    userAccount.getUsername(),
+                    employee.getEmail(),        // username = emp_email
                     employee.getFullName(),
                     employee.getEmail(),
                     roleCodes,
@@ -116,7 +127,7 @@ public class AuthService {
             JwtService.AccessToken accessToken = jwtService.generateAccessToken(principal);
 
             AuthenticatedUser authenticatedUser = new AuthenticatedUser(
-                    userAccount.getId(),
+                    userId,
                     employee.getEmployeeNumber(),
                     employee.getEmployeeId(),
                     employee.getFullName(),
@@ -127,15 +138,14 @@ public class AuthService {
                     canEdit,
                     canDelete);
 
-            // Log successful login
             auditService.logAuthentication(username, true, ipAddress);
-            log.info("Successful login for user: {} from IP: {}", username, ipAddress);
+            log.info("Successful login for employee: {} from IP: {}", username, ipAddress);
 
             return LoginResponse.bearer(accessToken.token(), accessToken.expiresAt(), authenticatedUser);
         } catch (InvalidCredentialsException | InactiveUserException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Unexpected error during login for user: {}", username, e);
+            log.error("Unexpected error during login for employee: {}", username, e);
             auditService.logAuthentication(username, false, ipAddress);
             throw new InvalidCredentialsException();
         }
@@ -164,14 +174,4 @@ public class AuthService {
         return LogoutResponse.success();
     }
 
-    private String resolveStoredHash(UserAccount userAccount) {
-        if (StringUtils.hasText(userAccount.getPasswordHash())) {
-            return userAccount.getPasswordHash();
-        }
-        Employee employee = userAccount.getEmployee();
-        if (employee != null && StringUtils.hasText(employee.getLegacyPasswordHash())) {
-            return employee.getLegacyPasswordHash();
-        }
-        return null;
-    }
 }

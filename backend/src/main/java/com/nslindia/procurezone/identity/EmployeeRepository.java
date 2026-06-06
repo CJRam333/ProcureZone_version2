@@ -17,6 +17,18 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
 
     Optional<Employee> findByEmail(String email);
 
+    /**
+     * Authentication login query — case-insensitive email lookup with eager role fetch.
+     * Mirrors the join-fetch pattern previously used in UserAccountRepository.findUserForLogin().
+     */
+    @Query("""
+                SELECT DISTINCT e FROM Employee e
+                LEFT JOIN FETCH e.employeeRoles er
+                LEFT JOIN FETCH er.role r
+                WHERE LOWER(e.email) = LOWER(:email)
+            """)
+    Optional<Employee> findByEmailIgnoreCase(@Param("email") String email);
+
     Optional<Employee> findByEmployeeId(String employeeId);
 
     Optional<Employee> findByEmployeeNumber(Integer employeeNumber);

@@ -24,9 +24,10 @@ class AuthControllerIntegrationTest {
 
     @Test
     void login_withValidCredentials_returnsAccessTokenAndUserDetails() throws Exception {
+        // username = emp_email (employee-only auth — tbl_user_master is bypassed)
         String payload = """
                 {
-                  \"username\": \"legacy.user\",
+                  \"username\": \"legacy.user@nsl.com\",
                   \"password\": \"password123\"
                 }
                 """;
@@ -37,7 +38,7 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken", notNullValue()))
                 .andExpect(jsonPath("$.tokenType", equalTo("Bearer")))
-                .andExpect(jsonPath("$.user.userId", equalTo(1001)))
+                .andExpect(jsonPath("$.user.userId", equalTo(2001)))  // userId = emp_number (was user_id=1001)
                 .andExpect(jsonPath("$.user.employeeNumber", equalTo(2001)))
                 .andExpect(jsonPath("$.user.employeeId", equalTo("E-1001")))
                 .andExpect(jsonPath("$.user.displayName", equalTo("Legacy User")))
@@ -47,9 +48,10 @@ class AuthControllerIntegrationTest {
 
     @Test
     void login_withInvalidCredentials_returnsUnauthorized() throws Exception {
+        // Correct email but wrong password — expects 401
         String payload = """
                 {
-                  \"username\": \"legacy.user\",
+                  \"username\": \"legacy.user@nsl.com\",
                   \"password\": \"wrong-password\"
                 }
                 """;
