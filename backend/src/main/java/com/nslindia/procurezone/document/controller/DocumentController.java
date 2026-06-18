@@ -73,7 +73,7 @@ public class DocumentController {
      * GET /api/v1/documents/indent/{id}/pdf
      */
     @GetMapping("/indent/{id}/pdf")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'EMPLOYEE', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'USER', 'VIEWER')")
     public ResponseEntity<byte[]> generateIndentPdf(@PathVariable Long id) {
         log.info("Request to generate Indent PDF for ID: {}", id);
 
@@ -92,7 +92,7 @@ public class DocumentController {
      * GET /api/v1/documents/indent/{id}/preview
      */
     @GetMapping("/indent/{id}/preview")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'EMPLOYEE', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'USER', 'VIEWER')")
     public ResponseEntity<byte[]> previewIndentPdf(@PathVariable Long id) {
         log.info("Request to preview Indent PDF for ID: {}", id);
 

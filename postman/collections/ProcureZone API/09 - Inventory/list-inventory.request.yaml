@@ -1,0 +1,15 @@
+$kind: http-request
+name: List Inventory
+method: GET
+url: '{{baseUrl}}/api/v1/inventory'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: page
+    value: '0'
+  - key: size
+    value: '10'

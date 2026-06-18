@@ -123,7 +123,7 @@ public class ReportApiController {
      * Get indent summary report
      */
     @GetMapping("/indent-summary")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<Map<String, Object>> getIndentSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -154,7 +154,7 @@ public class ReportApiController {
      * Get indent details report
      */
     @GetMapping("/indent-details")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<List<Map<String, Object>>> getIndentDetails(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -190,7 +190,7 @@ public class ReportApiController {
      * Get PO summary report
      */
     @GetMapping("/po-summary")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<Map<String, Object>> getPOSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -231,7 +231,7 @@ public class ReportApiController {
      * Get PO details report
      */
     @GetMapping("/po-details")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<List<Map<String, Object>>> getPODetails(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -262,7 +262,7 @@ public class ReportApiController {
      * Get inventory summary report
      */
     @GetMapping("/inventory-summary")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'STOREKEEPER', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<Map<String, Object>> getInventorySummary() {
         log.info("Fetching inventory summary report");
 
@@ -290,7 +290,7 @@ public class ReportApiController {
      * Get inventory details report
      */
     @GetMapping("/inventory-details")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'STOREKEEPER', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<List<Map<String, Object>>> getInventoryDetails() {
         log.info("Fetching inventory details report");
 
@@ -324,7 +324,7 @@ public class ReportApiController {
      * Get low stock items
      */
     @GetMapping("/low-stock")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'STOREKEEPER', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<List<Map<String, Object>>> getLowStockItems() {
         log.info("Fetching low stock items report");
 
@@ -355,7 +355,7 @@ public class ReportApiController {
      * /api/v1/reports/export/{reportType}?startDate=&endDate=&format=excel|pdf|csv
      */
     @GetMapping("/export/{reportType}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'STOREKEEPER', 'DEPTHEAD', 'AUDITOR', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'DEPTHEAD', 'VIEWER')")
     public ResponseEntity<byte[]> exportReport(
             @PathVariable String reportType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

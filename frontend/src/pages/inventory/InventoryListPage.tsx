@@ -196,7 +196,7 @@ const InventoryListPage: React.FC = () => {
           >
             <FaHistory />
           </Button>
-          {hasAnyRole(['ADMIN', 'STOREKEEPER', 'SUPERADMIN']) && (
+          {hasAnyRole(['ADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE', 'SUPERADMIN']) && (
             <Button
               variant="outline-secondary"
               size="sm"

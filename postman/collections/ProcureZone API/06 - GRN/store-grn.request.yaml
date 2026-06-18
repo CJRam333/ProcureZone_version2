@@ -1,0 +1,20 @@
+$kind: http-request
+name: Store GRN
+method: POST
+url: '{{baseUrl}}/api/v1/grn/{{grnId}}/store'
+order: 6000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "locationId": 1,
+      "remarks": "Stored in Warehouse A, Rack 3"
+    }

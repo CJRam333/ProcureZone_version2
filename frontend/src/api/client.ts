@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from "axios";
 import { toast } from "react-toastify";
+import queryClient from "../queryClient";
 
 const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1";
@@ -35,24 +36,29 @@ apiClient.interceptors.response.use(
             _retry?: boolean;
         };
 
-        // Handle 401 Unauthorized or 403 Forbidden
-        if (
-            (error.response?.status === 401 ||
-                error.response?.status === 403) &&
-            !originalRequest._retry
-        ) {
+        // Handle 401 Unauthorized — session has expired or token is invalid.
+        // Only 401 means "not authenticated" and warrants a full logout.
+        if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
-
-            // No refresh endpoint exists in backend.
-            // Clear tokens and redirect to login.
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
-            localStorage.removeItem("user");
+            ["accessToken", "refreshToken", "user", "procurezone_settings"].forEach(
+                (key) => localStorage.removeItem(key)
+            );
+            queryClient.clear();
             window.location.href = "/login";
             return Promise.reject(error);
         }
 
-        // Generic error toast (skip for silent refresh attempts)
+        // 403 Forbidden — user IS authenticated but lacks permission.
+        // Do NOT log out; show an access-denied message and stay on the page.
+        // Logging out on 403 caused cascading session termination when embedded
+        // tab components fired requests the current role was not permitted for.
+        if (error.response?.status === 403) {
+            const message = (error.response?.data as ApiError)?.message;
+            toast.error(message || "Access denied. You do not have permission for this action.");
+            return Promise.reject(error);
+        }
+
+        // Generic error handling for all other failures
         if (error.response?.status && error.response.status >= 500) {
             toast.error("Server error. Please try again.");
         } else if (!navigator.onLine) {

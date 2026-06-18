@@ -49,7 +49,7 @@ public class IssueNoteController {
          * Authorized: REQUESTER, EMPLOYEE, ADMIN
          */
         @PostMapping
-        @PreAuthorize("hasAnyRole('REQUESTER', 'EMPLOYEE', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> createIssueNote(
                         @Valid @RequestBody CreateIssueNoteRequest request,
                         Authentication authentication) {
@@ -74,7 +74,7 @@ public class IssueNoteController {
          * Get all issue notes with pagination and filters
          */
         @GetMapping
-        @PreAuthorize("hasAnyRole('REQUESTER', 'EMPLOYEE', 'PLANTMANAGER', 'STOREKEEPER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'VIEWER', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
         public ResponseEntity<Map<String, Object>> getAllIssueNotes(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
@@ -98,7 +98,7 @@ public class IssueNoteController {
          * Get issue note by ID
          */
         @GetMapping("/{id}")
-        @PreAuthorize("hasAnyRole('REQUESTER', 'EMPLOYEE', 'PLANTMANAGER', 'STOREKEEPER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'VIEWER', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
         public ResponseEntity<Map<String, Object>> getIssueNoteById(@PathVariable Integer id) {
                 IssueNoteResponse response = issueNoteService.getById(id);
 
@@ -113,7 +113,7 @@ public class IssueNoteController {
          * Get issue note by issue note number
          */
         @GetMapping("/by-number")
-        @PreAuthorize("hasAnyRole('REQUESTER', 'EMPLOYEE', 'PLANTMANAGER', 'STOREKEEPER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'VIEWER', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
         public ResponseEntity<Map<String, Object>> getIssueNoteByNumber(
                         @RequestParam String issueNoteNumber) {
 
@@ -131,7 +131,7 @@ public class IssueNoteController {
          * Changes status from 1 (Created) to 2 (Pending Approval)
          */
         @PostMapping("/{id}/submit")
-        @PreAuthorize("hasAnyRole('REQUESTER', 'EMPLOYEE', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> submitForApproval(
                         @PathVariable Integer id,
                         Authentication authentication) {
@@ -261,7 +261,7 @@ public class IssueNoteController {
          * Updates inventory balances
          */
         @PostMapping("/{id}/issue")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> issueGoods(
                         @PathVariable Integer id,
                         @Valid @RequestBody IssueGoodsRequest request,
@@ -287,7 +287,7 @@ public class IssueNoteController {
          * Changes status from 7 (Pending Store Issue) to 9 (Rejected by Stores)
          */
         @PostMapping("/{id}/reject-stores")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> rejectByStores(
                         @PathVariable Integer id,
                         @Valid @RequestBody RejectIssueNoteRequest request,
@@ -313,7 +313,7 @@ public class IssueNoteController {
          * Only allowed for status 1 (Created) or 2 (Pending Approval)
          */
         @PostMapping("/{id}/cancel")
-        @PreAuthorize("hasAnyRole('REQUESTER', 'EMPLOYEE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> cancelIssueNote(
                         @PathVariable Integer id,
                         Authentication authentication) {
@@ -338,7 +338,7 @@ public class IssueNoteController {
          * Status = 3 (RM Approved, pending manager approval)
          */
         @GetMapping("/pending-approval")
-        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getPendingApproval(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
@@ -359,7 +359,7 @@ public class IssueNoteController {
          * Status = 2 (Pending RM Approval)
          */
         @GetMapping("/pending-rm-approval")
-        @PreAuthorize("hasAnyRole('SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getPendingRmApproval(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
@@ -380,7 +380,7 @@ public class IssueNoteController {
          * Status = 4 (Approved) or 7 (Pending Store Issue)
          */
         @GetMapping("/pending-issue")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getPendingIssue(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
@@ -400,7 +400,7 @@ public class IssueNoteController {
          * Get issue notes by department
          */
         @GetMapping("/by-department/{deptId}")
-        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'EMPLOYEE', 'DEPTHEAD', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'USER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getByDepartment(
                         @PathVariable Integer deptId,
                         @RequestParam(defaultValue = "0") int page,
@@ -421,7 +421,7 @@ public class IssueNoteController {
          * Get issue notes created by the current user
          */
         @GetMapping("/my-issue-notes")
-        @PreAuthorize("hasAnyRole('REQUESTER', 'EMPLOYEE', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getMyIssueNotes(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,
@@ -446,7 +446,7 @@ public class IssueNoteController {
          * Get dashboard statistics
          */
         @GetMapping("/statistics")
-        @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'STOREKEEPER', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'PLANTMANAGER', 'ISSUECONFIRM')")
         public ResponseEntity<Map<String, Object>> getStatistics() {
                 IssueNoteStatisticsResponse stats = issueNoteService.getStatistics();
 
@@ -467,7 +467,7 @@ public class IssueNoteController {
          * Changes status from 8 (Issued) to 10 (Returned)
          */
         @PostMapping("/{id}/return")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> returnMaterials(
                         @PathVariable Integer id,
                         @Valid @RequestBody ReturnIssueNoteRequest request,

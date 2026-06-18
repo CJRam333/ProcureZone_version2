@@ -50,7 +50,7 @@ public class VendorController {
      * Roles: All authenticated users
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('USER', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Page<VendorResponse>> listVendors(
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "0") int page,
@@ -67,7 +67,7 @@ public class VendorController {
      * Roles: All authenticated users
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('USER', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<VendorResponse> getVendorById(@PathVariable Integer id) {
 
         VendorResponse vendor = vendorService.getVendorById(id);
@@ -118,7 +118,7 @@ public class VendorController {
      * Roles: All authenticated users
      */
     @GetMapping("/active")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('USER', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Page<VendorResponse>> listActiveVendors(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -135,7 +135,7 @@ public class VendorController {
      * Roles: All authenticated users
      */
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('EMPLOYEE', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('USER', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Page<VendorResponse>> searchVendors(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
@@ -171,7 +171,7 @@ public class VendorController {
      * Roles: PROCUREMENT, ADMIN, SUPERADMIN
      */
     @GetMapping("/{id}/performance")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<VendorPerformanceResponse> getVendorPerformance(
             @PathVariable Integer id) {
 

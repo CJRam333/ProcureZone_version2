@@ -53,7 +53,7 @@ public class ComprehensiveReportController {
          * GET /api/v1/reports/indent/summary?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/indent/summary")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER')")
         public ResponseEntity<List<IndentReportDTO.Summary>> getIndentSummary(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -75,7 +75,7 @@ public class ComprehensiveReportController {
          * GET /api/v1/reports/indent/detailed?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/indent/detailed")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER')")
         public ResponseEntity<List<IndentReportDTO.Detailed>> getIndentDetailed(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -96,7 +96,7 @@ public class ComprehensiveReportController {
          * /api/v1/reports/indent/stats-by-department?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/indent/stats-by-department")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<Map<String, Object>>> getIndentStatsByDepartment(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -111,7 +111,7 @@ public class ComprehensiveReportController {
          * /api/v1/reports/indent/export-summary?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/indent/export-summary")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT')")
         public ResponseEntity<byte[]> exportIndentSummary(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -169,7 +169,7 @@ public class ComprehensiveReportController {
          * GET /api/v1/reports/po/summary?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/po/summary")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<POReportDTO.Summary>> getPOSummary(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -190,7 +190,7 @@ public class ComprehensiveReportController {
          * /api/v1/reports/po/vendor-performance?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/po/vendor-performance")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<POReportDTO.VendorPerformance>> getVendorPerformance(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -209,7 +209,7 @@ public class ComprehensiveReportController {
          * /api/v1/reports/po/export-vendor-performance?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/po/export-vendor-performance")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER')")
         public ResponseEntity<byte[]> exportVendorPerformance(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate)
@@ -263,7 +263,7 @@ public class ComprehensiveReportController {
          * GET /api/v1/reports/inventory/stock-status?companyId=1&plantId=1&locationId=1
          */
         @GetMapping("/inventory/stock-status")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'PLANTMANAGER', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<InventoryReportDTO.StockStatus>> getInventoryStockStatus(
                         @RequestParam(required = false) Integer companyId,
                         @RequestParam(required = false) Integer plantId,
@@ -283,7 +283,7 @@ public class ComprehensiveReportController {
          * GET /api/v1/reports/inventory/low-stock?companyId=1
          */
         @GetMapping("/inventory/low-stock")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER')")
         public ResponseEntity<List<InventoryReportDTO.LowStock>> getLowStockAlerts(
                         @RequestParam(required = false) Integer companyId) {
 
@@ -300,7 +300,7 @@ public class ComprehensiveReportController {
          * /api/v1/reports/inventory/material-usage?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/inventory/material-usage")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'PLANTMANAGER', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<InventoryReportDTO.MaterialUsage>> getMaterialUsage(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -320,7 +320,7 @@ public class ComprehensiveReportController {
          * GET /api/v1/reports/inventory/value?companyId=1
          */
         @GetMapping("/inventory/value")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'FINANCE', 'PLANTMANAGER', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<Map<String, Object>>> getInventoryValue(
                         @RequestParam(required = false) Integer companyId) {
 
@@ -341,7 +341,7 @@ public class ComprehensiveReportController {
          * /api/v1/reports/vendor-performance?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/vendor-performance")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<VendorPerformanceDTO.Summary>> getVendorPerformance(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -362,7 +362,7 @@ public class ComprehensiveReportController {
          * /api/v1/reports/vendor-performance/delivery?startDate=2025-01-01&endDate=2025-12-31
          */
         @GetMapping("/vendor-performance/delivery")
-        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'AUDITOR', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'PLANTMANAGER', 'VIEWER')")
         public ResponseEntity<List<VendorPerformanceDTO.DeliveryPerformance>> getDeliveryPerformance(
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
                         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {

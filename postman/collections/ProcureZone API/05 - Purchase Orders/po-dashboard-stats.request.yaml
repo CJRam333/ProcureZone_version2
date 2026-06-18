@@ -1,0 +1,10 @@
+$kind: http-request
+name: PO Dashboard Statistics
+method: GET
+url: '{{baseUrl}}/api/v1/pos/dashboard/statistics'
+order: 19000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

@@ -37,6 +37,7 @@ export interface PlantIndent {
     id: number;
     indentCode: string;
     employeeNumber: string;
+    employeeName?: string;
     plantId: number;
     plantName: string;
     indentNumber: string;
@@ -101,14 +102,30 @@ interface PageResponse<T> {
 // ============== API Functions ==============
 
 export const plantIndentsApi = {
-    // List all plant indents with pagination
+    // List all plant indents with optional combined filters
     list: async (params: {
         page?: number;
         size?: number;
+        search?: string;
+        plantId?: number;
+        status?: number;
+        empSearch?: string;
+        fromDate?: string;
+        toDate?: string;
     } = {}): Promise<PageResponse<PlantIndent>> => {
+        const queryParams: Record<string, any> = {
+            page: params.page ?? 0,
+            size: params.size ?? 20,
+        };
+        if (params.search) queryParams.search = params.search;
+        if (params.plantId) queryParams.plantId = params.plantId;
+        if (params.status !== undefined && params.status !== null) queryParams.status = params.status;
+        if (params.empSearch) queryParams.empSearch = params.empSearch;
+        if (params.fromDate) queryParams.fromDate = params.fromDate;
+        if (params.toDate) queryParams.toDate = params.toDate;
         const response = await apiClient.get<PageResponse<PlantIndent>>(
             "/plant-indents",
-            { params: { page: params.page ?? 0, size: params.size ?? 20 } }
+            { params: queryParams }
         );
         return response.data;
     },

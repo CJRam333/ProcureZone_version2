@@ -1,0 +1,19 @@
+$kind: http-request
+name: Reject Indent
+method: POST
+url: '{{baseUrl}}/api/v1/indents/{{indentId}}/reject'
+order: 11000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "Rejected due to budget constraints"
+    }

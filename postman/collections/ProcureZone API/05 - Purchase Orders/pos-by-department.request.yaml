@@ -1,0 +1,10 @@
+$kind: http-request
+name: POs By Department
+method: GET
+url: '{{baseUrl}}/api/v1/pos/by-department/{{departmentId}}'
+order: 16000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

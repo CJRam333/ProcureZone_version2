@@ -158,9 +158,9 @@ public class DashboardService {
                 departmentId, null, null);
         Long submitted = executeFilteredCount("SELECT COUNT(*) " + baseQuery + " AND i.indent_status = 2", companyId,
                 departmentId, null, null);
-        Long approved = executeFilteredCount("SELECT COUNT(*) " + baseQuery + " AND i.indent_status IN (3, 4, 5)",
+        Long approved = executeFilteredCount("SELECT COUNT(*) " + baseQuery + " AND i.indent_status IN (3, 5)",
                 companyId, departmentId, null, null);
-        Long rejected = executeFilteredCount("SELECT COUNT(*) " + baseQuery + " AND i.indent_status = 6", companyId,
+        Long rejected = executeFilteredCount("SELECT COUNT(*) " + baseQuery + " AND i.indent_status = 4", companyId,
                 departmentId, null, null);
 
         Long thisMonth = executeFilteredCount(

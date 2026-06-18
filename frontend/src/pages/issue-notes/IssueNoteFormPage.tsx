@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, materialsApi, companiesApi, departmentsApi, plantsApi, sectionsApi, uomApi, getErrorMessage } from '../../api';
+import { inventoryApi } from '../../api/inventory';
 import type { Material } from '../../api/materials';
 import type { Company } from '../../api/companies';
 import type { Department } from '../../api/departments';
@@ -60,6 +61,7 @@ const IssueNoteFormPage: React.FC = () => {
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
 
   // Form setup - updated for new schema
   const {
@@ -68,6 +70,7 @@ const IssueNoteFormPage: React.FC = () => {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<IssueNoteFormData>({
@@ -92,6 +95,7 @@ const IssueNoteFormPage: React.FC = () => {
   const watchLineItems = watch('lineItems');
   const watchCompanyId = watch('companyId');
   const watchDepartmentId = watch('departmentId');
+  const watchPlantId = watch('plantId');
 
   // Fetch master data for dropdowns
   const { data: companiesData } = useQuery({
@@ -160,6 +164,21 @@ const IssueNoteFormPage: React.FC = () => {
       });
     }
   }, [existingIssueNote, reset]);
+
+  // Re-fetch stock whenever the plant selection changes
+  useEffect(() => {
+    if (!watchPlantId || watchPlantId <= 0) return;
+    const currentItems = getValues('lineItems');
+    currentItems.forEach((item, index) => {
+      if (item.materialId > 0) {
+        inventoryApi
+          .getStockByMaterialAndPlant(item.materialId, watchPlantId)
+          .then((r) => setStockByIndex((prev) => ({ ...prev, [index]: r.availableStock })))
+          .catch(() => setStockByIndex((prev) => ({ ...prev, [index]: null })));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchPlantId]);
 
   // Create/Update mutations
   const createMutation = useMutation({
@@ -263,6 +282,14 @@ const IssueNoteFormPage: React.FC = () => {
     setShowMaterialSearch(false);
     setMaterialSearch('');
     setSelectedItemIndex(null);
+    // Fetch available stock for this material at the selected plant
+    const plantId = getValues('plantId');
+    if (plantId > 0) {
+      inventoryApi
+        .getStockByMaterialAndPlant(material.id, plantId)
+        .then((r) => setStockByIndex((prev) => ({ ...prev, [index]: r.availableStock })))
+        .catch(() => setStockByIndex((prev) => ({ ...prev, [index]: null })));
+    }
   };
 
   if (isEdit && loadingIssueNote) {
@@ -468,6 +495,18 @@ const IssueNoteFormPage: React.FC = () => {
                                 <small className="text-muted">
                                   {watchLineItems[index].materialDescription}
                                 </small>
+                                {stockByIndex[index] !== undefined && (
+                                  <small
+                                    className={`d-block fw-medium mt-1 ${
+                                      stockByIndex[index] !== null && (stockByIndex[index] ?? 0) > 0
+                                        ? 'text-success'
+                                        : 'text-danger'
+                                    }`}
+                                  >
+                                    Avail:{' '}
+                                    {stockByIndex[index] !== null ? stockByIndex[index] : 'N/A'}
+                                  </small>
+                                )}
                               </div>
                               <Button
                                 variant="link"

@@ -16,6 +16,8 @@ export interface Employee {
     companyId?: number;
     companyName?: string;
     plantName?: string;
+    reportingManagerId?: number;
+    reportingManagerName?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -23,7 +25,7 @@ export interface Employee {
 export interface EmployeeCreateRequest {
     empId: string;
     empName: string;
-    empEmail: string;
+    empEmail: string;          // email (LDAP) or username (Non-LDAP) — both stored in emp_email
     empDesignation?: string;
     empJoinDate?: string;
     empCostCenter?: string;
@@ -32,12 +34,15 @@ export interface EmployeeCreateRequest {
     locationId?: number;
     companyId?: number;
     plantName?: string;
+    password?: string;         // Non-LDAP only — stored as MD5 in emp_password
+    roleIds?: number[];        // stored in tbl_map_emp_roles
+    reportingManagerId?: number; // stored in tbl_map_emp_reporting
 }
 
 export interface EmployeeUpdateRequest {
     empId?: string;
     empName?: string;
-    empEmail?: string;
+    empEmail?: string;         // email (LDAP) or username (Non-LDAP)
     empDesignation?: string;
     empJoinDate?: string;
     empCostCenter?: string;
@@ -46,6 +51,8 @@ export interface EmployeeUpdateRequest {
     locationId?: number;
     companyId?: number;
     plantName?: string;
+    roleIds?: number[];        // null = no change, [] = remove all, [1,2] = replace all
+    reportingManagerId?: number; // null = no change, 0 = remove, positive = set/replace
 }
 
 export interface PageResponse<T> {
@@ -60,10 +67,14 @@ export const employeesApi = {
     getAll: async (
         page = 0,
         size = 20,
-        search?: string
+        search?: string,
+        filters?: { status?: number; departmentId?: number; locationId?: number }
     ): Promise<PageResponse<Employee>> => {
         const params: Record<string, any> = { page, size };
         if (search) params.search = search;
+        if (filters?.status != null) params.status = filters.status;
+        if (filters?.departmentId) params.departmentId = filters.departmentId;
+        if (filters?.locationId) params.locationId = filters.locationId;
         const response = await apiClient.get<PageResponse<Employee>>(
             "/employees",
             { params }

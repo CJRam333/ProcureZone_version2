@@ -47,6 +47,8 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles?: string[];
+  /** Set true to hide from nav without removing the route or page. Re-enable by removing this flag. */
+  hidden?: boolean;
 }
 
 interface NavGroup {
@@ -76,21 +78,22 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       path: '/analytics',
       label: 'Analytics',
       icon: <FaChartLine />,
-      roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'AUDITOR'],
+      roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD'],
+      hidden: true, // SCOPE-REDUCTION: not active in current production phase
     },
     {
       path: '/indents',
       label: 'Indents',
       icon: <FaFileAlt />,
       // Legacy: SuperAdmin, Admin, Manager(role=3), Procurement(6), Supervisor(4), DepartmentHead(5)
-      roles: ['SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'DEPTHEAD', 'EMPLOYEE'],
+      roles: ['SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'DEPTHEAD', 'USER'],
     },
     {
       path: '/plant-indent',
       label: 'Plant Indent',
       icon: <FaSeedling />,
       // Plant-specific indent management with crop type tracking
-      roles: ['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER'],
+      roles: ['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE'],
     },
     {
       path: '/purchase-orders',
@@ -98,48 +101,52 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       icon: <FaShoppingCart />,
       // Legacy: SuperAdmin, Procurement(6)
       roles: ['SUPERADMIN', 'ADMIN', 'PROCUREMENT'],
+      hidden: true, // SCOPE-REDUCTION: not active in current production phase
     },
     {
       path: '/grn',
       label: 'GRN',
       icon: <FaTruck />,
       // Legacy: SuperAdmin, GRNIncharge(11), QualityManager(14), GoodsIncharge(10)
-      roles: ['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'QUALITY'],
+      roles: ['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE', 'QUALITYMANAGER'],
+      hidden: true, // SCOPE-REDUCTION: not active in current production phase
     },
     {
       path: '/quality-control',
       label: 'Quality Control',
       icon: <FaCheckCircle />,
       // QC inspection and rejected items management
-      roles: ['SUPERADMIN', 'ADMIN', 'QUALITY'],
+      roles: ['SUPERADMIN', 'ADMIN', 'QUALITYMANAGER'],
+      hidden: true, // SCOPE-REDUCTION: not active in current production phase
     },
     {
       path: '/issue-notes',
       label: 'Issue Notes',
       icon: <FaClipboardList />,
       // Legacy: SuperAdmin, Admin, Manager(role=3), Procurement(6), Supervisor(4)
-      roles: ['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'DEPTHEAD', 'STOREKEEPER'],
+      roles: ['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'ISSUECONFIRM'],
     },
     {
       path: '/confirmations/issue',
       label: 'Confirmations',
       icon: <FaExclamationTriangle />,
       // Issue and receipt confirmation workflows
-      roles: ['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'DEPTHEAD', 'EMPLOYEE'],
+      roles: ['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD', 'USER'],
     },
     {
       path: '/inventory',
       label: 'Inventory',
       icon: <FaBoxes />,
       // Legacy: FloorIncharge(8), GoodsIncharge(10), IssueConfirm(12), ReceiptConfirm(13)
-      roles: ['SUPERADMIN', 'ADMIN', 'STOREKEEPER'],
+      roles: ['SUPERADMIN', 'ADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE'],
+      hidden: true, // SCOPE-REDUCTION: not active in current production phase
     },
     {
       path: '/reports',
       label: 'Reports',
       icon: <FaChartBar />,
       // Legacy: SuperAdmin, DepartmentHead(5), Admin(2)
-      roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'AUDITOR'],
+      roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD'],
     },
   ];
 
@@ -157,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       { path: '/masters/uom', label: 'Unit of Measure', icon: <FaRuler /> },
       { path: '/masters/crops', label: 'Crop Types', icon: <FaLeaf />, roles: ['SUPERADMIN', 'ADMIN', 'PLANTMANAGER'] },
       { path: '/masters/materials', label: 'Materials', icon: <FaCubes /> },
-      { path: '/masters/vendors', label: 'Vendors', icon: <FaHandshake /> },
+      { path: '/masters/vendors', label: 'Vendors', icon: <FaHandshake />, hidden: true }, // SCOPE-REDUCTION: not active in current production phase
       { path: '/masters/employees', label: 'Employees', icon: <FaUsers /> },
       { path: '/masters/users', label: 'Users', icon: <FaUserCog /> },
       { path: '/masters/roles', label: 'Roles', icon: <FaUserTag />, roles: ['SUPERADMIN'] },
@@ -167,10 +174,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
   const adminGroup: NavGroup = {
     label: 'Administration',
     icon: <FaCog />,
-    roles: ['SUPERADMIN', 'ADMIN', 'AUDITOR'],
+    roles: ['SUPERADMIN', 'ADMIN'],
     groupKey: 'admin',
     items: [
-      { path: '/admin/audit-logs', label: 'Audit Logs', icon: <FaHistory />, roles: ['SUPERADMIN', 'ADMIN', 'AUDITOR'] },
+      { path: '/admin/audit-logs', label: 'Audit Logs', icon: <FaHistory />, roles: ['SUPERADMIN', 'ADMIN'] },
       { path: '/admin/email-templates', label: 'Email Templates', icon: <FaEnvelope />, roles: ['SUPERADMIN', 'ADMIN'] },
       { path: '/materials/import', label: 'Material Import', icon: <FaCubes />, roles: ['SUPERADMIN', 'ADMIN'] },
     ],
@@ -190,7 +197,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
   }, [location.pathname]);
 
   const filteredNavItems = navItems.filter(
-    (item) => !item.roles || hasAnyRole(item.roles)
+    (item) => !item.hidden && (!item.roles || hasAnyRole(item.roles))
   );
 
   // Handle nav link click to close mobile sidebar
@@ -227,7 +234,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
         {!collapsed && isExpanded && (
           <ul className="nav flex-column ms-3 submenu">
             {group.items
-              .filter(item => !item.roles || hasAnyRole(item.roles))
+              .filter(item => !item.hidden && (!item.roles || hasAnyRole(item.roles)))
               .map((subItem) => (
                 <li key={subItem.path} className="nav-item">
                   <NavLink

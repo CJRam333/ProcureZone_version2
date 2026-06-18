@@ -1,0 +1,10 @@
+$kind: http-request
+name: Indents By Status
+method: GET
+url: '{{baseUrl}}/api/v1/indents/status/{{statusId}}'
+order: 7000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

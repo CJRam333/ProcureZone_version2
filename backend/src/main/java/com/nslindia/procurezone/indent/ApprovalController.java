@@ -95,9 +95,9 @@ public class ApprovalController {
      * POST /api/v1/approvals/indents/{id}/approve?remarks=...
      * 
      * Automatically routes to the correct approval method:
-     * - Status 2 (Submitted) → L1 Dept Head Approval (→ status 3)
-     * - Status 3 (Dept Head Approved) → L2 Final Approval (→ status 4)
-     * - Status 4 (Finance Approved) → L3 Procurement Approval (→ status 5)
+     * - Status 2 (Submitted)          → L1 Dept Head Approval   (→ status 3)
+     * - Status 3 (Dept Head Approved) → L2 Final Approval        (→ status 5)
+     * - Status 5 (Proc. In Progress)  → L3 Procurement Approval  (→ status 6)
      */
     @PostMapping("/indents/{id}/approve")
     @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
@@ -121,11 +121,11 @@ public class ApprovalController {
                     log.info("Routing to L1 (Dept Head) approval for indent ID: {}", id);
                     response = indentService.approveIndent(id, principal.email(), remarks);
                     break;
-                case 3: // Dept Head Approved → Finance Approved
+                case 3: // Dept Head Approved → Proc. In Progress
                     log.info("Routing to L2 (Final) approval for indent ID: {}", id);
                     response = indentService.finalApproveIndent(id, principal.email(), remarks);
                     break;
-                case 4: // Finance Approved → Procurement Approved
+                case 5: // Proc. In Progress → Procurement Approved
                     log.info("Routing to L3 (Procurement) approval for indent ID: {}", id);
                     response = indentService.procurementApproveIndent(id, principal.email(), remarks);
                     break;

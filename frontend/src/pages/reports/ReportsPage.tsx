@@ -10,7 +10,6 @@ import {
   FaWarehouse,
   FaShoppingCart,
   FaClipboardList,
-  FaUsers,
   FaFilePdf,
   FaFileExcel,
   FaEye,
@@ -74,20 +73,7 @@ const ReportsPage: React.FC = () => {
         reportType: 'indent-details',
         apiFunction: reportsApi.getIndentDetails,
       },
-      {
-        title: 'Purchase Order Report',
-        description: 'Detailed PO analysis with vendor-wise breakdown',
-        icon: <FaShoppingCart className="text-success" size={24} />,
-        reportType: 'po-summary',
-        apiFunction: reportsApi.getPOSummary,
-      },
-      {
-        title: 'Vendor Performance',
-        description: 'Vendor delivery performance and ratings',
-        icon: <FaUsers className="text-info" size={24} />,
-        reportType: 'vendor-performance',
-        apiFunction: reportsApi.getVendorPerformance,
-      },
+      // SCOPE-REDUCTION: "Purchase Order Report" and "Vendor Performance" hidden — not active in current production phase
     ],
     inventory: [
       {

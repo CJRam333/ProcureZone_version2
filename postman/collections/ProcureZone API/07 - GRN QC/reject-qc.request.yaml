@@ -1,0 +1,19 @@
+$kind: http-request
+name: Reject QC
+method: POST
+url: '{{baseUrl}}/api/v1/grn/qc/{{qcId}}/reject'
+order: 4000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "QC rejected due to substandard quality"
+    }

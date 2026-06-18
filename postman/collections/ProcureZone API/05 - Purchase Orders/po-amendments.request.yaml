@@ -1,0 +1,10 @@
+$kind: http-request
+name: PO Amendments
+method: GET
+url: '{{baseUrl}}/api/v1/pos/{{poId}}/amendments'
+order: 14000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

@@ -36,7 +36,7 @@ public record SectionResponse(
                 section.getCode(),
                 section.getName(),
                 section.getStatus(),
-                section.getStatus() == 1 ? "Active" : "Inactive",
+                Integer.valueOf(1).equals(section.getStatus()) ? "Active" : "Inactive",
                 section.getLastModifiedDate(),
                 section.getLastModifiedBy());
     }

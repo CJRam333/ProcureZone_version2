@@ -1,0 +1,20 @@
+$kind: http-request
+name: Update Vendor Rating
+method: PUT
+url: '{{baseUrl}}/api/v1/vendors/{{vendorId}}/rating'
+order: 8000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "rating": 4.5,
+      "remarks": "Good delivery performance"
+    }

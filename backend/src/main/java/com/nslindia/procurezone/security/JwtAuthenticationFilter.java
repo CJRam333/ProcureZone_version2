@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -98,11 +99,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     });
 
                     if (parseResult.isEmpty()) {
-                        logger.warn("JwtAuthenticationFilter: Token parsing returned empty Optional for URI: {}",
-                                requestURI);
+                        logger.warn("JwtAuthenticationFilter: Token invalid or expired for URI: {}", requestURI);
+                        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write(
+                                "{\"code\":\"UNAUTHORIZED\",\"message\":\"Token is invalid or expired\"}");
+                        return;
                     }
                 } catch (Exception e) {
                     logger.error("JwtAuthenticationFilter: Exception during token parsing for URI: " + requestURI, e);
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write(
+                            "{\"code\":\"UNAUTHORIZED\",\"message\":\"Token is invalid or expired\"}");
+                    return;
                 }
             } else {
                 logger.debug("JwtAuthenticationFilter: No Bearer token in request to {}", requestURI);

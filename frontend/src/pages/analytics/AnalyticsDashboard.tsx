@@ -11,12 +11,8 @@ import {
   FaMinus,
   FaCalendarAlt,
   FaSync,
-  FaUsers,
   FaClipboardCheck,
-  FaTruck,
-  FaDollarSign,
   FaExclamationTriangle,
-  FaClock,
   FaCheckCircle,
   FaHourglassHalf,
 } from 'react-icons/fa';
@@ -35,11 +31,6 @@ import {
   ComposedChart,
   Area,
   Line,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
 } from 'recharts';
 import { PageHeader } from '../../components/common';
 import { reportsApi } from '../../api';
@@ -260,25 +251,7 @@ const AnalyticsDashboard: React.FC = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch PO summary
-  const { data: poSummary, isLoading: poLoading } = useQuery({
-    queryKey: ['analytics-po-summary', dateRange],
-    queryFn: () => reportsApi.getPOSummary({
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-    }),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Fetch vendor performance
-  const { data: vendorPerformance, isLoading: vendorLoading } = useQuery({
-    queryKey: ['analytics-vendor-performance', dateRange],
-    queryFn: () => reportsApi.getVendorPerformance({
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
-    }),
-    staleTime: 5 * 60 * 1000,
-  });
+  // SCOPE-REDUCTION: PO summary and vendor performance queries removed — not active in current production phase
 
   // Generate mock trend data (replace with actual API when available)
   // Using deterministic data based on month index for consistency
@@ -287,19 +260,20 @@ const AnalyticsDashboard: React.FC = () => {
     const currentMonth = new Date().getMonth();
     
     // Deterministic trend data - in production, this would come from API
+    // SCOPE-REDUCTION: pos and grns fields removed — PO/GRN not active in current production phase
     const baseData = [
-      { indents: 45, pos: 38, grns: 32, value: 285000 },
-      { indents: 52, pos: 42, grns: 38, value: 320000 },
-      { indents: 48, pos: 45, grns: 40, value: 355000 },
-      { indents: 61, pos: 52, grns: 48, value: 410000 },
-      { indents: 55, pos: 48, grns: 45, value: 390000 },
-      { indents: 67, pos: 58, grns: 52, value: 465000 },
-      { indents: 72, pos: 62, grns: 55, value: 520000 },
-      { indents: 68, pos: 60, grns: 54, value: 495000 },
-      { indents: 75, pos: 65, grns: 58, value: 545000 },
-      { indents: 82, pos: 70, grns: 62, value: 590000 },
-      { indents: 78, pos: 68, grns: 60, value: 565000 },
-      { indents: 85, pos: 72, grns: 65, value: 620000 },
+      { indents: 45, value: 285000 },
+      { indents: 52, value: 320000 },
+      { indents: 48, value: 355000 },
+      { indents: 61, value: 410000 },
+      { indents: 55, value: 390000 },
+      { indents: 67, value: 465000 },
+      { indents: 72, value: 520000 },
+      { indents: 68, value: 495000 },
+      { indents: 75, value: 545000 },
+      { indents: 82, value: 590000 },
+      { indents: 78, value: 565000 },
+      { indents: 85, value: 620000 },
     ];
     
     return months.slice(0, currentMonth + 1).map((month, idx) => ({
@@ -347,30 +321,9 @@ const AnalyticsDashboard: React.FC = () => {
     }));
   }, [indentSummary]);
 
-  // Vendor performance radar data
-  const vendorRadarData = useMemo(() => {
-    if (!vendorPerformance || vendorPerformance.length === 0) {
-      return [
-        { subject: 'On-Time Delivery', A: 85, B: 75, fullMark: 100 },
-        { subject: 'Quality Rating', A: 90, B: 80, fullMark: 100 },
-        { subject: 'Response Time', A: 75, B: 70, fullMark: 100 },
-        { subject: 'Pricing', A: 80, B: 85, fullMark: 100 },
-        { subject: 'Service', A: 88, B: 78, fullMark: 100 },
-      ];
-    }
-    
-    // Transform vendor performance to radar format
-    const topVendors = vendorPerformance.slice(0, 2);
-    return [
-      { subject: 'On-Time Delivery', A: topVendors[0]?.onTimeDeliveryRate || 0, B: topVendors[1]?.onTimeDeliveryRate || 0, fullMark: 100 },
-      { subject: 'Quality Rating', A: topVendors[0]?.qualityRating * 20 || 0, B: topVendors[1]?.qualityRating * 20 || 0, fullMark: 100 },
-      { subject: 'Response Time', A: 80, B: 75, fullMark: 100 },
-      { subject: 'Total Orders', A: Math.min(topVendors[0]?.totalOrders || 0, 100), B: Math.min(topVendors[1]?.totalOrders || 0, 100), fullMark: 100 },
-      { subject: 'Value', A: 85, B: 80, fullMark: 100 },
-    ];
-  }, [vendorPerformance]);
+  // SCOPE-REDUCTION: vendorRadarData useMemo removed — vendor analytics not active in current production phase
 
-  const isLoading = statsLoading || indentLoading || poLoading;
+  const isLoading = statsLoading || indentLoading;
 
   return (
     <div className="analytics-dashboard">
@@ -439,18 +392,7 @@ const AnalyticsDashboard: React.FC = () => {
                 loading={statsLoading}
               />
             </Col>
-            <Col sm={6} lg={3}>
-              <KPICard
-                title="Total PO Value"
-                value={poSummary?.totalValue || 2850000}
-                previousValue={Math.floor((poSummary?.totalValue || 2850000) * 0.9)}
-                icon={<FaDollarSign />}
-                color="success"
-                format="currency"
-                subtitle="This period"
-                loading={poLoading}
-              />
-            </Col>
+            {/* SCOPE-REDUCTION: "Total PO Value" KPI card removed */}
             <Col sm={6} lg={3}>
               <KPICard
                 title="Pending Approvals"
@@ -476,29 +418,8 @@ const AnalyticsDashboard: React.FC = () => {
             </Col>
           </Row>
 
-          {/* Secondary KPI Row */}
+          {/* Secondary KPI Row — SCOPE-REDUCTION: GRNs Received, Active Vendors, Avg Processing Time removed */}
           <Row className="g-3 mb-4">
-            <Col sm={6} lg={3}>
-              <KPICard
-                title="GRNs Received"
-                value={dashboardStats?.grnStats?.total || 48}
-                previousValue={42}
-                icon={<FaTruck />}
-                color="teal"
-                subtitle="Goods receipts"
-                loading={statsLoading}
-              />
-            </Col>
-            <Col sm={6} lg={3}>
-              <KPICard
-                title="Active Vendors"
-                value={vendorPerformance?.length || 15}
-                icon={<FaUsers />}
-                color="purple"
-                subtitle="With orders"
-                loading={vendorLoading}
-              />
-            </Col>
             <Col sm={6} lg={3}>
               <KPICard
                 title="Low Stock Items"
@@ -509,16 +430,7 @@ const AnalyticsDashboard: React.FC = () => {
                 loading={statsLoading}
               />
             </Col>
-            <Col sm={6} lg={3}>
-              <KPICard
-                title="Avg Processing Time"
-                value="3.5 days"
-                icon={<FaClock />}
-                color="orange"
-                subtitle="Indent to PO"
-                loading={false}
-              />
-            </Col>
+            {/* SCOPE-REDUCTION: "Avg Processing Time" KPI card removed */}
           </Row>
 
           {/* Charts Section */}
@@ -541,11 +453,7 @@ const AnalyticsDashboard: React.FC = () => {
                       <FaChartBar className="me-2" /> By Department
                     </Nav.Link>
                   </Nav.Item>
-                  <Nav.Item>
-                    <Nav.Link eventKey="vendors" className="border-0">
-                      <FaUsers className="me-2" /> Vendor Analysis
-                    </Nav.Link>
-                  </Nav.Item>
+                  {/* SCOPE-REDUCTION: "Vendor Analysis" tab removed */}
                 </Nav>
               </Card.Header>
               <Card.Body>
@@ -583,15 +491,7 @@ const AnalyticsDashboard: React.FC = () => {
                           fill="url(#colorIndents)"
                           strokeWidth={2}
                         />
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="pos"
-                          name="Purchase Orders"
-                          stroke={COLORS.success}
-                          strokeWidth={2}
-                          dot={{ fill: COLORS.success }}
-                        />
+                        {/* SCOPE-REDUCTION: "Purchase Orders" trend line removed */}
                         <Bar
                           yAxisId="right"
                           dataKey="value"
@@ -676,102 +576,14 @@ const AnalyticsDashboard: React.FC = () => {
                     </ResponsiveContainer>
                   </Tab.Pane>
 
-                  {/* Vendors Tab */}
-                  <Tab.Pane eventKey="vendors">
-                    <Row>
-                      <Col lg={6}>
-                        <h6 className="mb-3">Top Vendor Comparison</h6>
-                        <ResponsiveContainer width="100%" height={350}>
-                          <RadarChart data={vendorRadarData}>
-                            <PolarGrid stroke="#e9ecef" />
-                            <PolarAngleAxis dataKey="subject" stroke="#6c757d" />
-                            <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                            <Radar
-                              name="Top Vendor"
-                              dataKey="A"
-                              stroke={COLORS.primary}
-                              fill={COLORS.primary}
-                              fillOpacity={0.3}
-                            />
-                            <Radar
-                              name="2nd Vendor"
-                              dataKey="B"
-                              stroke={COLORS.success}
-                              fill={COLORS.success}
-                              fillOpacity={0.3}
-                            />
-                            <Legend />
-                            <RechartsTooltip />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      </Col>
-                      <Col lg={6}>
-                        <h6 className="mb-3">Vendor Performance Summary</h6>
-                        {vendorPerformance && vendorPerformance.length > 0 ? (
-                          <div className="table-responsive">
-                            <table className="table table-sm table-hover">
-                              <thead className="table-light">
-                                <tr>
-                                  <th>Vendor</th>
-                                  <th className="text-center">Orders</th>
-                                  <th className="text-center">On-Time %</th>
-                                  <th className="text-center">Rating</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {vendorPerformance.slice(0, 5).map((vendor) => (
-                                  <tr key={vendor.vendorId}>
-                                    <td>{vendor.vendorName}</td>
-                                    <td className="text-center">{vendor.totalOrders}</td>
-                                    <td className="text-center">
-                                      <Badge bg={vendor.onTimeDeliveryRate >= 90 ? 'success' : vendor.onTimeDeliveryRate >= 75 ? 'warning' : 'danger'}>
-                                        {vendor.onTimeDeliveryRate}%
-                                      </Badge>
-                                    </td>
-                                    <td className="text-center">
-                                      {'⭐'.repeat(Math.round(vendor.qualityRating))}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <Alert variant="info">No vendor performance data available</Alert>
-                        )}
-                      </Col>
-                    </Row>
-                  </Tab.Pane>
+                  {/* SCOPE-REDUCTION: Vendors Tab.Pane removed — vendor analytics not active in current production phase */}
                 </Tab.Content>
               </Card.Body>
             </Card>
           </Tab.Container>
 
-          {/* Efficiency Metrics Row */}
+          {/* Efficiency Metrics Row — SCOPE-REDUCTION: "Processing Efficiency" card removed (contained PO/GRN rings) */}
           <Row className="g-3 mb-4">
-            <Col md={4}>
-              <Card className="h-100 border-0 shadow-sm">
-                <Card.Header className="bg-white border-0">
-                  <h6 className="mb-0">
-                    <FaClock className="me-2 text-primary" />
-                    Processing Efficiency
-                  </h6>
-                </Card.Header>
-                <Card.Body>
-                  <Row className="text-center">
-                    <Col>
-                      <ProgressRing value={85} max={100} color={COLORS.primary} label="Indent Approval" />
-                    </Col>
-                    <Col>
-                      <ProgressRing value={78} max={100} color={COLORS.success} label="PO Processing" />
-                    </Col>
-                    <Col>
-                      <ProgressRing value={92} max={100} color={COLORS.info} label="GRN Completion" />
-                    </Col>
-                  </Row>
-                </Card.Body>
-              </Card>
-            </Col>
             <Col md={4}>
               <Card className="h-100 border-0 shadow-sm">
                 <Card.Header className="bg-white border-0">
@@ -791,15 +603,7 @@ const AnalyticsDashboard: React.FC = () => {
                         <div className="progress-bar bg-primary" style={{ width: '72%' }} />
                       </div>
                     </div>
-                    <div>
-                      <div className="d-flex justify-content-between mb-1">
-                        <small>PO to GRN Completion</small>
-                        <small className="fw-semibold">85%</small>
-                      </div>
-                      <div className="progress" style={{ height: '8px' }}>
-                        <div className="progress-bar bg-success" style={{ width: '85%' }} />
-                      </div>
-                    </div>
+                    {/* SCOPE-REDUCTION: "PO to GRN Completion" bar removed */}
                     <div>
                       <div className="d-flex justify-content-between mb-1">
                         <small>On-Time Delivery</small>
@@ -828,12 +632,7 @@ const AnalyticsDashboard: React.FC = () => {
                   <Alert variant="info" className="mb-0 py-2 small">
                     <strong>{dashboardStats?.indentStats?.pending || 15}</strong> indents pending approval
                   </Alert>
-                  <Alert variant="danger" className="mb-0 py-2 small">
-                    <strong>3</strong> POs overdue for delivery
-                  </Alert>
-                  <Alert variant="success" className="mb-0 py-2 small">
-                    <strong>5</strong> GRNs ready for QC approval
-                  </Alert>
+                  {/* SCOPE-REDUCTION: PO overdue and GRN QC alerts removed */}
                 </Card.Body>
               </Card>
             </Col>

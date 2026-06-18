@@ -27,12 +27,12 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
 
         /**
          * F.1 FIX: Override findAll with EntityGraph to fetch related entities in
-         * single query
+         * single query. Includes workflow columns for displayStatus derivation.
          */
         @Override
         @NonNull
         @EntityGraph(attributePaths = { "company", "department", "plant", "section", "employee", "status",
-                        "createdBy" })
+                        "createdBy", "approvedStatus", "finalStatus", "procurementStatus" })
         Page<Indent> findAll(@NonNull Pageable pageable);
 
         /**
@@ -103,6 +103,12 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
                         @Param("deptId") Integer deptId);
 
         /**
+         * Find indents by status only — used when no department filter is applied
+         */
+        @Query("SELECT i FROM Indent i WHERE i.status.id = :statusId")
+        List<Indent> findByStatusIdOnly(@Param("statusId") Integer statusId);
+
+        /**
          * Find indents by status and employee numbers (for L1 approval queue)
          * Returns indents created by employees in the given list
          */
@@ -120,14 +126,16 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
         /**
          * A.1 FIX: Find indents by plant IDs (for users with multiple plant access)
          */
-        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status" })
+        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status",
+                        "approvedStatus", "finalStatus", "procurementStatus" })
         @Query("SELECT i FROM Indent i WHERE i.plant.id IN :plantIds")
         Page<Indent> findByPlantIdIn(@Param("plantIds") List<Integer> plantIds, Pageable pageable);
 
         /**
          * A.2 FIX: Find indents by department ID only
          */
-        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status" })
+        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status",
+                        "approvedStatus", "finalStatus", "procurementStatus" })
         @Query("SELECT i FROM Indent i WHERE i.department.id = :departmentId")
         Page<Indent> findByDepartmentIdScoped(@Param("departmentId") Integer departmentId, Pageable pageable);
 
@@ -135,7 +143,8 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
          * A.2 FIX: Find indents by plant IDs AND department ID (for DEPTHEAD with plant
          * access)
          */
-        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status" })
+        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status",
+                        "approvedStatus", "finalStatus", "procurementStatus" })
         @Query("SELECT i FROM Indent i WHERE i.plant.id IN :plantIds AND i.department.id = :departmentId")
         Page<Indent> findByPlantIdInAndDepartmentId(@Param("plantIds") List<Integer> plantIds,
                         @Param("departmentId") Integer departmentId, Pageable pageable);
@@ -151,8 +160,81 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
         long countByEmployeeEmployeeNumber(Integer empNumber);
 
         /**
-         * Get the maximum indent sequence number for a given year
+         * Get the indent_no of the most recently created indent (by indent_id DESC).
+         * Matches legacy getIndentNo1(): ORDER BY indentId DESC LIMIT 1.
          */
-        @Query("SELECT COALESCE(MAX(CAST(SUBSTRING(i.indentNumber, LENGTH(i.indentNumber) - 4, 5) AS integer)), 0) FROM Indent i WHERE i.indentYear = :year")
-        Integer getMaxSequenceForYear(@Param("year") String year);
+        @Query("SELECT i.indentNumber FROM Indent i ORDER BY i.id DESC")
+        List<String> findLatestIndentNumbers(Pageable pageable);
+
+        /**
+         * Get the MAX value across all purely numeric indent_no values.
+         * Fallback when the most recent record has a non-numeric indent_no
+         * (e.g., mis-generated alphanumeric records from a previous deployment).
+         */
+        @Query(value = "SELECT MAX(CAST(indent_no AS UNSIGNED)) FROM tbl_indent_master WHERE indent_no REGEXP '^[0-9]+$'", nativeQuery = true)
+        Long findMaxNumericIndentNumber();
+
+        // -----------------------------------------------------------------------
+        // Three-column workflow queue queries (Step 3e)
+        // indent_status = 1 → active (soft-delete flag); never 0 (deleted)
+        // -----------------------------------------------------------------------
+
+        /**
+         * RM Queue: approvedStatus=1 (Pending), active, for specific employees.
+         * Replaces findByStatusIdAndEmployeeEmployeeNumberIn for L1 queue.
+         */
+        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status", "approvedBy",
+                        "approvedStatus", "finalStatus", "procurementStatus" })
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 1 AND i.status.id = 1 AND i.employee.employeeNumber IN :employeeNumbers")
+        List<Indent> findRmQueueForEmployees(@Param("employeeNumbers") List<Integer> employeeNumbers);
+
+        /**
+         * Dept Head Queue: approvedStatus=3 (RM Approved), finalStatus=1 (Pending), active.
+         */
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 1 AND i.status.id = 1 AND i.department.id = :deptId")
+        List<Indent> findDeptHeadQueueByDepartment(@Param("deptId") Integer deptId);
+
+        /**
+         * Dept Head Queue — no department filter (for SUPERADMIN/ADMIN approvers).
+         */
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 1 AND i.status.id = 1")
+        List<Indent> findDeptHeadQueue();
+
+        /**
+         * Procurement Queue: approvedStatus=3, finalStatus=4 (Dept. Head Approved),
+         * procurementStatus=4, active.
+         */
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 4 AND i.procurementStatus.id = 4 AND i.status.id = 1")
+        List<Indent> findProcurementQueue();
+
+        /**
+         * Goods Receipt Queue: procurementStatus=7 (PO Released), active.
+         */
+        @Query("SELECT i FROM Indent i WHERE i.procurementStatus.id = 7 AND i.status.id = 1")
+        List<Indent> findGoodsReceiptQueue();
+
+        /**
+         * Combined multi-filter query for the list endpoint.
+         * All params are optional; null means "no filter on this field".
+         * Includes workflow columns for displayStatus derivation.
+         */
+        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status",
+                        "approvedStatus", "finalStatus", "procurementStatus" })
+        @Query("SELECT i FROM Indent i WHERE " +
+                        "(:search IS NULL OR LOWER(i.indentNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(i.comments) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+                        "(:statusId IS NULL OR i.status.id = :statusId) AND " +
+                        "(:departmentId IS NULL OR i.department.id = :departmentId) AND " +
+                        "(:plantId IS NULL OR i.plant.id = :plantId) AND " +
+                        "(:companyId IS NULL OR i.company.id = :companyId) AND " +
+                        "(:fromDate IS NULL OR i.indentDate >= :fromDate) AND " +
+                        "(:toDate IS NULL OR i.indentDate <= :toDate)")
+        Page<Indent> filterIndents(
+                        @Param("search") String search,
+                        @Param("statusId") Integer statusId,
+                        @Param("departmentId") Integer departmentId,
+                        @Param("plantId") Integer plantId,
+                        @Param("companyId") Integer companyId,
+                        @Param("fromDate") LocalDateTime fromDate,
+                        @Param("toDate") LocalDateTime toDate,
+                        Pageable pageable);
 }

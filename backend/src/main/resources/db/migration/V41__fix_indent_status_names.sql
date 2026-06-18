@@ -1,0 +1,39 @@
+-- =====================================================================
+-- Migration: V41__fix_indent_status_names
+-- Status   : SAFE NO-OP
+--
+-- IMPORTANT:
+-- tbl_indent_status already exists in the legacy database with
+-- the authoritative 12-entry production values:
+--
+--   1  = Pending
+--   2  = Rejected
+--   3  = Approved
+--   4  = Final Approved
+--   5  = Quotations Collected
+--   6  = Negotiation Done
+--   7  = PO Released
+--   8  = Hold
+--   9  = Cash Buy
+--   10 = Goods Receipt
+--   11 = Goods Issued
+--   12 = DEO Order Pending
+--
+-- The original version of this migration contained UPDATE statements
+-- that would have overwritten these names with wrong Spring-internal
+-- labels (e.g. "Submitted" over "Rejected").  Those statements have
+-- been removed.
+--
+-- The INSERT IGNORE statements for IDs 7 and 8 are also removed
+-- because those rows already exist in production (7=PO Released,
+-- 8=Hold) and would have been silent no-ops anyway.
+--
+-- Workflow status alignment (Spring service IDs vs. production IDs)
+-- is tracked in the Priority-1 gap report.  Any schema changes to
+-- tbl_indent_status will be made in a dedicated future migration
+-- after the gap analysis is complete and approved.
+-- =====================================================================
+
+-- Intentionally empty.  Schema is managed by the legacy database.
+
+-- End of V41

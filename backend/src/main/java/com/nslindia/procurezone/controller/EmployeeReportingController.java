@@ -23,7 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/employee-reporting")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'AUDITOR')")
+@PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER')")
 public class EmployeeReportingController {
 
     private final EmployeeReportingService employeeReportingService;

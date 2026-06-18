@@ -1,0 +1,25 @@
+$kind: http-request
+name: Update Vendor
+method: PUT
+url: '{{baseUrl}}/api/v1/vendors/{{vendorId}}'
+order: 4000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "vendorName": "ABC Supplies Pvt Ltd",
+      "contactPerson": "Suresh Sharma",
+      "email": "suresh@abcsupplies.com",
+      "phone": "9876543211",
+      "address": "456 Industrial Area, Mumbai",
+      "paymentTerms": "NET45",
+      "active": true
+    }

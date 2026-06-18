@@ -1,0 +1,13 @@
+$kind: http-request
+name: Search Indents
+method: GET
+url: '{{baseUrl}}/api/v1/indents/search'
+order: 6000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: q
+    value: ''

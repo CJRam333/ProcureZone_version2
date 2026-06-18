@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge } from 'react-bootstrap';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 type BadgeVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark';
 
@@ -51,16 +52,6 @@ const defaultStatusMap: Record<string | number, { label: string; className: stri
   PARTIALLY_ISSUED: { label: 'Partially Issued', className: 'pending', variant: 'info' },
   RETURNED: { label: 'Returned', className: 'pending', variant: 'info' },
 
-  // Indent statuses (numeric)
-  0: { label: 'Draft', className: 'draft', variant: 'secondary' },
-  1: { label: 'Pending Approval', className: 'pending', variant: 'warning' },
-  2: { label: 'L1 Approved', className: 'pending', variant: 'info' },
-  3: { label: 'L2 Approved', className: 'pending', variant: 'info' },
-  4: { label: 'Fully Approved', className: 'approved', variant: 'success' },
-  5: { label: 'Rejected', className: 'rejected', variant: 'danger' },
-  6: { label: 'PO Generated', className: 'completed', variant: 'success' },
-  7: { label: 'Cancelled', className: 'rejected', variant: 'dark' },
-  8: { label: 'Returned', className: 'pending', variant: 'info' },
 };
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({
@@ -77,8 +68,9 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
     variant: 'secondary' as BadgeVariant,
   };
 
-  // Use provided variant/label or fall back to status config
-  const badgeVariant = variant || statusConfig.variant || 'secondary';
+  // Use provided variant/label or fall back to INDENT_STATUS_COLORS (for displayStatus strings) then statusConfig
+  const indentColor = typeof status === 'string' ? INDENT_STATUS_COLORS[status] : undefined;
+  const badgeVariant = variant || (indentColor as BadgeVariant | undefined) || statusConfig.variant || 'secondary';
   const badgeLabel = label || statusConfig.label || String(status);
 
   return (

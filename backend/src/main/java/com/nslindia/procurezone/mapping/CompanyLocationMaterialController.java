@@ -16,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/company-location-materials")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'STOREKEEPER')")
+@PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE')")
 public class CompanyLocationMaterialController {
 
     private final CompanyLocationMaterialService service;

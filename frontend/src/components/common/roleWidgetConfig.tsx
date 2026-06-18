@@ -10,13 +10,10 @@ import {
     FaUserTie,
     FaCheckDouble,
     FaExclamationTriangle,
-    FaHourglassHalf,
     FaUserCog,
-    FaTruck,
     FaBoxOpen,
     FaClipboardList,
     FaChartLine,
-    FaClock,
 } from "react-icons/fa";
 
 // Stats type definition for type safety
@@ -78,7 +75,7 @@ interface RoleWidgetConfig {
 export const roleWidgetConfigs: RoleWidgetConfig[] = [
     // Employee / Section Team Member
     {
-        role: ["EMPLOYEE"],
+        role: ["USER"],
         widgets: [
             {
                 id: "l1-approvals",
@@ -126,7 +123,7 @@ export const roleWidgetConfigs: RoleWidgetConfig[] = [
     },
     // Quality Control
     {
-        role: ["QUALITY"],
+        role: ["QUALITYMANAGER"],
         widgets: [
             {
                 id: "qc-pending",
@@ -150,17 +147,9 @@ export const roleWidgetConfigs: RoleWidgetConfig[] = [
     },
     // Store Keeper
     {
-        role: ["STOREKEEPER"],
+        role: ["FLOORINCHARGE", "GOODSINCHARGE", "ISSUECONFIRM", "RECEIPTCONFIRM"],
         widgets: [
-            {
-                id: "pending-grn",
-                title: "Pending GRN",
-                icon: <FaTruck size={18} />,
-                color: "info",
-                description: "GRNs to process",
-                linkTo: "/grn?status=pending",
-                getCount: (stats) => stats?.pendingGRN || 0,
-            },
+            // SCOPE-REDUCTION: "pending-grn" widget hidden — GRN not active in current production phase
             {
                 id: "issue-requests",
                 title: "Issue Requests",
@@ -194,27 +183,10 @@ export const roleWidgetConfigs: RoleWidgetConfig[] = [
                 linkTo: "/indents?status=approved",
                 getCount: (stats) => stats?.approvedIndents || 0,
             },
-            {
-                id: "pending-pos",
-                title: "Pending POs",
-                icon: <FaHourglassHalf size={18} />,
-                color: "warning",
-                description: "POs awaiting delivery",
-                linkTo: "/purchase-orders?status=pending",
-                getCount: (stats) => stats?.pendingPOs || 0,
-            },
-            {
-                id: "overdue-pos",
-                title: "Overdue Deliveries",
-                icon: <FaClock size={18} />,
-                color: "danger",
-                description: "Past delivery date",
-                linkTo: "/purchase-orders?status=overdue",
-                getCount: (stats) => stats?.overduePOs || 0,
-            },
+            // SCOPE-REDUCTION: "pending-pos" and "overdue-pos" widgets hidden — Purchase Orders not active in current production phase
         ],
     },
-    // Removed FLOORINCHARGE section — merged into EMPLOYEE above
+    // FLOORINCHARGE, GOODSINCHARGE, ISSUECONFIRM, RECEIPTCONFIRM are mapped as the STOREKEEPER group above
     // Admin/SuperAdmin - Overview
     {
         role: ["SUPERADMIN", "ADMIN"],

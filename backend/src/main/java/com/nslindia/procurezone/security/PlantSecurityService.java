@@ -33,7 +33,7 @@ public class PlantSecurityService {
 
     // Roles that bypass plant filtering (can see all data)
     private static final Set<String> GLOBAL_ACCESS_ROLES = Set.of(
-            "SUPERADMIN", "ADMIN", "AUDITOR");
+            "SUPERADMIN", "ADMIN");
 
     /**
      * Get list of plant IDs the current user has access to.

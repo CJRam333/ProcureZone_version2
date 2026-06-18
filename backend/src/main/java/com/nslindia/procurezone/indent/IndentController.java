@@ -19,7 +19,11 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import com.nslindia.procurezone.security.UserPrincipal;
 
@@ -87,15 +91,116 @@ public class IndentController {
      * GET /api/v1/indents?page=0&size=10&sort=indentDate,desc
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'STOREKEEPER', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'EMPLOYEE', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'USER')")
     public ResponseEntity<Page<IndentListResponse>> listIndents(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "indentDate,desc") String[] sort) {
+            @RequestParam(defaultValue = "indentDate,desc") String[] sort,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(required = false) Integer plantId,
+            @RequestParam(required = false) Integer companyId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
 
         Pageable pageable = createPageable(page, size, sort);
-        Page<IndentListResponse> response = indentService.listIndents(pageable);
+        LocalDateTime fromDt = fromDate != null ? fromDate.atStartOfDay() : null;
+        LocalDateTime toDt = toDate != null ? toDate.atTime(23, 59, 59) : null;
+        Page<IndentListResponse> response = indentService.filterIndents(
+                search, status, departmentId, plantId, companyId, fromDt, toDt, pageable);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Export indents as Excel or CSV, respecting the same filters as the list endpoint.
+     * Restricted to SUPERADMIN and ADMIN roles.
+     * GET /api/v1/indents/export?format=excel|csv&search=...&status=...&...
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
+    public ResponseEntity<byte[]> exportIndents(
+            @RequestParam(defaultValue = "excel") String format,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(required = false) Integer plantId,
+            @RequestParam(required = false) Integer companyId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) throws java.io.IOException {
+
+        LocalDateTime fromDt = fromDate != null ? fromDate.atStartOfDay() : null;
+        LocalDateTime toDt   = toDate   != null ? toDate.atTime(23, 59, 59) : null;
+
+        java.util.List<com.nslindia.procurezone.indent.dto.IndentListResponse> rows =
+                indentService.exportIndents(search, status, departmentId, plantId, companyId, fromDt, toDt);
+
+        if ("csv".equalsIgnoreCase(format)) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Indent No.,Date,Company,Department,Requested By,Delivery Date,Status,Items\n");
+            for (var r : rows) {
+                sb.append(csv(r.indentNumber())).append(',')
+                  .append(csv(r.indentDate() != null ? r.indentDate().toLocalDate().toString() : "")).append(',')
+                  .append(csv(r.companyName())).append(',')
+                  .append(csv(r.departmentName())).append(',')
+                  .append(csv(r.employeeName())).append(',')
+                  .append(csv(r.deliveryDate() != null ? r.deliveryDate().toString() : "")).append(',')
+                  .append(csv(r.statusName())).append(',')
+                  .append(r.detailsCount() != null ? r.detailsCount() : 0).append('\n');
+            }
+            byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"indents_export.csv\"")
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .body(bytes);
+        }
+
+        // Excel (default)
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Indents");
+
+            // Header style
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+
+            String[] headers = {"Indent No.", "Date", "Company", "Department", "Requested By", "Delivery Date", "Status", "Items"};
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 18 * 256);
+            }
+
+            int rowNum = 1;
+            for (var r : rows) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(r.indentNumber() != null ? r.indentNumber() : "");
+                row.createCell(1).setCellValue(r.indentDate() != null ? r.indentDate().toLocalDate().toString() : "");
+                row.createCell(2).setCellValue(r.companyName() != null ? r.companyName() : "");
+                row.createCell(3).setCellValue(r.departmentName() != null ? r.departmentName() : "");
+                row.createCell(4).setCellValue(r.employeeName() != null ? r.employeeName() : "");
+                row.createCell(5).setCellValue(r.deliveryDate() != null ? r.deliveryDate().toString() : "");
+                row.createCell(6).setCellValue(r.statusName() != null ? r.statusName() : "");
+                row.createCell(7).setCellValue(r.detailsCount() != null ? r.detailsCount() : 0);
+            }
+
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            wb.write(bos);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"indents_export.xlsx\"")
+                    .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(bos.toByteArray());
+        }
+    }
+
+    private static String csv(String value) {
+        if (value == null) return "";
+        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     /**
@@ -138,7 +243,7 @@ public class IndentController {
      */
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'STOREKEEPER', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'EMPLOYEE', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'USER')")
     public ResponseEntity<Page<IndentListResponse>> searchIndents(
             @RequestParam String q,
             @RequestParam(defaultValue = "0") int page,
@@ -453,7 +558,7 @@ public class IndentController {
      * Transitions from Status 5 (Procurement Approved) → Status 8 (Completed)
      */
     @PostMapping("/{id}/complete")
-    @PreAuthorize("hasRole('PROCUREMENT') or hasRole('STOREKEEPER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<IndentResponse> completeIndent(
             @PathVariable Integer id,
             @RequestParam(required = false) String remarks,

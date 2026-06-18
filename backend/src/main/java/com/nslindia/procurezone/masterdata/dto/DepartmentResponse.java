@@ -36,7 +36,7 @@ public record DepartmentResponse(
                 department.getCode(),
                 department.getName(),
                 department.getStatus(),
-                department.getStatus() == 1 ? "Active" : "Inactive",
+                Integer.valueOf(1).equals(department.getStatus()) ? "Active" : "Inactive",
                 department.getLastModifiedDate(),
                 department.getLastModifiedBy());
     }

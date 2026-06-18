@@ -24,14 +24,14 @@ public class EmailTemplateController {
     private final EmailTemplateRepository emailTemplateRepository;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'AUDITOR', 'VIEWER', 'PROCUREMENT', 'PLANTMANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'PROCUREMENT', 'PLANTMANAGER')")
     public ResponseEntity<Page<EmailTemplate>> getEmailTemplates(
             @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(emailTemplateRepository.findAll(pageable));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'AUDITOR', 'VIEWER', 'PROCUREMENT', 'PLANTMANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'PROCUREMENT', 'PLANTMANAGER')")
     public ResponseEntity<EmailTemplate> getEmailTemplateById(@PathVariable Integer id) {
         return emailTemplateRepository.findById(id)
                 .map(ResponseEntity::ok)

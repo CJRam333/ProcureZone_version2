@@ -45,7 +45,7 @@ public class SapImportController {
      * Upload and import SAP CSV file
      */
     @PostMapping(value = "/import/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'STOREKEEPER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'GOODSINCHARGE')")
     public ResponseEntity<SapImportResult> uploadAndImport(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "truncate", defaultValue = "true") boolean truncate,
@@ -126,7 +126,7 @@ public class SapImportController {
      * Get current import status
      */
     @GetMapping("/status")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'PROCUREMENT')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE', 'PROCUREMENT')")
     public ResponseEntity<Map<String, Object>> getImportStatus() {
         Map<String, Object> status = new HashMap<>();
 
@@ -152,7 +152,7 @@ public class SapImportController {
      * Get import history
      */
     @GetMapping("/history")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'STOREKEEPER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'GOODSINCHARGE')")
     public ResponseEntity<List<SapImportLog>> getImportHistory(
             @RequestParam(value = "limit", defaultValue = "20") int limit) {
         return ResponseEntity.ok(sapImportService.getImportHistory(limit));

@@ -34,6 +34,9 @@ const PlantIndentListPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [plantFilter, setPlantFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 10;
   const queryClient = useQueryClient();
@@ -44,21 +47,19 @@ const PlantIndentListPage: React.FC = () => {
     queryFn: () => plantsApi.getAll(0, 100),
   });
 
-  // Fetch plant indents from the correct API
+  // Fetch plant indents — all active filters are combined in one request
   const { data: indentsData, isLoading, error } = useQuery({
-    queryKey: ['plant-indents', searchTerm, plantFilter, statusFilter, currentPage],
-    queryFn: () => {
-      if (searchTerm) {
-        return plantIndentsApi.search(searchTerm, { page: currentPage, size: pageSize });
-      }
-      if (plantFilter) {
-        return plantIndentsApi.listByPlant(Number(plantFilter), { page: currentPage, size: pageSize });
-      }
-      if (statusFilter) {
-        return plantIndentsApi.getByStatus(Number(statusFilter), { page: currentPage, size: pageSize });
-      }
-      return plantIndentsApi.list({ page: currentPage, size: pageSize });
-    },
+    queryKey: ['plant-indents', searchTerm, plantFilter, statusFilter, employeeSearch, fromDate, toDate, currentPage],
+    queryFn: () => plantIndentsApi.list({
+      page: currentPage,
+      size: pageSize,
+      search: searchTerm || undefined,
+      plantId: plantFilter ? Number(plantFilter) : undefined,
+      status: statusFilter !== '' ? Number(statusFilter) : undefined,
+      empSearch: employeeSearch || undefined,
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+    }),
   });
 
   const columns = [
@@ -75,7 +76,7 @@ const PlantIndentListPage: React.FC = () => {
       render: (row: PlantIndent) => (
         <div>
           <FaIndustry className="me-1 text-muted" />
-          {row.plantName || '—'}
+          {row.plantName || 'Not Assigned'}
         </div>
       ),
     },
@@ -100,7 +101,7 @@ const PlantIndentListPage: React.FC = () => {
     {
       key: 'employeeNumber',
       label: 'Employee',
-      render: (row: PlantIndent) => row.employeeNumber || '—',
+      render: (row: PlantIndent) => row.employeeName || row.employeeNumber || '—',
     },
     {
       key: 'batchNumber',
@@ -205,6 +206,13 @@ const PlantIndentListPage: React.FC = () => {
               </InputGroup>
             </Col>
             <Col md={3}>
+              <Form.Control
+                placeholder="Employee name or ID..."
+                value={employeeSearch}
+                onChange={(e) => { setEmployeeSearch(e.target.value); setCurrentPage(0); }}
+              />
+            </Col>
+            <Col md={3}>
               <Form.Select
                 value={plantFilter}
                 onChange={(e) => { setPlantFilter(e.target.value); setCurrentPage(0); }}
@@ -215,7 +223,7 @@ const PlantIndentListPage: React.FC = () => {
                 ))}
               </Form.Select>
             </Col>
-            <Col md={3}>
+            <Col md={2}>
               <Form.Select
                 value={statusFilter}
                 onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(0); }}
@@ -231,19 +239,42 @@ const PlantIndentListPage: React.FC = () => {
                 <option value="7">Completed</option>
               </Form.Select>
             </Col>
-            <Col md={2}>
-              <Button
-                variant="outline-secondary"
-                className="w-100"
-                onClick={() => {
-                  setSearchTerm('');
-                  setPlantFilter('');
-                  setStatusFilter('');
-                  setCurrentPage(0);
-                }}
-              >
-                <FaFilter className="me-1" /> Clear
-              </Button>
+          </Row>
+          <Row className="g-3 align-items-end mt-1">
+            <Col md={3}>
+              <Form.Control
+                type="date"
+                value={fromDate}
+                onChange={(e) => { setFromDate(e.target.value); setCurrentPage(0); }}
+                placeholder="From date"
+              />
+            </Col>
+            <Col md={3}>
+              <Form.Control
+                type="date"
+                value={toDate}
+                onChange={(e) => { setToDate(e.target.value); setCurrentPage(0); }}
+                placeholder="To date"
+              />
+            </Col>
+            <Col md="auto">
+              {(searchTerm || plantFilter || statusFilter || employeeSearch || fromDate || toDate) && (
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setPlantFilter('');
+                    setStatusFilter('');
+                    setEmployeeSearch('');
+                    setFromDate('');
+                    setToDate('');
+                    setCurrentPage(0);
+                  }}
+                >
+                  <FaFilter className="me-1" /> Clear
+                </Button>
+              )}
             </Col>
           </Row>
         </Card.Body>

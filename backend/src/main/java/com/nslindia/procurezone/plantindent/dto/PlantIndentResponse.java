@@ -9,6 +9,7 @@ public record PlantIndentResponse(
                 Integer id,
                 String indentCode,
                 String employeeNumber,
+                String employeeName,
                 Integer plantId,
                 String plantName,
                 String indentNumber,

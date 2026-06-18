@@ -1,0 +1,29 @@
+$kind: http-request
+name: Create Indent
+method: POST
+url: '{{baseUrl}}/api/v1/indents'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "indentDate": "2025-01-15",
+      "departmentId": 1,
+      "remarks": "Monthly supply request",
+      "items": [
+        {
+          "materialId": 1,
+          "quantity": 100,
+          "unitOfMeasureId": 1,
+          "remarks": "Urgent"
+        }
+      ]
+    }

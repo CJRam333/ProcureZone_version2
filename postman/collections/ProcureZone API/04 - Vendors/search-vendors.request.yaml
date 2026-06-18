@@ -1,0 +1,13 @@
+$kind: http-request
+name: Search Vendors
+method: GET
+url: '{{baseUrl}}/api/v1/vendors/search'
+order: 7000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: q
+    value: ''

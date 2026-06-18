@@ -1,0 +1,19 @@
+$kind: http-request
+name: Reject Issue Note
+method: POST
+url: '{{baseUrl}}/api/v1/issue-notes/{{issueNoteId}}/reject'
+order: 5000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "Issue note rejected due to insufficient stock"
+    }

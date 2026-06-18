@@ -52,7 +52,7 @@ const IssueNoteApprovalPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     // Determine if user is stores or manager
-    const isStores = hasAnyRole(['STOREKEEPER', 'ADMIN', 'SUPERADMIN']);
+    const isStores = hasAnyRole(['ISSUECONFIRM', 'ADMIN', 'SUPERADMIN']);
     const isManager = hasAnyRole(['PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN']);
 
     // Fetch issue notes pending action

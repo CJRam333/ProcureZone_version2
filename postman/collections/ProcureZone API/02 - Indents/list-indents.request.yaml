@@ -1,0 +1,17 @@
+$kind: http-request
+name: List Indents
+method: GET
+url: '{{baseUrl}}/api/v1/indents'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: page
+    value: '0'
+  - key: size
+    value: '10'
+  - key: sort
+    value: 'indentDate,desc'

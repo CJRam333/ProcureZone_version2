@@ -36,7 +36,7 @@ public class GrnQcController {
      * Create a new QC inspection result
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER', 'STOREKEEPER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'GRNINCHARGE')")
     public ResponseEntity<QcResultResponse> createQcResult(
             @Valid @RequestBody CreateQcResultRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -50,7 +50,7 @@ public class GrnQcController {
      * Get QC result by ID
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER', 'STOREKEEPER', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'GRNINCHARGE', 'VIEWER')")
     public ResponseEntity<QcResultResponse> getQcResultById(@PathVariable Integer id) {
         log.info("Fetching QC result by ID: {}", id);
         QcResultResponse response = qcService.getQcResultById(id);
@@ -61,7 +61,7 @@ public class GrnQcController {
      * Get all QC results for a GRN
      */
     @GetMapping("/grn/{grnId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER', 'STOREKEEPER', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'GRNINCHARGE', 'VIEWER')")
     public ResponseEntity<List<QcResultResponse>> getQcResultsForGrn(@PathVariable Integer grnId) {
         log.info("Fetching QC results for GRN: {}", grnId);
         List<QcResultResponse> results = qcService.getQcResultsForGrn(grnId);
@@ -72,7 +72,7 @@ public class GrnQcController {
      * Get latest QC result for a GRN
      */
     @GetMapping("/grn/{grnId}/latest")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER', 'STOREKEEPER', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'GRNINCHARGE', 'VIEWER')")
     public ResponseEntity<QcResultResponse> getLatestQcResultForGrn(@PathVariable Integer grnId) {
         log.info("Fetching latest QC result for GRN: {}", grnId);
         return qcService.getLatestQcResultForGrn(grnId)
@@ -84,7 +84,7 @@ public class GrnQcController {
      * Get QC results by status (1=Pending, 2=Passed, 3=Failed, 4=Conditional)
      */
     @GetMapping("/status/{status}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER', 'STOREKEEPER', 'VIEWER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'GRNINCHARGE', 'VIEWER')")
     public ResponseEntity<Page<QcResultResponse>> getQcResultsByStatus(
             @PathVariable Integer status,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -97,7 +97,7 @@ public class GrnQcController {
      * Update QC status (Pass/Fail)
      */
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER')")
     public ResponseEntity<QcResultResponse> updateQcStatus(
             @PathVariable Integer id,
             @RequestBody UpdateQcStatusRequest request,
@@ -113,7 +113,7 @@ public class GrnQcController {
      * Check if GRN has passed QC
      */
     @GetMapping("/grn/{grnId}/passed")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER', 'STOREKEEPER', 'PROCUREMENT')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'GRNINCHARGE', 'PROCUREMENT')")
     public ResponseEntity<Map<String, Boolean>> hasGrnPassedQc(@PathVariable Integer grnId) {
         log.info("Checking if GRN {} has passed QC", grnId);
         boolean passed = qcService.hasGrnPassedQc(grnId);
@@ -124,7 +124,7 @@ public class GrnQcController {
      * Get QC statistics for dashboard
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER', 'PLANTMANAGER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'PLANTMANAGER')")
     public ResponseEntity<Map<String, Long>> getQcStatistics() {
         log.info("Fetching QC statistics");
         Map<String, Long> stats = qcService.getQcStatistics();
@@ -135,7 +135,7 @@ public class GrnQcController {
      * Get pending re-inspections
      */
     @GetMapping("/pending-reinspections")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITY', 'QUALITYMANAGER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER')")
     public ResponseEntity<List<QcResultResponse>> getPendingReInspections() {
         log.info("Fetching pending re-inspections");
         List<QcResultResponse> results = qcService.getPendingReInspections();

@@ -1,0 +1,27 @@
+$kind: http-request
+name: Receive Goods
+method: POST
+url: '{{baseUrl}}/api/v1/pos/{{poId}}/receive-goods'
+order: 10000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "receivedDate": "2025-02-18",
+      "remarks": "Goods received in good condition",
+      "items": [
+        {
+          "poItemId": 1,
+          "receivedQuantity": 100,
+          "remarks": "Full quantity received"
+        }
+      ]
+    }

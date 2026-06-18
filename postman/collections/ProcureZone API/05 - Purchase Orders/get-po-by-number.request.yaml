@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get PO By Number
+method: GET
+url: '{{baseUrl}}/api/v1/pos/number/{{poNumber}}'
+order: 5000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

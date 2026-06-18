@@ -1,0 +1,30 @@
+$kind: http-request
+name: Create Vendor
+method: POST
+url: '{{baseUrl}}/api/v1/vendors'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "vendorName": "ABC Supplies Pvt Ltd",
+      "vendorCode": "VND001",
+      "contactPerson": "Ramesh Sharma",
+      "email": "ramesh@abcsupplies.com",
+      "phone": "9876543210",
+      "address": "123 Industrial Area, Mumbai",
+      "gstNumber": "27AABCU9603R1ZX",
+      "panNumber": "AABCU9603R",
+      "bankAccountNumber": "1234567890",
+      "ifscCode": "HDFC0001234",
+      "paymentTerms": "NET30",
+      "active": true
+    }

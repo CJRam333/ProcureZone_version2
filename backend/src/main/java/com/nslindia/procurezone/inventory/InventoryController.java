@@ -43,7 +43,7 @@ public class InventoryController {
          * @param lowStock   Show only low stock items (optional)
          */
         @GetMapping
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER')")
         public ResponseEntity<Map<String, Object>> getInventory(
                         @RequestParam(required = false) Integer companyId,
                         @RequestParam(required = false) Integer plantId,
@@ -69,7 +69,7 @@ public class InventoryController {
          * Used by indent creation to show available stock to users
          */
         @GetMapping("/stock/{materialId}/plant/{plantId}")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR', 'EMPLOYEE', 'DEPTHEAD', 'PROCUREMENT', 'PLANTMANAGER')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER', 'USER', 'DEPTHEAD', 'PROCUREMENT')")
         public ResponseEntity<Map<String, Object>> getStock(
                         @PathVariable Integer materialId,
                         @PathVariable Integer plantId) {
@@ -90,7 +90,7 @@ public class InventoryController {
          * Bulk endpoint for indent creation form - shows stock for all materials
          */
         @GetMapping("/stock/plant/{plantId}/company/{companyId}")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR', 'EMPLOYEE', 'DEPTHEAD', 'PROCUREMENT', 'PLANTMANAGER')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER', 'USER', 'DEPTHEAD', 'PROCUREMENT')")
         public ResponseEntity<Map<String, Object>> getStockByPlantAndCompany(
                         @PathVariable Integer plantId,
                         @PathVariable Integer companyId) {
@@ -113,7 +113,7 @@ public class InventoryController {
          * 3. GET - Get low stock items
          */
         @GetMapping("/low-stock")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getLowStockItems() {
                 log.info("Get low stock items");
 
@@ -131,7 +131,7 @@ public class InventoryController {
          * 4. GET - Get critical stock items
          */
         @GetMapping("/critical-stock")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getCriticalStockItems() {
                 log.info("Get critical stock items");
 
@@ -151,7 +151,7 @@ public class InventoryController {
          * 5. GET - Get inventory statistics
          */
         @GetMapping("/statistics")
-        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> getStatistics(
                         @RequestParam(required = false) Integer companyId) {
 
@@ -170,7 +170,7 @@ public class InventoryController {
          * 6. POST - Stock adjustment (add or deduct)
          */
         @PostMapping("/adjustment")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> stockAdjustment(
                         @Valid @RequestBody StockAdjustmentRequest request) {
 
@@ -192,7 +192,7 @@ public class InventoryController {
          * 7. GET - Transaction history with filters
          */
         @GetMapping("/transactions")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'VIEWER')")
         public ResponseEntity<Map<String, Object>> getTransactionHistory(
                         @RequestParam(required = false) Integer companyId,
                         @RequestParam(required = false) Integer plantId,
@@ -220,7 +220,7 @@ public class InventoryController {
          * 8. GET - Check sufficient stock
          */
         @GetMapping("/check-stock/{materialId}/plant/{plantId}")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT')")
         public ResponseEntity<Map<String, Object>> checkSufficientStock(
                         @PathVariable Integer materialId,
                         @PathVariable Integer plantId,
@@ -247,7 +247,7 @@ public class InventoryController {
          * Used by Issue Note UI to check availability before creating
          */
         @PostMapping("/check-stock-bulk")
-        @PreAuthorize("hasAnyRole('STOREKEEPER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'AUDITOR')")
+        @PreAuthorize("hasAnyRole('FLOORINCHARGE', 'GOODSINCHARGE', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD')")
         public ResponseEntity<Map<String, Object>> checkBulkStock(
                         @RequestBody List<StockCheckRequest> requests,
                         @RequestParam Integer plantId) {

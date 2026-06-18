@@ -81,7 +81,7 @@ const LocationsListPage: React.FC = () => {
           </Card.Body></Card>
         </Tab>
 
-        <Tab eventKey="material-mapping" title={<><FaCubes className="me-2" />Material Mapping</>}>
+        <Tab eventKey="material-mapping" title={<><FaCubes className="me-2" />Material Mapping</>} mountOnEnter>
           <CompanyLocationMaterialPage embedded />
         </Tab>
       </Tabs>

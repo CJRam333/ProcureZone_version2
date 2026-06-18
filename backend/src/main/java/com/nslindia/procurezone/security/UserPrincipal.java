@@ -35,7 +35,8 @@ public record UserPrincipal(
         // Map granular permissions to virtual roles for controller compatibility
         if (canView) {
             authorities.add(new SimpleGrantedAuthority("ROLE_VIEWER"));
-            authorities.add(new SimpleGrantedAuthority("ROLE_AUDITOR"));
+            // VIEWER is the only synthetic authority from canView.
+            // All other role codes come from tbl_roles_master.role_code via RoleNormalizer.
         }
         if (canAdd || canEdit || canDelete) {
             // Most management endpoints require ADMIN or SPECIFIC roles.

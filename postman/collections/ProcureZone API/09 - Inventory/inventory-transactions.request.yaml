@@ -1,0 +1,10 @@
+$kind: http-request
+name: Inventory Transactions
+method: GET
+url: '{{baseUrl}}/api/v1/inventory/transactions'
+order: 4000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

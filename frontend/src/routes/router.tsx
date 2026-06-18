@@ -77,17 +77,22 @@ import {
 } from '../pages';
 
 // ============================================================
-// Backend Role Reference (6 roles from tbl_roles_master):
-// Backend Role Reference (9 roles from tbl_roles_master):
-//   SUPERADMIN   – Full system access
-//   ADMIN        – Administrative access (everything except role CRUD)
-//   DEPTHEAD     – Department head, approves indents & issue notes
-//   EMPLOYEE     – Creates indents, issue notes
-//   PROCUREMENT  – PO management, vendor management
-//   STOREKEEPER  – GRN, inventory, issue/receipt confirmation
-//   PLANTMANAGER – Plant-level management
-//   VIEWER       – Read-only access
-//   AUDITOR      – Read-only + audit access
+// Normalized role codes — derived from tbl_roles_master.role_code via RoleNormalizer:
+//   SUPERADMIN      ← "Super Admin"    Full system access
+//   ADMIN           ← "Admin"          Administrative access
+//   DEPTHEAD        ← "Department"     Department head, approves indents & issue notes
+//   USER            ← "User"           Creates indents, issue notes (was EMPLOYEE)
+//   PROCUREMENT     ← "Procurement"    PO management, vendor management
+//   PLANTMANAGER    ← "Plant Manager"  Plant-level management
+//   SUPERVISOR      ← "Supervisor"     RM-level approvals
+//   FLOORINCHARGE   ← "FloorIncharge"  Plant floor, plant indent, inventory
+//   GOODSINCHARGE   ← "GoodsIncharge"  GRN creation, goods receipt
+//   GRNINCHARGE     ← "GRNIncharge"    GRN finalization, QC access
+//   ISSUECONFIRM    ← "IssueConfirm"   Issue note issuance, confirmation
+//   RECEIPTCONFIRM  ← "ReceiptConfirm" Receipt confirmation
+//   QUALITYMANAGER  ← "QualityManager" QC inspection (was QUALITY + QUALITYMANAGER)
+//   VIEWER          – Synthetic from canView=1  (read-only access)
+//   DATAENTRYOPERATOR ← "DataEntry"    DEO operations
 // ============================================================
 
 const router = createBrowserRouter([
@@ -114,7 +119,7 @@ const router = createBrowserRouter([
       {
         path: 'analytics',
         element: (
-          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'AUDITOR']}>
+          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
             <AnalyticsDashboard />
           </ProtectedRoute>
         ),
@@ -125,7 +130,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'DEPTHEAD', 'PROCUREMENT']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PROCUREMENT']}>
                 <IndentsListPage />
               </ProtectedRoute>
             ),
@@ -141,7 +146,7 @@ const router = createBrowserRouter([
           {
             path: 'new',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER']}>
                 <IndentFormPage />
               </ProtectedRoute>
             ),
@@ -149,7 +154,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'DEPTHEAD', 'PROCUREMENT']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PROCUREMENT']}>
                 <IndentDetailPage />
               </ProtectedRoute>
             ),
@@ -157,7 +162,7 @@ const router = createBrowserRouter([
           {
             path: ':id/edit',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER']}>
                 <IndentFormPage />
               </ProtectedRoute>
             ),
@@ -215,7 +220,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'QUALITY']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE', 'QUALITYMANAGER']}>
                 <GRNListPage />
               </ProtectedRoute>
             ),
@@ -223,7 +228,7 @@ const router = createBrowserRouter([
           {
             path: 'new',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE']}>
                 <GRNFormPage />
               </ProtectedRoute>
             ),
@@ -231,7 +236,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'QUALITY']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE', 'QUALITYMANAGER']}>
                 <GRNDetailPage />
               </ProtectedRoute>
             ),
@@ -239,7 +244,7 @@ const router = createBrowserRouter([
           {
             path: ':id/edit',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'QUALITY']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE', 'QUALITYMANAGER']}>
                 <GRNFormPage />
               </ProtectedRoute>
             ),
@@ -247,7 +252,7 @@ const router = createBrowserRouter([
           {
             path: ':id/inspect',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'QUALITY']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'QUALITYMANAGER']}>
                 <GRNInspectionPage />
               </ProtectedRoute>
             ),
@@ -260,7 +265,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'STOREKEEPER', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'DEPTHEAD']}>
                 <IssueNotesListPage />
               </ProtectedRoute>
             ),
@@ -268,7 +273,7 @@ const router = createBrowserRouter([
           {
             path: 'approvals',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'ISSUECONFIRM']}>
                 <IssueNoteApprovalPage />
               </ProtectedRoute>
             ),
@@ -276,7 +281,7 @@ const router = createBrowserRouter([
           {
             path: 'new',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER']}>
                 <IssueNoteFormPage />
               </ProtectedRoute>
             ),
@@ -284,7 +289,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'STOREKEEPER', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'DEPTHEAD']}>
                 <IssueNoteDetailPage />
               </ProtectedRoute>
             ),
@@ -292,7 +297,7 @@ const router = createBrowserRouter([
           {
             path: ':id/edit',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'EMPLOYEE']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER']}>
                 <IssueNoteFormPage />
               </ProtectedRoute>
             ),
@@ -305,7 +310,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE']}>
                 <InventoryListPage />
               </ProtectedRoute>
             ),
@@ -313,7 +318,7 @@ const router = createBrowserRouter([
           {
             path: ':id/adjust',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE']}>
                 <StockAdjustmentPage />
               </ProtectedRoute>
             ),
@@ -321,7 +326,7 @@ const router = createBrowserRouter([
           {
             path: ':id/history',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE']}>
                 <TransactionHistoryPage />
               </ProtectedRoute>
             ),
@@ -329,7 +334,7 @@ const router = createBrowserRouter([
           {
             path: 'movements',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE']}>
                 <TransactionHistoryPage />
               </ProtectedRoute>
             ),
@@ -411,7 +416,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE']}>
                 <PlantIndentListPage />
               </ProtectedRoute>
             ),
@@ -427,7 +432,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE']}>
                 <PlantIndentDetailPage />
               </ProtectedRoute>
             ),
@@ -449,7 +454,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'QUALITY']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'QUALITYMANAGER']}>
                 <QualityControlListPage />
               </ProtectedRoute>
             ),
@@ -457,7 +462,7 @@ const router = createBrowserRouter([
           {
             path: 'rejected',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'QUALITY', 'STOREKEEPER']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'QUALITYMANAGER', 'GOODSINCHARGE', 'GRNINCHARGE']}>
                 <QCRejectedListPage />
               </ProtectedRoute>
             ),
@@ -475,7 +480,7 @@ const router = createBrowserRouter([
           {
             path: 'issue',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD']}>
                 <IssueConfirmationPage />
               </ProtectedRoute>
             ),
@@ -483,7 +488,7 @@ const router = createBrowserRouter([
           {
             path: 'receipt',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'STOREKEEPER', 'DEPTHEAD', 'EMPLOYEE']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD', 'USER']}>
                 <ReceiptConfirmationPage />
               </ProtectedRoute>
             ),
@@ -493,7 +498,7 @@ const router = createBrowserRouter([
       {
         path: 'reports',
         element: (
-          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'AUDITOR']}>
+          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
             <ReportsPage />
           </ProtectedRoute>
         ),
@@ -509,7 +514,7 @@ const router = createBrowserRouter([
           {
             path: 'audit-logs',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'AUDITOR']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN']}>
                 <AuditLogViewerPage />
               </ProtectedRoute>
             ),

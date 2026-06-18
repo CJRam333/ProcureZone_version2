@@ -1,0 +1,15 @@
+# Use this workspace to collaborate
+workspace:
+  id: 36ea0756-119a-4d36-8000-a89f63ff4434
+
+localResources:
+  collections:
+    - ..\docs\Api-Documentation\postman-collection.json
+    - ..\backend\test-suite\postman\ProcureZone-API-Collection-Fixed.json
+    - ..\backend\test-suite\postman\ProcureZone-API-Collection-V2.json
+    - ..\backend\test-suite\postman\ProcureZone-API-Collection.json
+    - ..\backend\test-suite\postman\ProcureZone-Role-Based-Tests.json
+  docs:
+    - ..\ProcureZone\web\Seeds\assets\select2\docs\README.md
+    - ..\ProcureZone\web\Seeds\assets\bootstrap-daterangepicker\example\browserify\README.md
+    - ..\ProcureZone\web\Seeds\assets\bootstrap-datepicker\tests\README.md

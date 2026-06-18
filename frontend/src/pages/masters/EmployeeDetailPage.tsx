@@ -49,13 +49,14 @@ const EmployeeDetailPage: React.FC = () => {
         enabled: !!id,
     });
 
-    // Fetch employee roles
+    // Fetch employee roles via /employees/{id}/roles — returns EmployeeRoleInfo[] with roleCode/roleName
     const { data: employeeRoles } = useQuery<Role[]>({
         queryKey: ['employee-roles', id],
         queryFn: async () => {
             try {
-                const response = await apiClient.get(`/employee-roles/employee/${id}`);
-                return response.data;
+                const response = await apiClient.get(`/employees/${id}/roles`);
+                const data = response.data as Array<{ roleId: number; roleCode: string; roleName: string }>;
+                return data.map(r => ({ id: r.roleId, code: r.roleCode, name: r.roleName }));
             } catch {
                 return [];
             }
@@ -227,6 +228,12 @@ const EmployeeDetailPage: React.FC = () => {
                                             <div className="mb-3">
                                                 <small className="text-muted d-block">Location</small>
                                                 <strong>{employee.locationName || employee.plantName || 'N/A'}</strong>
+                                            </div>
+                                        </Col>
+                                        <Col sm={6}>
+                                            <div className="mb-3">
+                                                <small className="text-muted d-block">Reporting Manager</small>
+                                                <strong>{employee.reportingManagerName || 'Not Assigned'}</strong>
                                             </div>
                                         </Col>
                                     </Row>

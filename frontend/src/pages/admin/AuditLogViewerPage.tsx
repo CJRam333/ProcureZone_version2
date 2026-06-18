@@ -47,9 +47,9 @@ const actionIcons: Record<string, React.ReactNode> = {
 const auditLogsApi = {
   list: async (params: {
     search?: string;
+    performedBy?: string;
     action?: string;
     entityType?: string;
-    userId?: number;
     fromDate?: string;
     toDate?: string;
     page?: number;
@@ -62,6 +62,7 @@ const auditLogsApi = {
 
 const AuditLogViewerPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [userSearch, setUserSearch] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('');
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
@@ -71,9 +72,10 @@ const AuditLogViewerPage: React.FC = () => {
 
   // Fetch audit logs
   const { data: auditData, isLoading, error } = useQuery({
-    queryKey: ['audit-logs', searchTerm, actionFilter, entityTypeFilter, dateFrom, dateTo, currentPage],
+    queryKey: ['audit-logs', searchTerm, userSearch, actionFilter, entityTypeFilter, dateFrom, dateTo, currentPage],
     queryFn: () => auditLogsApi.list({
       search: searchTerm || undefined,
+      performedBy: userSearch || undefined,
       action: actionFilter || undefined,
       entityType: entityTypeFilter || undefined,
       fromDate: dateFrom || undefined,
@@ -204,60 +206,34 @@ const AuditLogViewerPage: React.FC = () => {
         }
       />
 
-      {/* Stats */}
-      <Row className="mb-3">
-        <Col md={3}>
-          <Card className="bg-primary bg-opacity-10 border-primary">
-            <Card.Body className="text-center py-3">
-              <h4 className="mb-1 text-primary">1,659</h4>
-              <div className="text-muted small">Total Logs</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="bg-success bg-opacity-10 border-success">
-            <Card.Body className="text-center py-3">
-              <h4 className="mb-1 text-success">245</h4>
-              <div className="text-muted small">Today's Activities</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="bg-info bg-opacity-10 border-info">
-            <Card.Body className="text-center py-3">
-              <h4 className="mb-1 text-info">18</h4>
-              <div className="text-muted small">Active Users Today</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={3}>
-          <Card className="bg-warning bg-opacity-10 border-warning">
-            <Card.Body className="text-center py-3">
-              <h4 className="mb-1 text-warning">12</h4>
-              <div className="text-muted small">Failed Logins</div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
       {/* Filters */}
       <Card className="mb-3 shadow-sm">
         <Card.Body>
           <Row className="g-3 align-items-end">
-            <Col md={2}>
+            <Col md={3}>
               <InputGroup>
                 <InputGroup.Text><FaSearch /></InputGroup.Text>
                 <Form.Control
-                  placeholder="Search..."
+                  placeholder="Search entity ID, remarks..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(0); }}
+                />
+              </InputGroup>
+            </Col>
+            <Col md={3}>
+              <InputGroup>
+                <InputGroup.Text><FaUser /></InputGroup.Text>
+                <Form.Control
+                  placeholder="User name or email..."
+                  value={userSearch}
+                  onChange={(e) => { setUserSearch(e.target.value); setCurrentPage(0); }}
                 />
               </InputGroup>
             </Col>
             <Col md={2}>
               <Form.Select
                 value={actionFilter}
-                onChange={(e) => setActionFilter(e.target.value)}
+                onChange={(e) => { setActionFilter(e.target.value); setCurrentPage(0); }}
               >
                 <option value="">All Actions</option>
                 <option value="CREATE">Create</option>
@@ -272,7 +248,7 @@ const AuditLogViewerPage: React.FC = () => {
             <Col md={2}>
               <Form.Select
                 value={entityTypeFilter}
-                onChange={(e) => setEntityTypeFilter(e.target.value)}
+                onChange={(e) => { setEntityTypeFilter(e.target.value); setCurrentPage(0); }}
               >
                 <option value="">All Entities</option>
                 {entityTypes.map(type => (
@@ -280,36 +256,40 @@ const AuditLogViewerPage: React.FC = () => {
                 ))}
               </Form.Select>
             </Col>
-            <Col md={2}>
+          </Row>
+          <Row className="g-3 align-items-end mt-1">
+            <Col md={3}>
               <Form.Control
                 type="date"
-                placeholder="From"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
+                onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(0); }}
               />
             </Col>
-            <Col md={2}>
+            <Col md={3}>
               <Form.Control
                 type="date"
-                placeholder="To"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
+                onChange={(e) => { setDateTo(e.target.value); setCurrentPage(0); }}
               />
             </Col>
-            <Col md={2}>
-              <Button
-                variant="outline-secondary"
-                className="w-100"
-                onClick={() => {
-                  setSearchTerm('');
-                  setActionFilter('');
-                  setEntityTypeFilter('');
-                  setDateFrom('');
-                  setDateTo('');
-                }}
-              >
-                <FaFilter className="me-1" /> Clear
-              </Button>
+            <Col md="auto">
+              {(searchTerm || userSearch || actionFilter || entityTypeFilter || dateFrom || dateTo) && (
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setUserSearch('');
+                    setActionFilter('');
+                    setEntityTypeFilter('');
+                    setDateFrom('');
+                    setDateTo('');
+                    setCurrentPage(0);
+                  }}
+                >
+                  <FaFilter className="me-1" /> Clear
+                </Button>
+              )}
             </Col>
           </Row>
         </Card.Body>

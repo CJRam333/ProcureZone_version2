@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -23,6 +23,7 @@ import {
 } from 'react-icons/fa';
 import { PageHeader, DataTable, StatusBadge } from '../../components/common';
 import { materialsApi, getErrorMessage } from '../../api';
+import { inventoryApi } from '../../api/inventory';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface MaterialFilters {
@@ -55,6 +56,23 @@ const MaterialsListPage: React.FC = () => {
         categoryId: filters.categoryId ? Number(filters.categoryId) : undefined,
       }),
   });
+
+  // Fetch all inventory to build a material → available-stock map
+  const { data: inventoryData } = useQuery({
+    queryKey: ['inventory-all-for-materials'],
+    queryFn: () => inventoryApi.list({ size: 9999 }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // materialId → sum of availableQuantity across all plants
+  const stockByMaterialId = useMemo(() => {
+    const map: Record<number, number> = {};
+    inventoryData?.content?.forEach((inv) => {
+      const qty = inv.availableQuantity ?? inv.quantity ?? 0;
+      map[inv.materialId] = (map[inv.materialId] ?? 0) + qty;
+    });
+    return map;
+  }, [inventoryData]);
 
   // Toggle active mutation
   const toggleActiveMutation = useMutation({
@@ -116,6 +134,19 @@ const MaterialsListPage: React.FC = () => {
       key: 'reorderLevel',
       label: 'Reorder Level',
       render: (row: any) => row.reorderLevel || '-',
+    },
+    {
+      key: 'availableStock',
+      label: 'Avail. Stock',
+      render: (row: any) => {
+        const stock = stockByMaterialId[row.id];
+        if (stock === undefined) return <span className="text-muted small">-</span>;
+        return (
+          <span className={`fw-medium ${stock > 0 ? 'text-success' : 'text-danger'}`}>
+            {stock}
+          </span>
+        );
+      },
     },
     {
       key: 'status',
@@ -189,7 +220,7 @@ const MaterialsListPage: React.FC = () => {
         ]}
         actions={
           <div className="d-flex gap-2">
-            {hasAnyRole(['ADMIN', 'MASTER_DATA_ADMIN']) && (
+            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'MASTER_DATA_ADMIN']) && (
               <>
                 <Button 
                   variant="outline-secondary" 

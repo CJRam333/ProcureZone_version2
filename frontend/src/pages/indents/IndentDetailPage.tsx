@@ -29,6 +29,7 @@ import {
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { indentsApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 // Safe date formatter that handles null/undefined/invalid dates
 const formatDate = (dateValue: string | Date | null | undefined, formatStr: string = 'dd MMM yyyy'): string => {
@@ -45,37 +46,16 @@ const formatDate = (dateValue: string | Date | null | undefined, formatStr: stri
 const STATUS_DRAFT = 1;
 const STATUS_SUBMITTED = 2;
 const STATUS_DEPT_HEAD_APPROVED = 3;
-const STATUS_FINANCE_APPROVED = 4;
+const STATUS_REJECTED = 4;           // ID 4 = Rejected (legacy DB compatible)
 const STATUS_PROCUREMENT_APPROVED = 5;
-const STATUS_REJECTED = 6;
+// ID 6 = PO Created (legacy DB compatible — no constant needed beyond the label maps)
 
-const getStatusLabel = (statusId: number | null | undefined, statusName: string | null | undefined): string => {
-  if (statusName) return statusName;
-  const map: Record<number, string> = {
-    1: 'Draft',
-    2: 'Submitted',
-    3: 'Dept Head Approved',
-    4: 'Finance Approved',
-    5: 'Procurement Approved',
-    6: 'Rejected',
-    7: 'On Hold',
-    8: 'Completed',
-  };
-  return map[statusId || 0] || 'Unknown';
+const getStatusLabel = (_statusId: number | null | undefined, displayStatus: string | null | undefined): string => {
+  return displayStatus || 'Unknown';
 };
 
-const getStatusVariant = (statusId: number | null | undefined): string => {
-  const map: Record<number, string> = {
-    1: 'secondary',
-    2: 'warning',
-    3: 'info',
-    4: 'info',
-    5: 'success',
-    6: 'danger',
-    7: 'dark',
-    8: 'primary',
-  };
-  return map[statusId || 0] || 'secondary';
+const getStatusVariant = (_statusId: number | null | undefined, displayStatus?: string | null): string => {
+  return (displayStatus ? INDENT_STATUS_COLORS[displayStatus] : undefined) ?? 'secondary';
 };
 
 const IndentDetailPage: React.FC = () => {
@@ -155,7 +135,7 @@ const IndentDetailPage: React.FC = () => {
 
   // Map backend fields to usable variables (handle both naming conventions)
   const statusId = indent.statusId ?? indent.status;
-  const statusName = indent.statusName ?? '';
+  const displayStatus = indent.displayStatus ?? indent.statusName ?? '';
   const employeeName = indent.employeeName ?? indent.requestedByName ?? 'Unknown';
   const createdDate = indent.indentDate ?? indent.createdAt;
   const deliveryDate = indent.deliveryDate ?? indent.requiredDate;
@@ -185,22 +165,22 @@ const IndentDetailPage: React.FC = () => {
   );
 
   // Permissions — multi-stage approval
-  const canEdit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'DEPTHEAD', 'PLANTMANAGER']);
-  const canSubmit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'DEPTHEAD', 'PLANTMANAGER']);
+  const canEdit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER']);
+  const canSubmit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER']);
   
   // Approve permission per stage:
-  // Status 2 (Submitted) → Dept Head, Plant Manager, Admin, SuperAdmin
-  // Status 3 (Dept Head Approved) → Plant Manager, Admin, SuperAdmin  
-  // Status 4 (Finance Approved) → Procurement, Admin, SuperAdmin
-  const canApprove = 
+  // Status 2 (Submitted)          → Dept Head, Plant Manager, Admin, SuperAdmin
+  // Status 3 (Dept Head Approved) → Plant Manager, Admin, SuperAdmin
+  // Status 5 (Proc. In Progress)  → Procurement, Admin, SuperAdmin
+  const canApprove =
     (statusId === STATUS_SUBMITTED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER'])) ||
     (statusId === STATUS_DEPT_HEAD_APPROVED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER'])) ||
-    (statusId === STATUS_FINANCE_APPROVED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']));
+    (statusId === STATUS_PROCUREMENT_APPROVED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']));
 
   // Dynamic approve button label
-  const approveLabel = statusId === STATUS_SUBMITTED ? 'Approve (Dept Head)' 
+  const approveLabel = statusId === STATUS_SUBMITTED ? 'Approve (Dept Head)'
     : statusId === STATUS_DEPT_HEAD_APPROVED ? 'Final Approve'
-    : statusId === STATUS_FINANCE_APPROVED ? 'Procurement Approve'
+    : statusId === STATUS_PROCUREMENT_APPROVED ? 'Procurement Approve'
     : 'Approve';
 
   return (
@@ -242,8 +222,8 @@ const IndentDetailPage: React.FC = () => {
           <div className="d-flex flex-wrap gap-3 align-items-center">
             <div>
               <small className="text-muted d-block">Status</small>
-              <Badge bg={getStatusVariant(statusId)} className="fs-6">
-                {getStatusLabel(statusId, statusName)}
+              <Badge bg={getStatusVariant(statusId, displayStatus)} className="fs-6">
+                {getStatusLabel(statusId, displayStatus)}
               </Badge>
             </div>
             <div className="vr d-none d-sm-block" />

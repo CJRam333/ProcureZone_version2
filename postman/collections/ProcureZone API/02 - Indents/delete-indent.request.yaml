@@ -1,0 +1,10 @@
+$kind: http-request
+name: Delete Indent
+method: DELETE
+url: '{{baseUrl}}/api/v1/indents/{{indentId}}'
+order: 5000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

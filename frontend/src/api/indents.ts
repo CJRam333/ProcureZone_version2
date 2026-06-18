@@ -42,6 +42,7 @@ export interface Indent {
     procurementStatusName?: string;
     lastModifiedDate?: string;
     lastModifiedBy?: number;
+    displayStatus?: string;
     details?: IndentItem[];
     // List endpoint fields
     detailsCount?: number;
@@ -64,11 +65,11 @@ export interface Indent {
 export enum IndentStatus {
     DRAFT = 1,
     SUBMITTED = 2,
-    DEPT_HEAD_APPROVED = 3,   // L1 approved
-    FINANCE_APPROVED = 4,     // L2 approved
-    PROCUREMENT_APPROVED = 5, // PO Created
-    REJECTED = 6,
-    ON_HOLD = 7,              // Legacy hold status
+    DEPT_HEAD_APPROVED = 3,    // Dept Head / L2 approved
+    REJECTED = 4,              // Rejected at any stage (legacy DB ID 4 = REJECTED)
+    PROCUREMENT_APPROVED = 5,  // Proc. In Progress — finalApproveIndent()
+    PO_CREATED = 6,            // PO Created — procurementApproveIndent() (legacy DB ID 6 = PO_CREATED)
+    ON_HOLD = 7,
     COMPLETED = 8,
 }
 
@@ -135,6 +136,7 @@ export interface IndentSearchParams extends PageRequest {
     status?: IndentStatus;
     departmentId?: number;
     plantId?: number;
+    companyId?: number;
     priority?: string;
     fromDate?: string;
     toDate?: string;
@@ -161,6 +163,14 @@ export const indentsApi = {
     ): Promise<PageResponse<Indent>> => {
         const response = await apiClient.get<PageResponse<Indent>>("/indents", {
             params,
+        });
+        return response.data;
+    },
+
+    export: async (params: Omit<IndentSearchParams, 'page' | 'size'> & { format?: 'excel' | 'csv' }): Promise<Blob> => {
+        const response = await apiClient.get("/indents/export", {
+            params,
+            responseType: 'blob',
         });
         return response.data;
     },

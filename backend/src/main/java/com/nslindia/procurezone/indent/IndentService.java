@@ -3,19 +3,20 @@ package com.nslindia.procurezone.indent;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.nslindia.procurezone.audit.AuditService;
 import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
-import com.nslindia.procurezone.common.service.DocumentNumberService;
 import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.identity.EmployeeRole;
@@ -37,6 +38,7 @@ import com.nslindia.procurezone.masterdata.Material;
 import com.nslindia.procurezone.masterdata.Plant;
 import com.nslindia.procurezone.masterdata.Section;
 import com.nslindia.procurezone.masterdata.UnitOfMeasure;
+import com.nslindia.procurezone.masterdata.repository.SectionRepository;
 import com.nslindia.procurezone.notification.service.EmailService;
 import com.nslindia.procurezone.security.PlantSecurityService;
 
@@ -53,43 +55,83 @@ public class IndentService {
 
         private static final Logger logger = LoggerFactory.getLogger(IndentService.class);
 
+        private static final Map<Integer, String> SPRING_STATUS_LABELS = Map.of(
+                1, "Draft",
+                2, "Submitted",
+                3, "Dept Head Approved",
+                4, "Rejected",
+                5, "Proc. In Progress",
+                6, "PO Created",
+                7, "On Hold",
+                8, "Completed"
+        );
+
+        private String resolveStatusLabel(IndentStatus status) {
+                if (status == null || status.getId() == null) return null;
+                return SPRING_STATUS_LABELS.getOrDefault(status.getId(), status.getName());
+        }
+
+        /**
+         * Derives the user-visible operational status label from the three workflow FK columns.
+         * Mirrors the legacy JSP compound matrix. Returns "In Progress" for unrecognised combinations.
+         */
+        private static String deriveDisplayStatus(
+                        Integer approvedId, Integer finalId, Integer procurementId) {
+
+                if (approvedId == null || finalId == null || procurementId == null)
+                        return "Pending";
+
+                if (approvedId == 1 && finalId == 1 && procurementId == 1) return "Pending";
+                if (approvedId == 2 && finalId == 1 && procurementId == 1) return "RM Rejected";
+                if (approvedId == 3 && finalId == 1 && procurementId == 1) return "RM Approved";
+                if (approvedId == 3 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
+                if (approvedId == 2 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
+                if (approvedId == 3 && finalId == 4 && procurementId == 4) return "Dept. Head Approved";
+                if (approvedId == 3 && finalId == 4 && procurementId == 5) return "Quotations Collected";
+                if (approvedId == 3 && finalId == 4 && procurementId == 6) return "Negotiation Done";
+                if (approvedId == 3 && finalId == 4 && procurementId == 7) return "PO Released";
+                if (approvedId == 3 && finalId == 4 && procurementId == 8) return "Hold";
+                if (approvedId == 3 && finalId == 4 && procurementId == 9) return "Cash Buy";
+                if (approvedId == 3 && finalId == 4 && procurementId == 10) return "Goods Receipt";
+                if (approvedId == 3 && finalId == 4 && procurementId == 11) return "Goods Issued";
+
+                return "In Progress";
+        }
+
         private final IndentRepository indentRepository;
         private final IndentDetailRepository indentDetailRepository;
         private final EmployeeRepository employeeRepository;
         private final AuditService auditService;
         private final ApprovalWorkflowRepository approvalWorkflowRepository;
-        private final DocumentNumberService documentNumberService;
         private final PlantSecurityService plantSecurityService;
         private final EmailService emailService;
         private final ReportingHierarchyService reportingHierarchyService;
         private final EmployeeRoleRepository employeeRoleRepository;
+        private final SectionRepository sectionRepository;
 
         @PersistenceContext
         private EntityManager entityManager;
-
-        @Value("${indent.number.format:LEGACY}")
-        private String indentNumberFormat;
 
         public IndentService(IndentRepository indentRepository,
                         IndentDetailRepository indentDetailRepository,
                         EmployeeRepository employeeRepository,
                         AuditService auditService,
                         ApprovalWorkflowRepository approvalWorkflowRepository,
-                        DocumentNumberService documentNumberService,
                         PlantSecurityService plantSecurityService,
                         EmailService emailService,
                         ReportingHierarchyService reportingHierarchyService,
-                        EmployeeRoleRepository employeeRoleRepository) {
+                        EmployeeRoleRepository employeeRoleRepository,
+                        SectionRepository sectionRepository) {
                 this.indentRepository = indentRepository;
                 this.indentDetailRepository = indentDetailRepository;
                 this.employeeRepository = employeeRepository;
                 this.auditService = auditService;
                 this.approvalWorkflowRepository = approvalWorkflowRepository;
-                this.documentNumberService = documentNumberService;
                 this.plantSecurityService = plantSecurityService;
                 this.emailService = emailService;
                 this.reportingHierarchyService = reportingHierarchyService;
                 this.employeeRoleRepository = employeeRoleRepository;
+                this.sectionRepository = sectionRepository;
         }
 
         /**
@@ -108,10 +150,16 @@ public class IndentService {
                 indent.setCompany(entityManager.getReference(Company.class, request.companyId()));
                 indent.setDepartment(entityManager.getReference(Department.class, request.departmentId()));
 
-                // Section is required in database - use provided value or default to 401
-                // (Production Section)
-                Integer sectionId = request.sectionId() != null ? request.sectionId() : 401;
-                indent.setSection(entityManager.getReference(Section.class, sectionId));
+                // Resolve section: use provided value if valid, otherwise fall back to first active section
+                Integer sectionId = (request.sectionId() != null && request.sectionId() > 0)
+                        ? request.sectionId() : null;
+                if (sectionId == null) {
+                        var activeSections = sectionRepository.findByStatus(1, PageRequest.of(0, 1));
+                        sectionId = activeSections.isEmpty() ? null : activeSections.getContent().get(0).getId();
+                }
+                if (sectionId != null) {
+                        indent.setSection(entityManager.getReference(Section.class, sectionId));
+                }
 
                 if (request.plantId() != null) {
                         indent.setPlant(entityManager.getReference(Plant.class, request.plantId()));
@@ -121,30 +169,25 @@ public class IndentService {
                 indent.setComments(request.comments());
                 indent.setDeliveryDate(request.deliveryDate());
                 indent.setCreatedBy(currentUser);
-                indent.setStatus(entityManager.getReference(IndentStatus.class, 1)); // Draft status
+                indent.setStatus(entityManager.getReference(IndentStatus.class, 1)); // soft-delete active flag
+
+                // Initialize three-column workflow status to Pending (ID=1)
+                indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 1));
+                indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 1));
+                indent.setProcurementStatus(entityManager.getReference(IndentStatus.class, 1));
+
+                // DEPTHEAD bypass: pre-approve L1 at creation (mirrors submitIndent DEPTHEAD logic)
+                if (hasRoleByCode(currentUser.getEmpNumber(), "DEPTHEAD")) {
+                        indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 3));
+                }
+
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
-                // Generate indent number using DocumentNumberService
-                // Get company code for the indent number format
-                Company company = entityManager.find(Company.class, request.companyId());
-                String companyCode = company != null && company.getCode() != null ? company.getCode() : "NSL";
-
-                String indentNumber;
-                String indentYear;
-
-                if ("LEGACY".equalsIgnoreCase(indentNumberFormat)) {
-                        // Legacy format: {CompanyCode}{FinancialYear}{5-digit-sequence}
-                        // e.g., NSL202500001
-                        indentNumber = documentNumberService.generateDocumentNumber(
-                                        DocumentNumberService.DocumentType.INDENT, companyCode);
-                        indentYear = documentNumberService.getCurrentFinancialYear();
-                } else {
-                        // Simple format: IND/{YYYY}/{5-digit-sequence}
-                        indentNumber = documentNumberService.generateSimpleDocumentNumber(
-                                        DocumentNumberService.DocumentType.INDENT);
-                        indentYear = String.valueOf(Year.now().getValue());
-                }
+                // Generate indent number: legacy-compatible sequential numeric
+                // Mirrors legacy getIndentNo1(): ORDER BY indent_id DESC LIMIT 1, parseLong + 1
+                String indentNumber = generateLegacyNumericIndentNumber();
+                String indentYear = String.valueOf(Year.now().getValue());
 
                 indent.setIndentNumber(indentNumber);
                 indent.setIndentYear(indentYear);
@@ -207,6 +250,29 @@ public class IndentService {
          * A.1 FIX: Added plant-level data isolation
          */
         @Transactional(readOnly = true)
+        public Page<IndentListResponse> filterIndents(
+                        String search, Integer statusId, Integer departmentId, Integer plantId,
+                        Integer companyId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable) {
+                return indentRepository
+                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate, pageable)
+                                .map(this::toIndentListResponse);
+        }
+
+        /**
+         * Export indents matching filters — returns up to 10,000 rows for file export.
+         */
+        @Transactional(readOnly = true)
+        public java.util.List<IndentListResponse> exportIndents(
+                        String search, Integer statusId, Integer departmentId, Integer plantId,
+                        Integer companyId, LocalDateTime fromDate, LocalDateTime toDate) {
+                Pageable exportPageable = PageRequest.of(0, 10_000,
+                        Sort.by("indentDate").descending());
+                return indentRepository
+                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate, exportPageable)
+                                .map(this::toIndentListResponse)
+                                .getContent();
+        }
+
         public Page<IndentListResponse> listIndents(Pageable pageable) {
                 logger.info("Listing indents with pagination: {}", pageable);
 
@@ -407,8 +473,8 @@ public class IndentService {
                 Employee currentUser = employeeRepository.findByEmail(username)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
 
-                // Change status to 6 (Rejected/Cancelled)
-                indent.setStatus(entityManager.getReference(IndentStatus.class, 6));
+                // Change status to 4 (Rejected/Cancelled)
+                indent.setStatus(entityManager.getReference(IndentStatus.class, 4));
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
@@ -531,7 +597,7 @@ public class IndentService {
                         // Mark L1 as auto-approved by setting approvedStatus
                         indent.setApprovedBy(currentUser);
                         indent.setApprovedByDate(LocalDateTime.now());
-                        indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 2)); // L1 Approved
+                        indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 3)); // L1 Auto-Approved (DEPTHEAD)
                         indent.setRemarks("L1 Auto-approved (submitter is DEPTHEAD)");
                 }
 
@@ -748,8 +814,8 @@ public class IndentService {
                 indent.setApprovedBy(currentUser);
                 indent.setApprovedByDate(LocalDateTime.now());
                 indent.setRemarks(remarks);
-                indent.setStatus(entityManager.getReference(IndentStatus.class, 6)); // Rejected
-                indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 6)); // L1 Rejected
+                indent.setStatus(entityManager.getReference(IndentStatus.class, 4)); // Rejected
+                indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 4)); // L1 Rejected
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
@@ -911,8 +977,8 @@ public class IndentService {
                 indent.setFinalApprovedBy(currentUser);
                 indent.setFinalApprovedDate(LocalDateTime.now());
                 indent.setFinalRemarks(remarks);
-                indent.setStatus(entityManager.getReference(IndentStatus.class, 6)); // Rejected
-                indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 6)); // L2 Rejected
+                indent.setStatus(entityManager.getReference(IndentStatus.class, 4)); // Rejected
+                indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 4)); // L2 Rejected
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
@@ -954,14 +1020,10 @@ public class IndentService {
                         return List.of();
                 }
 
-                // Get submitted indents (status = 2) from subordinates that don't have L1
-                // approval
-                List<Indent> pendingIndents = indentRepository.findByStatusIdAndEmployeeEmployeeNumberIn(2,
-                                subordinateIds);
+                // Three-column filter: approvedStatus=1 (Pending RM approval), active
+                List<Indent> pendingIndents = indentRepository.findRmQueueForEmployees(subordinateIds);
 
-                // Filter out indents that already have L1 approval (approvedBy is set)
                 return pendingIndents.stream()
-                                .filter(indent -> indent.getApprovedBy() == null)
                                 .map(this::toPendingApprovalResponse)
                                 .collect(Collectors.toList());
         }
@@ -973,12 +1035,10 @@ public class IndentService {
         public List<PendingApprovalResponse> getPendingL2Approvals(String username, Integer departmentId) {
                 logger.info("Fetching pending L2 approvals for user: {} in department: {}", username, departmentId);
 
-                // Get submitted indents (status = 2) that have L1 approval but not L2
-                List<Indent> pendingIndents = indentRepository.findByStatusIdAndDepartmentId(2, departmentId);
+                // Three-column filter: approvedStatus=3 (RM Approved), finalStatus=1 (Pending DeptHead), active
+                List<Indent> pendingIndents = indentRepository.findDeptHeadQueueByDepartment(departmentId);
 
-                // Filter: has L1 approval (approvedBy set) but no L2 (finalApprovedBy null)
                 return pendingIndents.stream()
-                                .filter(indent -> indent.getApprovedBy() != null && indent.getFinalApprovedBy() == null)
                                 .map(this::toPendingApprovalResponse)
                                 .collect(Collectors.toList());
         }
@@ -1051,9 +1111,10 @@ public class IndentService {
                 Indent indent = indentRepository.findById(id)
                                 .orElseThrow(() -> new ResourceNotFoundException("Indent not found with ID: " + id));
 
-                // Only submitted or in-approval indents can be rejected (status = 2, 3, or 4)
+                // Only submitted or in-approval indents can be rejected (status = 2, 3, or 5)
+                // Status 4 = Rejected — already a terminal state, cannot reject again
                 int currentStatus = indent.getStatus().getId();
-                if (currentStatus != 2 && currentStatus != 3 && currentStatus != 4) {
+                if (currentStatus != 2 && currentStatus != 3 && currentStatus != 5) {
                         throw new IllegalStateException(
                                         "Cannot reject indent in current status: " + indent.getStatus().getName() +
                                                         ". Only submitted or pending approval indents can be rejected.");
@@ -1066,8 +1127,8 @@ public class IndentService {
                 indent.setApprovedBy(currentUser);
                 indent.setApprovedByDate(LocalDateTime.now());
                 indent.setRemarks(remarks);
-                indent.setStatus(entityManager.getReference(IndentStatus.class, 6)); // Rejected
-                indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 6));
+                indent.setStatus(entityManager.getReference(IndentStatus.class, 4)); // Rejected
+                indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 4));
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
@@ -1378,9 +1439,10 @@ public class IndentService {
         public List<PendingApprovalResponse> getPendingApprovals(String username, Integer departmentId) {
                 logger.info("Fetching pending approvals for user: {} in department: {}", username, departmentId);
 
-                // Get indents with status = 2 (Submitted) that belong to the specified
-                // department
-                List<Indent> pendingIndents = indentRepository.findByStatusIdAndDepartmentId(2, departmentId);
+                // Three-column filter: DeptHead queue (approvedStatus=3, finalStatus=1)
+                List<Indent> pendingIndents = (departmentId != null)
+                                ? indentRepository.findDeptHeadQueueByDepartment(departmentId)
+                                : indentRepository.findDeptHeadQueue();
 
                 return pendingIndents.stream()
                                 .map(this::toPendingApprovalResponse)
@@ -1532,15 +1594,19 @@ public class IndentService {
                                 indent.getRemarks(),
                                 indent.getFinalRemarks(),
                                 indent.getStatus() != null ? indent.getStatus().getId() : null,
-                                indent.getStatus() != null ? indent.getStatus().getName() : null,
+                                resolveStatusLabel(indent.getStatus()),
                                 indent.getApprovedStatus() != null ? indent.getApprovedStatus().getId() : null,
-                                indent.getApprovedStatus() != null ? indent.getApprovedStatus().getName() : null,
+                                resolveStatusLabel(indent.getApprovedStatus()),
                                 indent.getFinalStatus() != null ? indent.getFinalStatus().getId() : null,
-                                indent.getFinalStatus() != null ? indent.getFinalStatus().getName() : null,
+                                resolveStatusLabel(indent.getFinalStatus()),
                                 indent.getProcurementStatus() != null ? indent.getProcurementStatus().getId() : null,
-                                indent.getProcurementStatus() != null ? indent.getProcurementStatus().getName() : null,
+                                resolveStatusLabel(indent.getProcurementStatus()),
                                 indent.getLastModifiedDate(),
                                 indent.getLastModifiedBy(),
+                                deriveDisplayStatus(
+                                        indent.getApprovedStatus() != null ? indent.getApprovedStatus().getId() : null,
+                                        indent.getFinalStatus() != null ? indent.getFinalStatus().getId() : null,
+                                        indent.getProcurementStatus() != null ? indent.getProcurementStatus().getId() : null),
                                 detailResponses);
         }
 
@@ -1573,15 +1639,49 @@ public class IndentService {
                                 indent.getDepartment() != null ? indent.getDepartment().getName() : null,
                                 indent.getEmployee() != null ? indent.getEmployee().getEmpName() : null,
                                 indent.getDeliveryDate(),
-                                indent.getStatus() != null ? indent.getStatus().getName() : null,
+                                resolveStatusLabel(indent.getStatus()),
                                 indent.getStatus() != null ? indent.getStatus().getId() : null,
-                                indent.getDetails().size());
+                                indent.getDetails().size(),
+                                deriveDisplayStatus(
+                                        indent.getApprovedStatus() != null ? indent.getApprovedStatus().getId() : null,
+                                        indent.getFinalStatus() != null ? indent.getFinalStatus().getId() : null,
+                                        indent.getProcurementStatus() != null ? indent.getProcurementStatus().getId() : null));
+        }
+
+        /**
+         * Generate the next indent number using the legacy sequential approach.
+         *
+         * Step 1 — mirrors legacy getIndentNo1():
+         *   fetch the most recently inserted record (ORDER BY indent_id DESC LIMIT 1),
+         *   parse indent_no as Long, increment by 1.
+         *
+         * Step 2 — fallback when the latest record has a non-numeric indent_no
+         *   (e.g. alphanumeric records created by a previous mis-configured deployment):
+         *   scan all rows, take MAX of those whose indent_no is purely numeric, +1.
+         *
+         * Step 3 — no numeric records at all: start from 1.
+         */
+        private String generateLegacyNumericIndentNumber() {
+                List<String> latest = indentRepository.findLatestIndentNumbers(PageRequest.of(0, 1));
+                if (!latest.isEmpty() && latest.get(0) != null) {
+                        try {
+                                return String.valueOf(Long.parseLong(latest.get(0)) + 1);
+                        } catch (NumberFormatException e) {
+                                logger.warn("Latest indent_no '{}' is non-numeric; falling back to MAX numeric scan",
+                                                latest.get(0));
+                        }
+                }
+                Long maxNumeric = indentRepository.findMaxNumericIndentNumber();
+                if (maxNumeric != null && maxNumeric > 0) {
+                        return String.valueOf(maxNumeric + 1);
+                }
+                return "1";
         }
 
         /**
          * Check if an employee has a specific role by role code.
          * Used for Supervisor Auto-Approval logic (DEPTHEAD bypasses L1).
-         * 
+         *
          * @param employeeNumber the employee number to check
          * @param roleCode       the role code to check for (e.g., "DEPTHEAD")
          * @return true if employee has the active role

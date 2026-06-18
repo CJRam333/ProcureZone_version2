@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Approved Indents
+method: GET
+url: '{{baseUrl}}/api/v1/pos/approved-indents'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

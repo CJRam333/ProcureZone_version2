@@ -41,7 +41,7 @@ public class POController {
      * Get list of approved indents ready for PO creation
      */
     @GetMapping("/approved-indents")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<List<ApprovedIndentDTO>> getApprovedIndents(Authentication authentication) {
         UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
         log.info("User {} fetching approved indents", user.username());
@@ -74,7 +74,7 @@ public class POController {
      * 'ADMIN', 'SUPERADMIN'
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'STOREKEEPER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'EMPLOYEE', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'GOODSINCHARGE', 'GRNINCHARGE', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'USER')")
     public ResponseEntity<Map<String, Object>> getAllPOs(
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String search,
@@ -106,7 +106,7 @@ public class POController {
      * Get PO details by ID
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'STOREKEEPER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'EMPLOYEE', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'GOODSINCHARGE', 'GRNINCHARGE', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'USER')")
     public ResponseEntity<PurchaseOrderResponse> getPOById(
             @PathVariable Integer id,
             Authentication authentication) {
@@ -122,7 +122,7 @@ public class POController {
      * Get PO details by PO number
      */
     @GetMapping("/number/{poNumber}")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'STOREKEEPER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'EMPLOYEE', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'GOODSINCHARGE', 'GRNINCHARGE', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'USER')")
     public ResponseEntity<PurchaseOrderResponse> getPOByNumber(
             @PathVariable String poNumber,
             Authentication authentication) {
@@ -203,7 +203,7 @@ public class POController {
      * Receive goods against PO
      */
     @PostMapping("/{id}/receive-goods")
-    @PreAuthorize("hasAnyRole('STOREKEEPER', 'PROCUREMENT', 'ADMIN', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyRole('GOODSINCHARGE', 'GRNINCHARGE', 'PROCUREMENT', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<PurchaseOrderResponse> receiveGoods(
             @PathVariable Integer id,
             @Valid @RequestBody List<ReceiveGoodsRequest> receiveRequests,
@@ -253,7 +253,7 @@ public class POController {
      * Get POs by vendor
      */
     @GetMapping("/by-vendor/{vendorId}")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getPOsByVendor(
             @PathVariable Integer vendorId,
             @RequestParam(defaultValue = "0") int page,
@@ -284,7 +284,7 @@ public class POController {
      * Get POs by department
      */
     @GetMapping("/by-department/{departmentId}")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getPOsByDepartment(
             @PathVariable Integer departmentId,
             @RequestParam(defaultValue = "0") int page,
@@ -315,7 +315,7 @@ public class POController {
      * Get POs pending for approval
      */
     @GetMapping("/pending-approval")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getPendingForApproval(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -340,7 +340,7 @@ public class POController {
      * Get overdue POs
      */
     @GetMapping("/overdue")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getOverduePOs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -365,7 +365,7 @@ public class POController {
      * Get PO dashboard statistics
      */
     @GetMapping("/dashboard/statistics")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getDashboardStatistics(Authentication authentication) {
         UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
         log.info("User {} fetching PO dashboard statistics", user.username());
@@ -401,7 +401,7 @@ public class POController {
      * B.1 FIX: Get amendment history for a PO
      */
     @GetMapping("/{id}/amendments")
-    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'VIEWER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getAmendmentHistory(
             @PathVariable Integer id,
             Authentication authentication) {

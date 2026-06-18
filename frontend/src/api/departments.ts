@@ -37,8 +37,9 @@ export const departmentsApi = {
     ): Promise<PageResponse<Department>> => {
         const params: Record<string, any> = { page, size };
         if (search) params.searchTerm = search;
+        const endpoint = search ? "/departments/search" : "/departments";
         const response = await apiClient.get<PageResponse<Department>>(
-            "/departments",
+            endpoint,
             { params }
         );
         return response.data;

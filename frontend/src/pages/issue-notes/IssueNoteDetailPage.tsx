@@ -97,10 +97,10 @@ const IssueNoteDetailPage: React.FC = () => {
   });
 
   // Permissions based on status enum (backend 1-based, 10 statuses)
-  const canEdit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'STOREKEEPER']);
-  const canSubmit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'EMPLOYEE', 'STOREKEEPER']);
+  const canEdit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM']);
+  const canSubmit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM']);
   const canApprove = (issueNote?.status === IssueNoteStatus.PENDING_RM_APPROVAL || issueNote?.status === IssueNoteStatus.RM_APPROVED) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD']);
-  const canIssue = (issueNote?.status === IssueNoteStatus.APPROVED_BY_MANAGER || issueNote?.status === IssueNoteStatus.PENDING_STORE_ISSUE) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'STOREKEEPER']);
+  const canIssue = (issueNote?.status === IssueNoteStatus.APPROVED_BY_MANAGER || issueNote?.status === IssueNoteStatus.PENDING_STORE_ISSUE) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
 
   // Status color mapping based on backend enum values (1-10)
   const getStatusVariant = (status: IssueNoteStatus): string => {

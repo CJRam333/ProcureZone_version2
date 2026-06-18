@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Inventory By Material
+method: GET
+url: '{{baseUrl}}/api/v1/inventory/material/{{materialId}}'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

@@ -1,0 +1,32 @@
+$kind: http-request
+name: Create GRN
+method: POST
+url: '{{baseUrl}}/api/v1/grn'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "poId": 1,
+      "receivedDate": "2025-02-18",
+      "invoiceNumber": "INV-2025-001",
+      "invoiceDate": "2025-02-15",
+      "remarks": "Goods received as per PO",
+      "items": [
+        {
+          "poItemId": 1,
+          "receivedQuantity": 100,
+          "acceptedQuantity": 98,
+          "rejectedQuantity": 2,
+          "remarks": "2 units damaged"
+        }
+      ]
+    }

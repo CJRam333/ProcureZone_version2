@@ -1,0 +1,30 @@
+$kind: http-request
+name: Create Issue Note
+method: POST
+url: '{{baseUrl}}/api/v1/issue-notes'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "issueDate": "2025-01-25",
+      "departmentId": 1,
+      "indentId": 1,
+      "remarks": "Issuing materials as per approved indent",
+      "items": [
+        {
+          "materialId": 1,
+          "issuedQuantity": 50,
+          "unitOfMeasureId": 1,
+          "remarks": "Partial issue"
+        }
+      ]
+    }

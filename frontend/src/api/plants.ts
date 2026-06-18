@@ -38,7 +38,8 @@ export const plantsApi = {
     ): Promise<PageResponse<Plant>> => {
         const params: Record<string, any> = { page, size };
         if (search) params.searchTerm = search;
-        const response = await apiClient.get<PageResponse<Plant>>("/plants", {
+        const endpoint = search ? "/plants/search" : "/plants";
+        const response = await apiClient.get<PageResponse<Plant>>(endpoint, {
             params,
         });
         return response.data;

@@ -33,7 +33,7 @@ public class GRNController {
      * POST /api/v1/grn
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('STOREKEEPER', 'ADMIN', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyRole('GOODSINCHARGE', 'GRNINCHARGE', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<GRNResponse> createGRN(
             @Valid @RequestBody CreateGRNRequest request,
             Authentication authentication) {
@@ -50,7 +50,7 @@ public class GRNController {
      * GET /api/v1/grn?page=0&size=10&status=1&search=vendor
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('STOREKEEPER', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'AUDITOR', 'QUALITY', 'QUALITYMANAGER', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('GOODSINCHARGE', 'GRNINCHARGE', 'FLOORINCHARGE', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'QUALITYMANAGER', 'USER')")
     public ResponseEntity<Map<String, Object>> getAllGRNs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -74,7 +74,7 @@ public class GRNController {
      * GET /api/v1/grn/{id}
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('STOREKEEPER', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'AUDITOR', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('GOODSINCHARGE', 'GRNINCHARGE', 'FLOORINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'USER')")
     public ResponseEntity<GRNResponse> getGRNById(@PathVariable Integer id) {
         log.info("Fetching GRN with ID: {}", id);
         GRNResponse response = grnService.getGRNById(id);
@@ -86,7 +86,7 @@ public class GRNController {
      * GET /api/v1/grn/number/{grnNumber}
      */
     @GetMapping("/number/{grnNumber}")
-    @PreAuthorize("hasAnyRole('STOREKEEPER', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('GOODSINCHARGE', 'GRNINCHARGE', 'FLOORINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'PLANTMANAGER')")
     public ResponseEntity<GRNResponse> getGRNByNumber(@PathVariable String grnNumber) {
         log.info("Fetching GRN with number: {}", grnNumber);
         GRNResponse response = grnService.getGRNByNumber(grnNumber);
@@ -98,7 +98,7 @@ public class GRNController {
      * POST /api/v1/grn/{id}/inspect
      */
     @PostMapping("/{id}/inspect")
-    @PreAuthorize("hasAnyRole('QUALITY', 'QUALITYMANAGER', 'ADMIN', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyRole('QUALITYMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<GRNResponse> qualityInspection(
             @PathVariable Integer id,
             @Valid @RequestBody InspectionRequest request,
@@ -188,7 +188,7 @@ public class GRNController {
      * POST /api/v1/grn/{id}/store
      */
     @PostMapping("/{id}/store")
-    @PreAuthorize("hasAnyRole('STOREKEEPER', 'ADMIN', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyRole('GOODSINCHARGE', 'GRNINCHARGE', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<GRNResponse> storeGoods(
             @PathVariable Integer id,
             @Valid @RequestBody StoreRequest request,
@@ -206,7 +206,7 @@ public class GRNController {
      * POST /api/v1/grn/{id}/reject
      */
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('QUALITY', 'QUALITYMANAGER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyRole('QUALITYMANAGER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<GRNResponse> rejectGRN(
             @PathVariable Integer id,
             @Valid @RequestBody RejectionRequest request,
@@ -224,7 +224,7 @@ public class GRNController {
      * GET /api/v1/grn/pending-inspection
      */
     @GetMapping("/pending-inspection")
-    @PreAuthorize("hasAnyRole('QUALITY', 'QUALITYMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('QUALITYMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getPendingInspection(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -246,7 +246,7 @@ public class GRNController {
      * GET /api/v1/grn/pending-approval
      */
     @GetMapping("/pending-approval")
-    @PreAuthorize("hasAnyRole('PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getPendingApproval(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -268,7 +268,7 @@ public class GRNController {
      * GET /api/v1/grn/statistics
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN')")
     public ResponseEntity<Map<String, Object>> getDashboardStatistics() {
         log.info("Fetching GRN dashboard statistics");
         Map<String, Object> stats = grnService.getDashboardStatistics();

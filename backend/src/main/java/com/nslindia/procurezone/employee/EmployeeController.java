@@ -54,7 +54,8 @@ public class EmployeeController {
             Authentication authentication) {
 
         UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-        EmployeeResponse response = employeeService.createEmployee(request, currentUser.username());
+        EmployeeResponse response = employeeService.createEmployee(request,
+                String.valueOf(currentUser.employeeNumber()));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -71,7 +72,8 @@ public class EmployeeController {
             Authentication authentication) {
 
         UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-        EmployeeResponse response = employeeService.updateEmployee(id, request, currentUser.username());
+        EmployeeResponse response = employeeService.updateEmployee(id, request,
+                String.valueOf(currentUser.employeeNumber()));
 
         return ResponseEntity.ok(response);
     }
@@ -81,12 +83,15 @@ public class EmployeeController {
      * Roles: ADMIN, SUPERADMIN, VIEWER
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER')")
     public ResponseEntity<Page<EmployeeSummaryResponse>> getAllEmployees(
             @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(required = false) Integer locationId,
             @PageableDefault(size = 20, sort = "fullName", direction = Sort.Direction.ASC) Pageable pageable) {
 
-        Page<EmployeeSummaryResponse> response = employeeService.getAllEmployees(status, pageable);
+        Page<EmployeeSummaryResponse> response = employeeService.getAllEmployees(status, search, departmentId, locationId, pageable);
 
         return ResponseEntity.ok(response);
     }
@@ -96,12 +101,12 @@ public class EmployeeController {
      * Roles: ADMIN, SUPERADMIN, VIEWER, DEPTHEAD
      */
     @GetMapping("/active")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR', 'DEPTHEAD', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'DEPTHEAD', 'USER')")
     public ResponseEntity<Page<EmployeeSummaryResponse>> getActiveEmployees(
             @PageableDefault(size = 100, sort = "fullName", direction = Sort.Direction.ASC) Pageable pageable) {
 
         // Status 1 is Active in the legacy DB
-        Page<EmployeeSummaryResponse> response = employeeService.getAllEmployees(1, pageable);
+        Page<EmployeeSummaryResponse> response = employeeService.getAllEmployees(1, null, pageable);
 
         return ResponseEntity.ok(response);
     }
@@ -125,7 +130,7 @@ public class EmployeeController {
      * Roles: ADMIN, SUPERADMIN, VIEWER
      */
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER')")
     public ResponseEntity<Page<EmployeeSummaryResponse>> searchEmployees(
             @RequestParam String query,
             @RequestParam(required = false) Integer status,
@@ -207,7 +212,7 @@ public class EmployeeController {
      * Roles: ADMIN, SUPERADMIN, VIEWER
      */
     @GetMapping("/{id}/roles")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER')")
     public ResponseEntity<Set<EmployeeResponse.EmployeeRoleInfo>> getEmployeeRoles(
             @PathVariable Integer id) {
 
@@ -222,7 +227,7 @@ public class EmployeeController {
      * Roles: ADMIN, DEPTHEAD, SUPERADMIN
      */
     @GetMapping("/by-department/{departmentId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DEPTHEAD', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DEPTHEAD', 'SUPERADMIN')")
     public ResponseEntity<Page<EmployeeSummaryResponse>> getEmployeesByDepartment(
             @PathVariable Integer departmentId,
             @PageableDefault(size = 20, sort = "fullName", direction = Sort.Direction.ASC) Pageable pageable) {
@@ -237,7 +242,7 @@ public class EmployeeController {
      * Roles: ADMIN, SUPERADMIN
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN')")
     public ResponseEntity<EmployeeStatisticsResponse> getEmployeeStatistics() {
         EmployeeStatisticsResponse response = employeeService.getEmployeeStatistics();
         return ResponseEntity.ok(response);
@@ -248,7 +253,7 @@ public class EmployeeController {
      * Roles: ADMIN, SUPERADMIN, VIEWER
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER')")
     public ResponseEntity<EmployeeResponse> getEmployeeById(@PathVariable Integer id) {
         EmployeeResponse response = employeeService.getEmployeeById(id);
         return ResponseEntity.ok(response);

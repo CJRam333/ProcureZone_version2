@@ -1,0 +1,33 @@
+$kind: http-request
+name: Create QC Result
+method: POST
+url: '{{baseUrl}}/api/v1/grn/qc'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "grnId": 1,
+      "inspectionDate": "2025-02-19",
+      "inspectedBy": "Quality Inspector",
+      "overallResult": "PASS",
+      "remarks": "All items passed quality check",
+      "items": [
+        {
+          "grnItemId": 1,
+          "inspectedQuantity": 98,
+          "passedQuantity": 95,
+          "failedQuantity": 3,
+          "result": "PASS",
+          "remarks": "Minor defects in 3 units"
+        }
+      ]
+    }

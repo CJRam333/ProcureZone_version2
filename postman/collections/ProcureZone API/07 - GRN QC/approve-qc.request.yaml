@@ -1,0 +1,19 @@
+$kind: http-request
+name: Approve QC
+method: POST
+url: '{{baseUrl}}/api/v1/grn/qc/{{qcId}}/approve'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "QC approved, goods cleared for storage"
+    }

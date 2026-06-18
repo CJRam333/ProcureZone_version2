@@ -1,0 +1,19 @@
+$kind: http-request
+name: Approve Indent
+method: POST
+url: '{{baseUrl}}/api/v1/indents/{{indentId}}/approve'
+order: 10000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "Approved as per requirement"
+    }

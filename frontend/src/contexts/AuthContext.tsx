@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { authApi, UserInfo, LoginRequest } from '../api';
+import queryClient from '../queryClient';
 
 interface AuthContextType {
   user: UserInfo | null;
@@ -23,57 +24,107 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// localStorage keys wiped on any session end (logout, expiry, 401)
+const SESSION_KEYS = ['accessToken', 'refreshToken', 'user', 'procurezone_settings'];
+
+function getTokenExpiry(token: string): number | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64));
+    return typeof payload.exp === 'number' ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initialize auth state from localStorage
+  const clearAllSession = useCallback(() => {
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = null;
+    }
+    SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
+    queryClient.clear();
+    setUser(null);
+  }, []);
+
+  const scheduleAutoLogout = useCallback(
+    (token: string) => {
+      const exp = getTokenExpiry(token);
+      if (!exp) return;
+      const msUntilExpiry = exp * 1000 - Date.now();
+      if (msUntilExpiry <= 0) {
+        clearAllSession();
+        return;
+      }
+      if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = setTimeout(() => {
+        clearAllSession();
+        window.location.href = '/login?reason=expired';
+      }, msUntilExpiry);
+    },
+    [clearAllSession]
+  );
+
+  // Initialize auth state from localStorage; validate token has not already expired
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('accessToken');
       const storedUser = localStorage.getItem('user');
 
       if (token && storedUser) {
+        const exp = getTokenExpiry(token);
+        if (exp !== null && exp * 1000 <= Date.now()) {
+          // Token is already expired — wipe session silently
+          clearAllSession();
+          setIsLoading(false);
+          return;
+        }
         try {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser);
-          // Optionally refresh user data from API
-          // const freshUser = await authApi.getCurrentUser();
-          // setUser(freshUser);
-        } catch (error) {
-          console.error('Failed to parse stored user:', error);
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('user');
+          scheduleAutoLogout(token);
+        } catch {
+          clearAllSession();
         }
       }
       setIsLoading(false);
     };
 
     initAuth();
-  }, []);
 
-  const login = useCallback(async (credentials: LoginRequest) => {
-    const response = await authApi.login(credentials);
+    return () => {
+      if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+    };
+  }, [clearAllSession, scheduleAutoLogout]);
 
-    localStorage.setItem('accessToken', response.accessToken);
-    localStorage.setItem('user', JSON.stringify(response.user));
-
-    setUser(response.user);
-  }, []);
+  const login = useCallback(
+    async (credentials: LoginRequest) => {
+      // Clear any previous session before storing the new one
+      clearAllSession();
+      const response = await authApi.login(credentials);
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+      scheduleAutoLogout(response.accessToken);
+    },
+    [clearAllSession, scheduleAutoLogout]
+  );
 
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch {
+      // ignore — clear session regardless
     } finally {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      setUser(null);
+      clearAllSession();
     }
-  }, []);
+  }, [clearAllSession]);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -106,7 +157,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     (permission: string): boolean => {
       if (!user) return false;
       if (user.roles.includes('SUPERADMIN')) return true;
-      
+
       if (permission === 'view' && user.canView) return true;
       if (permission === 'add' && user.canAdd) return true;
       if (permission === 'edit' && user.canEdit) return true;

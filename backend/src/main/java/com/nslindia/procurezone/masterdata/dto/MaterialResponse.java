@@ -39,7 +39,7 @@ public record MaterialResponse(
                 material.getName(),
                 material.getDescription(),
                 material.getStatus(),
-                material.getStatus() == 1 ? "Active" : "Inactive",
+                Integer.valueOf(1).equals(material.getStatus()) ? "Active" : "Inactive",
                 material.getLastModifiedDate(),
                 material.getLastModifiedBy());
     }

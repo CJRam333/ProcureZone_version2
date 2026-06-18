@@ -157,13 +157,6 @@ const IssueNotesListPage: React.FC = () => {
       ),
     },
     {
-      key: 'totalAmount',
-      label: 'Total Amount',
-      render: (row: any) => (
-        <span className="fw-medium">₹{(row.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-      ),
-    },
-    {
       key: 'actions',
       label: 'Actions',
       render: (row: any) => (
@@ -176,7 +169,7 @@ const IssueNotesListPage: React.FC = () => {
           >
             <FaEye />
           </Button>
-          {row.status === 'DRAFT' && hasAnyRole(['ADMIN', 'STOREKEEPER']) && (
+          {row.status === 'DRAFT' && hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
             <Button
               variant="outline-secondary"
               size="sm"
@@ -186,7 +179,7 @@ const IssueNotesListPage: React.FC = () => {
               <FaEdit />
             </Button>
           )}
-          {row.status === 'ISSUED' && row.type !== 'RETURN' && hasAnyRole(['ADMIN', 'STOREKEEPER']) && (
+          {row.status === 'ISSUED' && row.type !== 'RETURN' && hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
             <Button
               variant="outline-success"
               size="sm"
@@ -223,7 +216,7 @@ const IssueNotesListPage: React.FC = () => {
           { label: 'Issue Notes' },
         ]}
         actions={
-          hasAnyRole(['ADMIN', 'STOREKEEPER']) && (
+          hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
             <Button variant="primary" onClick={() => navigate('/issue-notes/new')}>
               <FaPlus className="me-2" /> Create Issue Note
             </Button>

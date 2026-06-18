@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaUsers, FaEye, FaUserTag, FaSitemap } from 'react-icons/fa';
 import { PageHeader, DataTable, ConfirmDialog } from '../../components/common';
-import { employeesApi, getErrorMessage } from '../../api';
+import { employeesApi, departmentsApi, getErrorMessage } from '../../api';
 import type { Employee } from '../../api/employees';
 import EmployeeRoleMappingPage from '../mappings/EmployeeRoleMappingPage';
 import ReportingHierarchyPage from '../mappings/ReportingHierarchyPage';
@@ -20,6 +20,8 @@ const EmployeesListPage: React.FC = () => {
   const [pageSize, setPageSize] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
+  const [departmentFilter, setDepartmentFilter] = useState<number | undefined>(undefined);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteName, setDeleteName] = useState('');
 
@@ -31,8 +33,16 @@ const EmployeesListPage: React.FC = () => {
 
   // Server-side paginated query
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['employees', page, pageSize, searchTerm],
-    queryFn: () => employeesApi.getAll(page, pageSize, searchTerm || undefined),
+    queryKey: ['employees', page, pageSize, searchTerm, statusFilter, departmentFilter],
+    queryFn: () => employeesApi.getAll(page, pageSize, searchTerm || undefined, {
+      status: statusFilter,
+      departmentId: departmentFilter,
+    }),
+  });
+
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments-active'],
+    queryFn: () => departmentsApi.getActive(0, 200),
   });
 
   const deleteMutation = useMutation({
@@ -55,6 +65,8 @@ const EmployeesListPage: React.FC = () => {
   const handleClearSearch = () => {
     setSearchInput('');
     setSearchTerm('');
+    setStatusFilter(undefined);
+    setDepartmentFilter(undefined);
     setPage(0);
   };
 
@@ -167,8 +179,8 @@ const EmployeesListPage: React.FC = () => {
           <Card>
             <Card.Body>
               {/* Search & Filters */}
-              <Row className="mb-3">
-                <Col md={6}>
+              <Row className="mb-3 g-2">
+                <Col md={4}>
                   <Form onSubmit={handleSearch}>
                     <InputGroup>
                       <Form.Control
@@ -180,15 +192,36 @@ const EmployeesListPage: React.FC = () => {
                       <Button type="submit" variant="outline-primary">
                         <FaSearch />
                       </Button>
-                      {searchTerm && (
-                        <Button variant="outline-secondary" onClick={handleClearSearch}>
-                          Clear
-                        </Button>
-                      )}
                     </InputGroup>
                   </Form>
                 </Col>
-                <Col md={6} className="text-end">
+                <Col md={2}>
+                  <Form.Select
+                    value={statusFilter?.toString() || ''}
+                    onChange={(e) => { setStatusFilter(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                  </Form.Select>
+                </Col>
+                <Col md={3}>
+                  <Form.Select
+                    value={departmentFilter?.toString() || ''}
+                    onChange={(e) => { setDepartmentFilter(e.target.value ? Number(e.target.value) : undefined); setPage(0); }}
+                  >
+                    <option value="">All Departments</option>
+                    {departmentsData?.content?.map((d: any) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md="auto" className="d-flex gap-2">
+                  {(searchTerm || statusFilter != null || departmentFilter != null) && (
+                    <Button variant="outline-danger" size="sm" onClick={handleClearSearch}>
+                      Clear
+                    </Button>
+                  )}
                   <Button variant="outline-secondary" onClick={() => refetch()}>
                     <FaSyncAlt className="me-2" />Refresh
                   </Button>
@@ -213,11 +246,11 @@ const EmployeesListPage: React.FC = () => {
           </Card>
         </Tab>
 
-        <Tab eventKey="role-mapping" title={<><FaUserTag className="me-2" />Role Mapping</>}>
+        <Tab eventKey="role-mapping" title={<><FaUserTag className="me-2" />Role Mapping</>} mountOnEnter>
           <EmployeeRoleMappingPage embedded />
         </Tab>
 
-        <Tab eventKey="reporting-hierarchy" title={<><FaSitemap className="me-2" />Reporting Hierarchy</>}>
+        <Tab eventKey="reporting-hierarchy" title={<><FaSitemap className="me-2" />Reporting Hierarchy</>} mountOnEnter>
           <ReportingHierarchyPage embedded />
         </Tab>
       </Tabs>

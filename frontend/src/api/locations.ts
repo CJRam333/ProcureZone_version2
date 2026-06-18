@@ -37,8 +37,9 @@ export const locationsApi = {
     ): Promise<PageResponse<Location>> => {
         const params: Record<string, any> = { page, size };
         if (search) params.searchTerm = search;
+        const endpoint = search ? "/locations/search" : "/locations";
         const response = await apiClient.get<PageResponse<Location>>(
-            "/locations",
+            endpoint,
             { params }
         );
         return response.data;

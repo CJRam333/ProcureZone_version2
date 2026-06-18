@@ -1,0 +1,19 @@
+$kind: http-request
+name: Approve Issue Note
+method: POST
+url: '{{baseUrl}}/api/v1/issue-notes/{{issueNoteId}}/approve'
+order: 4000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "Issue note approved"
+    }

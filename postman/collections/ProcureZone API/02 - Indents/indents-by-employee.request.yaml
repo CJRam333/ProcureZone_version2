@@ -1,0 +1,10 @@
+$kind: http-request
+name: Indents By Employee
+method: GET
+url: '{{baseUrl}}/api/v1/indents/employee/{{empNumber}}'
+order: 8000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Indent By ID
+method: GET
+url: '{{baseUrl}}/api/v1/indents/{{indentId}}'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

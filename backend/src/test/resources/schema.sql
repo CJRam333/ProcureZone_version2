@@ -121,6 +121,10 @@ CREATE TABLE tbl_roles_master (
     role_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     role_code VARCHAR(100) NOT NULL,
     role_name VARCHAR(100) NOT NULL,
+    role_view VARCHAR(100),
+    role_add VARCHAR(100),
+    role_edit VARCHAR(100),
+    role_delete VARCHAR(100),
     role_status INT NOT NULL,
     role_lmd DATE,
     role_lmu INT

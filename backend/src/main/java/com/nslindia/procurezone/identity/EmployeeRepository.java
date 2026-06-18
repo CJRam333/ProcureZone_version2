@@ -130,4 +130,23 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
             @Param("status") Integer status,
             @Param("currentEmployeeId") Integer currentEmployeeId,
             Pageable pageable);
+
+    /** Combined multi-filter query — all params optional (null = no filter). */
+    @Query("""
+        SELECT e FROM Employee e WHERE
+        (:search IS NULL OR
+            LOWER(e.fullName) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(e.email) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(e.designation) LIKE LOWER(CONCAT('%', :search, '%')))
+        AND (:status IS NULL OR e.status = :status)
+        AND (:departmentId IS NULL OR e.departmentId = :departmentId)
+        AND (:locationId IS NULL OR e.locationId = :locationId)
+    """)
+    Page<Employee> filterEmployees(
+            @Param("search") String search,
+            @Param("status") Integer status,
+            @Param("departmentId") Integer departmentId,
+            @Param("locationId") Integer locationId,
+            Pageable pageable);
 }

@@ -21,7 +21,7 @@ import {
     FaEdit,
     FaTrash,
 } from 'react-icons/fa';
-import { PageHeader, LoadingSpinner } from '../../components/common';
+import { PageHeader, LoadingSpinner, ConfirmDialog } from '../../components/common';
 import apiClient from '../../api/client';
 import { getErrorMessage } from '../../api';
 
@@ -55,6 +55,7 @@ const ReportingHierarchyPage: React.FC<ReportingHierarchyPageProps> = ({ embedde
     const [selectedManager, setSelectedManager] = useState<number | ''>('');
     const [searchTerm, setSearchTerm] = useState('');
     const [editingId, setEditingId] = useState<number | null>(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
     // Fetch employees
     const { data: employeesData, isLoading: loadingEmployees } = useQuery({
@@ -65,11 +66,11 @@ const ReportingHierarchyPage: React.FC<ReportingHierarchyPageProps> = ({ embedde
         },
     });
 
-    // Fetch existing hierarchy
+    // Fetch existing hierarchy — use /active so soft-deleted records don't reappear after delete
     const { data: hierarchyData, isLoading: loadingHierarchy, error } = useQuery({
         queryKey: ['reporting-hierarchy'],
         queryFn: async () => {
-            const response = await apiClient.get('/employee-reporting');
+            const response = await apiClient.get('/employee-reporting/active');
             return response.data;
         },
     });
@@ -133,9 +134,11 @@ const ReportingHierarchyPage: React.FC<ReportingHierarchyPageProps> = ({ embedde
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['reporting-hierarchy'] });
             toast.success('Reporting relation removed!');
+            setPendingDeleteId(null);
         },
         onError: (error) => {
             toast.error(getErrorMessage(error));
+            setPendingDeleteId(null);
         },
     });
 
@@ -169,9 +172,7 @@ const ReportingHierarchyPage: React.FC<ReportingHierarchyPageProps> = ({ embedde
     };
 
     const handleDelete = (id: number) => {
-        if (window.confirm('Are you sure you want to remove this reporting relation?')) {
-            deleteMutation.mutate(id);
-        }
+        setPendingDeleteId(id);
     };
 
     const isLoading = loadingEmployees || loadingHierarchy;
@@ -351,7 +352,7 @@ const ReportingHierarchyPage: React.FC<ReportingHierarchyPageProps> = ({ embedde
                                                     <Button
                                                         variant="outline-danger"
                                                         size="sm"
-                                                        onClick={() => relation.id && handleDelete(relation.id)}
+                                                        onClick={() => handleDelete(relation.id!)}
                                                         disabled={deleteMutation.isPending}
                                                     >
                                                         <FaTrash />
@@ -372,6 +373,17 @@ const ReportingHierarchyPage: React.FC<ReportingHierarchyPageProps> = ({ embedde
                     </div>
                 </Card.Body>
             </Card>
+
+            <ConfirmDialog
+                show={pendingDeleteId !== null}
+                title="Remove Reporting Relation"
+                message="Are you sure you want to remove this reporting relation? This action cannot be undone."
+                confirmLabel="Remove"
+                variant="danger"
+                loading={deleteMutation.isPending}
+                onConfirm={() => pendingDeleteId !== null && deleteMutation.mutate(pendingDeleteId)}
+                onCancel={() => setPendingDeleteId(null)}
+            />
         </div>
     );
 };

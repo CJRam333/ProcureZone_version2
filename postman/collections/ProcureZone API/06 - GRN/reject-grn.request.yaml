@@ -1,0 +1,19 @@
+$kind: http-request
+name: Reject GRN
+method: POST
+url: '{{baseUrl}}/api/v1/grn/{{grnId}}/reject'
+order: 7000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "Rejected due to quality issues"
+    }

@@ -75,7 +75,7 @@ public class PdfReportController {
      * Generate Indent PDF by ID
      */
     @GetMapping("/indent/{indentId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'STOREKEEPER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'PROCUREMENT', 'FLOORINCHARGE')")
     public ResponseEntity<byte[]> generateIndentPdf(@PathVariable Integer indentId) {
         try {
             log.info("Generating PDF for Indent ID: {}", indentId);

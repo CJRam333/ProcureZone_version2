@@ -75,7 +75,7 @@ const PODetailPage: React.FC = () => {
   const canConfirm = po?.poStatus === POStatus.SUBMITTED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD']);
   const canCancel = po && po.poStatus !== POStatus.CANCELLED && po.poStatus !== POStatus.CLOSED && po.poStatus !== POStatus.FULLY_RECEIVED && hasAnyRole(['SUPERADMIN', 'ADMIN']);
   const canCreateGRN = po && [POStatus.SENT_TO_VENDOR, POStatus.PARTIALLY_RECEIVED].includes(po.poStatus) &&
-    hasAnyRole(['SUPERADMIN', 'ADMIN', 'STOREKEEPER']);
+    hasAnyRole(['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE']);
   const canAmend = po && [POStatus.APPROVED, POStatus.SENT_TO_VENDOR, POStatus.PARTIALLY_RECEIVED].includes(po.poStatus) &&
     hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']);
 

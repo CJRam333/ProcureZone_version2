@@ -1,0 +1,27 @@
+$kind: http-request
+name: Amend Purchase Order
+method: POST
+url: '{{baseUrl}}/api/v1/pos/{{poId}}/amend'
+order: 13000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "amendmentReason": "Price revision by vendor",
+      "remarks": "Amended unit price for item 1",
+      "items": [
+        {
+          "poItemId": 1,
+          "unitPrice": 270.00,
+          "remarks": "Revised price"
+        }
+      ]
+    }

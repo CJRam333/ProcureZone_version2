@@ -55,6 +55,35 @@ public interface PlantIndentRepository extends JpaRepository<PlantIndent, Intege
     Page<PlantIndent> search(@Param("searchTerm") String searchTerm, Pageable pageable);
 
     /**
+     * Combined filter: search + plantId + status + empSearch + date range are all optional.
+     * Passing null for any param disables that filter entirely.
+     * empSearch matches against employee fullName or employeeId string via subquery.
+     */
+    @Query("""
+        SELECT pi FROM PlantIndent pi WHERE
+            (:search IS NULL OR
+                LOWER(pi.indentNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR
+                LOWER(pi.remarks)      LIKE LOWER(CONCAT('%', :search, '%')) OR
+                LOWER(pi.cropName)     LIKE LOWER(CONCAT('%', :search, '%')))
+            AND (:plantId   IS NULL OR pi.plantId   = :plantId)
+            AND (:status    IS NULL OR pi.status    = :status)
+            AND (:empSearch IS NULL OR pi.employeeId IN (
+                    SELECT e.employeeNumber FROM Employee e
+                    WHERE LOWER(e.fullName)    LIKE LOWER(CONCAT('%', :empSearch, '%'))
+                       OR LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :empSearch, '%'))))
+            AND (:fromDate  IS NULL OR pi.indentDate >= :fromDate)
+            AND (:toDate    IS NULL OR pi.indentDate <= :toDate)
+        """)
+    Page<PlantIndent> searchWithFilters(
+        @Param("search")    String  search,
+        @Param("plantId")   Integer plantId,
+        @Param("status")    Integer status,
+        @Param("empSearch") String  empSearch,
+        @Param("fromDate")  String  fromDate,
+        @Param("toDate")    String  toDate,
+        Pageable pageable);
+
+    /**
      * Find by plant and batch number
      */
     List<PlantIndent> findByPlantIdAndBatchNumber(Integer plantId, String batchNumber);
@@ -65,10 +94,19 @@ public interface PlantIndentRepository extends JpaRepository<PlantIndent, Intege
     long countByPlantId(Integer plantId);
 
     /**
-     * Get max batch number for a plant (returns count for numbering)
+     * Get the indent_no of the most recently created plant indent (by indent_id DESC).
+     * Mirrors legacy getIndentNo1(): ORDER BY indentId DESC LIMIT 1.
      */
-    @Query("SELECT COUNT(pi) FROM PlantIndent pi WHERE pi.plantId = :plantId")
-    Integer getMaxBatchNumberForPlant(@Param("plantId") Integer plantId);
+    @Query("SELECT pi.indentNumber FROM PlantIndent pi ORDER BY pi.id DESC")
+    List<String> findLatestPlantIndentNumbers(Pageable pageable);
+
+    /**
+     * Get the MAX value across all purely numeric indent_no values in pz_tbl_indent_masterb.
+     * Fallback when the most recent record has a non-numeric indent_no
+     * (e.g. PIND/... records created by a previous mis-configured deployment).
+     */
+    @Query(value = "SELECT MAX(CAST(indent_no AS UNSIGNED)) FROM pz_tbl_indent_masterb WHERE indent_no REGEXP '^[0-9]+$'", nativeQuery = true)
+    Long findMaxNumericPlantIndentNumber();
 
     // ========== 8-STATUS WORKFLOW QUERIES ==========
 

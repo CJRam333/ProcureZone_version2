@@ -86,9 +86,32 @@ export const materialsApi = {
     list: async (
         params: MaterialSearchParams = {}
     ): Promise<PageResponse<Material>> => {
+        const { search, searchTerm, isActive, activeOnly, categoryId, page, size, sort, direction } = params;
+        const term = search || searchTerm;
+
+        if (term) {
+            // Route to dedicated search endpoint which handles searchTerm + activeOnly
+            const searchParams: Record<string, any> = {
+                page: page ?? 0,
+                size: size ?? 20,
+                searchTerm: term,
+            };
+            if (isActive !== undefined) searchParams.activeOnly = isActive;
+            if (activeOnly !== undefined) searchParams.activeOnly = activeOnly;
+            const response = await apiClient.get<PageResponse<Material>>(
+                "/materials/search",
+                { params: searchParams }
+            );
+            return response.data;
+        }
+
+        // No search term — use main list endpoint
+        const listParams: Record<string, any> = { page: page ?? 0, size: size ?? 20 };
+        if (isActive !== undefined) listParams.activeOnly = isActive;
+        if (sort) listParams.sort = direction ? `${sort},${direction}` : sort;
         const response = await apiClient.get<PageResponse<Material>>(
             "/materials",
-            { params }
+            { params: listParams }
         );
         return response.data;
     },

@@ -1,0 +1,22 @@
+$kind: http-request
+name: Update Purchase Order
+method: PUT
+url: '{{baseUrl}}/api/v1/pos/{{poId}}'
+order: 6000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "expectedDeliveryDate": "2025-03-01",
+      "deliveryAddress": "Warehouse B, Mumbai",
+      "paymentTerms": "NET45",
+      "remarks": "Updated delivery date"
+    }

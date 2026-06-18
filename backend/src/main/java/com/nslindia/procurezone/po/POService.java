@@ -30,9 +30,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -372,7 +373,7 @@ public class POService {
             pos = poRepository.findAll(pageable);
         }
 
-        return pos.map(this::mapToPOSummaryResponse);
+        return toPOSummaryPage(pos);
     }
 
     /**
@@ -382,7 +383,7 @@ public class POService {
     public Page<POSummaryResponse> getPOsByVendor(Integer vendorId, Pageable pageable) {
         log.info("Fetching POs for vendor ID: {}", vendorId);
         Page<PurchaseOrder> pos = poRepository.findByVendorId(vendorId, pageable);
-        return pos.map(this::mapToPOSummaryResponse);
+        return toPOSummaryPage(pos);
     }
 
     /**
@@ -392,7 +393,7 @@ public class POService {
     public Page<POSummaryResponse> getPOsByDepartment(Integer departmentId, Pageable pageable) {
         log.info("Fetching POs for department ID: {}", departmentId);
         Page<PurchaseOrder> pos = poRepository.findByDepartmentId(departmentId, pageable);
-        return pos.map(this::mapToPOSummaryResponse);
+        return toPOSummaryPage(pos);
     }
 
     /**
@@ -674,7 +675,7 @@ public class POService {
     public Page<POSummaryResponse> getPendingForApproval(Pageable pageable) {
         log.info("Fetching POs pending for approval");
         Page<PurchaseOrder> pos = poRepository.findPendingForApproval(pageable);
-        return pos.map(this::mapToPOSummaryResponse);
+        return toPOSummaryPage(pos);
     }
 
     /**
@@ -684,7 +685,7 @@ public class POService {
     public Page<POSummaryResponse> getOverduePOs(Pageable pageable) {
         log.info("Fetching overdue POs");
         Page<PurchaseOrder> pos = poRepository.findOverduePOs(LocalDate.now(), pageable);
-        return pos.map(this::mapToPOSummaryResponse);
+        return toPOSummaryPage(pos);
     }
 
     /**
@@ -779,7 +780,7 @@ public class POService {
                 po.getDepartmentId(),
                 departmentName,
                 po.getPoStatus(),
-                POStatus.fromCode(po.getPoStatus()).getDisplayName(),
+                POStatus.getDisplayName(po.getPoStatus() != null ? po.getPoStatus() : 0),
                 po.getTotalAmount(),
                 po.getTaxAmount(),
                 po.getDiscountAmount(),
@@ -843,8 +844,17 @@ public class POService {
                 detail.getNotes());
     }
 
-    private POSummaryResponse mapToPOSummaryResponse(PurchaseOrder po) {
-        Vendor vendor = vendorRepository.findById(po.getVendorId()).orElse(null);
+    private Page<POSummaryResponse> toPOSummaryPage(Page<PurchaseOrder> pos) {
+        Set<Integer> vendorIds = pos.getContent().stream()
+                .map(PurchaseOrder::getVendorId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Integer, Vendor> vendorMap = vendorRepository.findAllById(vendorIds).stream()
+                .collect(Collectors.toMap(Vendor::getId, v -> v));
+        return pos.map(po -> mapToPOSummaryResponse(po, vendorMap.get(po.getVendorId())));
+    }
+
+    private POSummaryResponse mapToPOSummaryResponse(PurchaseOrder po, Vendor vendor) {
 
         // Calculate total delivery percentage
         BigDecimal totalDeliveryPercentage = BigDecimal.ZERO;
@@ -862,7 +872,7 @@ public class POService {
                 vendor != null ? vendor.getVendorName() : null,
                 null, // departmentName
                 po.getPoStatus(),
-                POStatus.fromCode(po.getPoStatus()).getDisplayName(),
+                POStatus.getDisplayName(po.getPoStatus() != null ? po.getPoStatus() : 0),
                 po.getNetAmount(),
                 po.getPriority(),
                 po.getExpectedDeliveryDate(),

@@ -25,7 +25,7 @@ public record PlantResponse(
                 plant.getCode(),
                 plant.getName(),
                 plant.getStatus(),
-                plant.getStatus() == 1 ? "Active" : "Inactive",
+                Integer.valueOf(1).equals(plant.getStatus()) ? "Active" : "Inactive",
                 plant.getLastModifiedDate(),
                 plant.getLastModifiedBy());
     }

@@ -1,0 +1,10 @@
+$kind: http-request
+name: Active Vendors
+method: GET
+url: '{{baseUrl}}/api/v1/vendors/active'
+order: 6000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

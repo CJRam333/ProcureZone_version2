@@ -1,0 +1,29 @@
+$kind: http-request
+name: Update Indent
+method: PUT
+url: '{{baseUrl}}/api/v1/indents/{{indentId}}'
+order: 4000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "indentDate": "2025-01-20",
+      "departmentId": 1,
+      "remarks": "Updated monthly supply request",
+      "items": [
+        {
+          "materialId": 1,
+          "quantity": 150,
+          "unitOfMeasureId": 1,
+          "remarks": "Updated quantity"
+        }
+      ]
+    }

@@ -2,6 +2,8 @@ package com.nslindia.procurezone.audit;
 
 import java.time.Instant;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -90,6 +92,7 @@ public class AuditLog {
         return userId;
     }
 
+    @JsonProperty("performedBy")
     public String getUsername() {
         return username;
     }
@@ -98,6 +101,8 @@ public class AuditLog {
         return ipAddress;
     }
 
+    @JsonProperty("performedAt")
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     public Instant getTimestamp() {
         return timestamp;
     }

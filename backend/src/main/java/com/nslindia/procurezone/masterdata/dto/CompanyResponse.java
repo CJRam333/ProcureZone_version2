@@ -36,7 +36,7 @@ public record CompanyResponse(
                 company.getCode(),
                 company.getName(),
                 company.getStatus(),
-                company.getStatus() == 1 ? "Active" : "Inactive",
+                Integer.valueOf(1).equals(company.getStatus()) ? "Active" : "Inactive",
                 company.getLastModifiedDate(),
                 company.getLastModifiedBy());
     }

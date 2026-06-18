@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 
 /**
  * Service for Plant Indent operations (R&D / Production workflow).
@@ -63,11 +64,9 @@ public class PlantIndentService {
         log.info("Creating plant indent for employee: {} at plant: {}",
                 request.employeeNumber(), request.plantId());
 
-        // Generate indent number
-        Integer count = plantIndentRepository.getMaxBatchNumberForPlant(request.plantId());
-        int nextNum = (count != null ? count : 0) + 1;
-        String indentNumber = String.format("PIND/%d/%03d",
-                java.time.Year.now().getValue(), nextNum);
+        // Generate indent number: legacy-compatible sequential numeric.
+        // Mirrors legacy getIndentNo1(): ORDER BY indent_id DESC LIMIT 1, parseLong + 1.
+        String indentNumber = generateLegacyNumericPlantIndentNumber();
 
         PlantIndent plantIndent = PlantIndent.builder()
                 .indentNumber(indentNumber)
@@ -135,11 +134,21 @@ public class PlantIndentService {
     }
 
     /**
-     * List plant indents with pagination
+     * List plant indents with optional combined filters.
+     * Any null param is treated as "no filter for this dimension".
      */
     @Transactional(readOnly = true)
-    public Page<PlantIndentResponse> listPlantIndents(Pageable pageable) {
-        return plantIndentRepository.findAll(pageable).map(this::mapToResponse);
+    public Page<PlantIndentResponse> listPlantIndents(
+            String search, Integer plantId, Integer status,
+            String empSearch, String fromDate, String toDate,
+            Pageable pageable) {
+        String searchParam    = (search    != null && !search.isBlank())    ? search    : null;
+        String empSearchParam = (empSearch != null && !empSearch.isBlank()) ? empSearch : null;
+        String fromParam      = (fromDate  != null && !fromDate.isBlank())  ? fromDate  : null;
+        String toParam        = (toDate    != null && !toDate.isBlank())    ? toDate    : null;
+        return plantIndentRepository
+                .searchWithFilters(searchParam, plantId, status, empSearchParam, fromParam, toParam, pageable)
+                .map(this::mapToResponse);
     }
 
     /**
@@ -223,6 +232,35 @@ public class PlantIndentService {
 
     // ========== HELPER METHODS ==========
 
+    /**
+     * Generates the next legacy-compatible numeric plant indent number.
+     *
+     * Step 1 — normal case: fetch the most recently inserted record (ORDER BY indent_id DESC LIMIT 1),
+     *   parse indent_no as Long, increment by 1.
+     *
+     * Step 2 — fallback when the latest record has a non-numeric indent_no
+     *   (e.g. PIND/... records created by a previous mis-configured deployment):
+     *   scan all rows, take MAX of those whose indent_no is purely numeric, +1.
+     *
+     * Step 3 — no numeric records at all: return "1".
+     */
+    private String generateLegacyNumericPlantIndentNumber() {
+        List<String> latest = plantIndentRepository.findLatestPlantIndentNumbers(PageRequest.of(0, 1));
+        if (!latest.isEmpty() && latest.get(0) != null) {
+            try {
+                return String.valueOf(Long.parseLong(latest.get(0)) + 1);
+            } catch (NumberFormatException e) {
+                log.warn("Latest plant indent_no '{}' is non-numeric; falling back to MAX numeric scan",
+                        latest.get(0));
+            }
+        }
+        Long maxNumeric = plantIndentRepository.findMaxNumericPlantIndentNumber();
+        if (maxNumeric != null && maxNumeric > 0) {
+            return String.valueOf(maxNumeric + 1);
+        }
+        return "1";
+    }
+
     private Integer parseEmployeeNumber(String employeeNumber) {
         if (employeeNumber == null) return null;
         try {
@@ -249,13 +287,21 @@ public class PlantIndentService {
                 .lotNumber(req.lotNumber())
                 .storageLocation(req.storageLocation());
 
-        // Set material FK if provided
+        // Set material FK if provided — use find() so a missing ID fails fast on write.
         if (req.materialId() != null && req.materialId() > 0) {
-            builder.material(entityManager.getReference(Material.class, req.materialId()));
+            Material material = entityManager.find(Material.class, req.materialId());
+            if (material == null) {
+                throw new ResourceNotFoundException("Material not found with id: " + req.materialId());
+            }
+            builder.material(material);
         }
         // Set UOM FK if provided
         if (req.unitOfMeasureId() != null && req.unitOfMeasureId() > 0) {
-            builder.unitOfMeasure(entityManager.getReference(UnitOfMeasure.class, req.unitOfMeasureId()));
+            UnitOfMeasure uom = entityManager.find(UnitOfMeasure.class, req.unitOfMeasureId());
+            if (uom == null) {
+                throw new ResourceNotFoundException("UnitOfMeasure not found with id: " + req.unitOfMeasureId());
+            }
+            builder.unitOfMeasure(uom);
         }
 
         // QC Parameters
@@ -281,6 +327,17 @@ public class PlantIndentService {
         List<PlantIndentDetailResponse> details = pi.getDetails().stream()
                 .map(this::mapDetailToResponse)
                 .collect(Collectors.toList());
+
+        // Look up employee name
+        String employeeName = null;
+        if (pi.getEmployeeId() != null) {
+            try {
+                var emp = entityManager.find(com.nslindia.procurezone.identity.Employee.class, pi.getEmployeeId());
+                if (emp != null) employeeName = emp.getFullName();
+            } catch (Exception e) {
+                log.debug("Could not resolve employee name for ID: {}", pi.getEmployeeId());
+            }
+        }
 
         // Look up plant name
         String plantName = null;
@@ -308,6 +365,7 @@ public class PlantIndentService {
                 pi.getId(),
                 pi.getIndentCode(),
                 pi.getEmployeeNumber(),
+                employeeName,
                 pi.getPlantId(),
                 plantName,
                 pi.getIndentNumber(),
@@ -340,14 +398,43 @@ public class PlantIndentService {
     }
 
     private PlantIndentDetailResponse mapDetailToResponse(PlantIndentDetail detail) {
+        // Hibernate proxy is never null even for missing FK targets — resolve safely.
+        Integer materialId = null;
+        String materialCode = null;
+        String materialName = null;
+        try {
+            Material m = detail.getMaterial();
+            if (m != null) {
+                materialId = m.getId();
+                materialCode = m.getCode();
+                materialName = m.getName();
+            }
+        } catch (jakarta.persistence.EntityNotFoundException e) {
+            log.warn("indent_details_material FK points to deleted material (detail id={})", detail.getId());
+        }
+
+        Integer uomId = null;
+        String uomCode = null;
+        String uomName = null;
+        try {
+            UnitOfMeasure u = detail.getUnitOfMeasure();
+            if (u != null) {
+                uomId = u.getId();
+                uomCode = u.getCode();
+                uomName = u.getName();
+            }
+        } catch (jakarta.persistence.EntityNotFoundException e) {
+            log.warn("indent_details_umo FK points to deleted UOM (detail id={})", detail.getId());
+        }
+
         return new PlantIndentDetailResponse(
                 detail.getId(),
-                detail.getMaterial() != null ? detail.getMaterial().getId() : null,
-                detail.getMaterial() != null ? detail.getMaterial().getCode() : null,
-                detail.getMaterial() != null ? detail.getMaterial().getName() : null,
-                detail.getUnitOfMeasure() != null ? detail.getUnitOfMeasure().getId() : null,
-                detail.getUnitOfMeasure() != null ? detail.getUnitOfMeasure().getCode() : null,
-                detail.getUnitOfMeasure() != null ? detail.getUnitOfMeasure().getName() : null,
+                materialId,
+                materialCode,
+                materialName,
+                uomId,
+                uomCode,
+                uomName,
                 detail.getQuantity(),
                 detail.getRmQuantity(),
                 detail.getDeptQuantity(),

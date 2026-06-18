@@ -1,0 +1,10 @@
+$kind: http-request
+name: Vendor Performance
+method: GET
+url: '{{baseUrl}}/api/v1/vendors/{{vendorId}}/performance'
+order: 9000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

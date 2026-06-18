@@ -47,5 +47,6 @@ public record IndentResponse(
         String procurementStatusName,
         LocalDateTime lastModifiedDate,
         Integer lastModifiedBy,
+        String displayStatus,
         List<IndentDetailResponse> details) {
 }

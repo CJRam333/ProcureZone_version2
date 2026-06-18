@@ -206,7 +206,7 @@ const IssueConfirmationPage: React.FC = () => {
       />
 
       {/* Stats */}
-      <Row className="mb-3">
+      <Row className="mb-3 justify-content-center">
         <Col md={4}>
           <Card className="bg-warning bg-opacity-10 border-warning">
             <Card.Body className="text-center py-3">
@@ -223,14 +223,7 @@ const IssueConfirmationPage: React.FC = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
-          <Card className="bg-primary bg-opacity-10 border-primary">
-            <Card.Body className="text-center py-3">
-              <h3 className="mb-1 text-primary">₹1,25,430</h3>
-              <div className="text-muted small">Value Issued Today</div>
-            </Card.Body>
-          </Card>
-        </Col>
+        {/* SCOPE-REDUCTION: "Value Issued Today" card hidden — not active in current production phase */}
       </Row>
 
       {/* Filters */}

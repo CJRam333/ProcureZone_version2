@@ -1,29 +1,52 @@
 package com.nslindia.procurezone.employee.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
-import jakarta.validation.constraints.Email;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Size;
 
 /**
  * Request DTO for updating an existing employee.
+ *
+ * @JsonProperty maps the frontend's emp-prefixed keys to the Java field names.
+ *
+ * roleIds: null = leave unchanged; [] = remove all; [1,2] = replace all (Option A)
+ * reportingManagerId: null = unchanged; 0 = remove; positive = set/replace
  */
 public record UpdateEmployeeRequest(
-                @Size(max = 100, message = "Full name must not exceed 100 characters") String fullName,
 
-                @Email(message = "Email must be valid") @Size(max = 100, message = "Email must not exceed 100 characters") String email,
+        @JsonProperty("empName")
+        @Size(max = 100, message = "Full name must not exceed 100 characters")
+        String fullName,
 
-                LocalDate joinDate,
+        @JsonProperty("empEmail")
+        @Size(max = 100, message = "Email/username must not exceed 100 characters")
+        String email,
 
-                @Size(max = 100, message = "Designation must not exceed 100 characters") String designation,
+        @JsonProperty("empJoinDate")
+        LocalDate joinDate,
 
-                @Size(max = 500, message = "Cost center must not exceed 500 characters") String costCenter,
+        @JsonProperty("empDesignation")
+        @Size(max = 100, message = "Designation must not exceed 100 characters")
+        String designation,
 
-                Integer departmentId,
+        @JsonProperty("empCostCenter")
+        @Size(max = 500, message = "Cost center must not exceed 500 characters")
+        String costCenter,
 
-                Integer locationId,
+        // Same key on both sides — no @JsonProperty needed
+        Integer departmentId,
 
-                Integer companyId,
+        Integer locationId,
 
-                @Size(max = 100, message = "Plant must not exceed 100 characters") String plant) {
+        Integer companyId,
+
+        @JsonProperty("plantName")
+        @Size(max = 100, message = "Plant must not exceed 100 characters")
+        String plant,
+
+        List<Integer> roleIds,
+
+        Integer reportingManagerId) {
 }

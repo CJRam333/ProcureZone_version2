@@ -4,8 +4,6 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   FaFileAlt,
-  FaShoppingCart,
-  FaTruck,
   FaClipboardList,
   FaBoxes,
   FaExclamationTriangle,
@@ -87,12 +85,12 @@ const StatCard: React.FC<StatCardProps> = ({
 
 // Sample trend data (in production, this would come from API)
 const trendData = [
-  { name: 'Jan', indents: 45, pos: 38, grns: 32 },
-  { name: 'Feb', indents: 52, pos: 42, grns: 38 },
-  { name: 'Mar', indents: 48, pos: 45, grns: 40 },
-  { name: 'Apr', indents: 61, pos: 52, grns: 48 },
-  { name: 'May', indents: 55, pos: 48, grns: 45 },
-  { name: 'Jun', indents: 67, pos: 58, grns: 52 },
+  { name: 'Jan', indents: 45 },
+  { name: 'Feb', indents: 52 },
+  { name: 'Mar', indents: 48 },
+  { name: 'Apr', indents: 61 },
+  { name: 'May', indents: 55 },
+  { name: 'Jun', indents: 67 },
 ];
 
 
@@ -111,13 +109,13 @@ const DashboardPage: React.FC = () => {
   const { data: recentGRNs } = useQuery({
     queryKey: ['dashboard', 'recentGRNs'],
     queryFn: () => grnApi.list({ page: 0, size: 5 }),
-    enabled: hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER']),
+    enabled: hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE']),
   });
 
   const { data: lowStock } = useQuery({
     queryKey: ['dashboard', 'lowStock'],
     queryFn: () => reportsApi.getLowStockItems(),
-    enabled: hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER']),
+    enabled: hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE']),
   });
 
   const isLoading = loadingStats;
@@ -158,33 +156,9 @@ const DashboardPage: React.FC = () => {
               </Col>
             )}
 
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT']) && (
-              <Col sm={6} xl={3}>
-                <StatCard
-                  title="Active Purchase Orders"
-                  value={stats?.poStats?.pending || 0}
-                  icon={<FaShoppingCart className="text-white" size={24} />}
-                  iconBg="bg-success"
-                  linkTo="/purchase-orders"
-                  linkText="View POs"
-                />
-              </Col>
-            )}
+            {/* SCOPE-REDUCTION: "Active Purchase Orders" and "Pending GRN" stat cards hidden */}
 
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER']) && (
-              <Col sm={6} xl={3}>
-                <StatCard
-                  title="Pending GRN"
-                  value={stats?.grnStats?.pending || 0}
-                  icon={<FaTruck className="text-white" size={24} />}
-                  iconBg="bg-info"
-                  linkTo="/grn"
-                  linkText="View GRNs"
-                />
-              </Col>
-            )}
-
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER']) && (
+            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE']) && (
               <Col sm={6} xl={3}>
                 <StatCard
                   title="Low Stock Alerts"
@@ -220,14 +194,7 @@ const DashboardPage: React.FC = () => {
                           <stop offset="5%" stopColor="#0d6efd" stopOpacity={0.3} />
                           <stop offset="95%" stopColor="#0d6efd" stopOpacity={0} />
                         </linearGradient>
-                        <linearGradient id="colorPOs" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#198754" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#198754" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="colorGRNs" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0dcaf0" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#0dcaf0" stopOpacity={0} />
-                        </linearGradient>
+                        {/* SCOPE-REDUCTION: colorPOs and colorGRNs gradients removed */}
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e9ecef" />
                       <XAxis dataKey="name" stroke="#6c757d" fontSize={12} />
@@ -250,24 +217,7 @@ const DashboardPage: React.FC = () => {
                         fill="url(#colorIndents)"
                         strokeWidth={2}
                       />
-                      <Area
-                        type="monotone"
-                        dataKey="pos"
-                        name="Purchase Orders"
-                        stroke="#198754"
-                        fillOpacity={1}
-                        fill="url(#colorPOs)"
-                        strokeWidth={2}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="grns"
-                        name="GRNs"
-                        stroke="#0dcaf0"
-                        fillOpacity={1}
-                        fill="url(#colorGRNs)"
-                        strokeWidth={2}
-                      />
+                      {/* SCOPE-REDUCTION: Purchase Orders and GRNs Area series removed */}
                     </AreaChart>
                   </ResponsiveContainer>
                 </Card.Body>
@@ -327,22 +277,13 @@ const DashboardPage: React.FC = () => {
                 </Card.Header>
                 <Card.Body>
                   <div className="d-flex flex-wrap gap-2">
-                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'EMPLOYEE']) && (
+                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER']) && (
                       <Link to="/indents/new" className="btn btn-primary">
                         <FaFileAlt className="me-2" /> Create Indent
                       </Link>
                     )}
-                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT']) && (
-                      <Link to="/purchase-orders/new" className="btn btn-success">
-                        <FaShoppingCart className="me-2" /> Create PO
-                      </Link>
-                    )}
-                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'STOREKEEPER']) && (
-                      <Link to="/grn/new" className="btn btn-info text-white">
-                        <FaTruck className="me-2" /> Create GRN
-                      </Link>
-                    )}
-                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'EMPLOYEE', 'STOREKEEPER']) && (
+                    {/* SCOPE-REDUCTION: "Create PO" and "Create GRN" quick actions removed */}
+                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'ISSUECONFIRM']) && (
                       <Link to="/issue-notes/new" className="btn btn-secondary">
                         <FaClipboardList className="me-2" /> Create Issue Note
                       </Link>

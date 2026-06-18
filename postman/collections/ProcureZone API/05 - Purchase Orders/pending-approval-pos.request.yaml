@@ -1,0 +1,10 @@
+$kind: http-request
+name: Pending Approval POs
+method: GET
+url: '{{baseUrl}}/api/v1/pos/pending-approval'
+order: 17000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

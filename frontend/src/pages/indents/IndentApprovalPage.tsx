@@ -29,7 +29,8 @@ import {
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { indentsApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Indent, IndentStatus } from '../../api/indents';
+import { Indent } from '../../api/indents';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 const IndentApprovalPage: React.FC = () => {
     const navigate = useNavigate();
@@ -132,34 +133,12 @@ const IndentApprovalPage: React.FC = () => {
         return variants[priority] || 'secondary';
     };
 
-    // Status badge variant (backend 1-based, 8 statuses)
-    const getStatusVariant = (status: IndentStatus): string => {
-        const variants: Record<number, string> = {
-            [IndentStatus.DRAFT]: 'secondary',
-            [IndentStatus.SUBMITTED]: 'warning',
-            [IndentStatus.DEPT_HEAD_APPROVED]: 'info',
-            [IndentStatus.FINANCE_APPROVED]: 'info',
-            [IndentStatus.PROCUREMENT_APPROVED]: 'success',
-            [IndentStatus.REJECTED]: 'danger',
-            [IndentStatus.ON_HOLD]: 'dark',
-            [IndentStatus.COMPLETED]: 'primary',
-        };
-        return variants[status] || 'secondary';
+    const getStatusVariant = (indent: Indent): string => {
+        return INDENT_STATUS_COLORS[indent.displayStatus ?? ''] ?? 'secondary';
     };
 
-    // Status display name
-    const getStatusName = (status: number): string => {
-        const names: Record<number, string> = {
-            [IndentStatus.DRAFT]: 'Draft',
-            [IndentStatus.SUBMITTED]: 'Submitted',
-            [IndentStatus.DEPT_HEAD_APPROVED]: 'Dept Head Approved',
-            [IndentStatus.FINANCE_APPROVED]: 'Finance Approved',
-            [IndentStatus.PROCUREMENT_APPROVED]: 'Procurement Approved',
-            [IndentStatus.REJECTED]: 'Rejected',
-            [IndentStatus.ON_HOLD]: 'On Hold',
-            [IndentStatus.COMPLETED]: 'Completed',
-        };
-        return names[status] || 'Unknown';
+    const getStatusName = (indent: Indent): string => {
+        return indent.displayStatus ?? 'Unknown';
     };
 
     const handleApprove = (indent: Indent) => {
@@ -388,8 +367,8 @@ const IndentApprovalPage: React.FC = () => {
                                                 </Badge>
                                             </td>
                                             <td>
-                                                <Badge bg={getStatusVariant(indent.status ?? IndentStatus.DRAFT)}>
-                                                    {getStatusName(indent.status ?? 0)}
+                                                <Badge bg={getStatusVariant(indent)}>
+                                                    {getStatusName(indent)}
                                                 </Badge>
                                             </td>
                                             <td className="text-end">

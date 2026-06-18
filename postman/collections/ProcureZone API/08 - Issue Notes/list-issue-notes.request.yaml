@@ -1,0 +1,15 @@
+$kind: http-request
+name: List Issue Notes
+method: GET
+url: '{{baseUrl}}/api/v1/issue-notes'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+queryParams:
+  - key: page
+    value: '0'
+  - key: size
+    value: '10'

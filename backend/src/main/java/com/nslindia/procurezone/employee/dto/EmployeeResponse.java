@@ -23,7 +23,10 @@ public record EmployeeResponse(
         Integer locationId,
         String locationName,
         Integer companyId,
-        Set<EmployeeRoleInfo> roles) {
+        String companyName,
+        Set<EmployeeRoleInfo> roles,
+        Integer reportingManagerId,
+        String reportingManagerName) {
     public record EmployeeRoleInfo(
             Integer roleId,
             String roleCode,

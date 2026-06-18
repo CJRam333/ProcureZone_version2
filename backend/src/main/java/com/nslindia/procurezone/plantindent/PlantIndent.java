@@ -54,6 +54,10 @@ public class PlantIndent {
     @Column(name = "indent_dept")
     private Integer departmentId;
 
+    // Section FK — present in legacy pz_tbl_indent_masterb schema (indent_sec column)
+    @Column(name = "indent_sec")
+    private Integer sectionId;
+
     // Plant FK
     @Column(name = "indent_plant")
     private Integer plantId;

@@ -1,0 +1,19 @@
+$kind: http-request
+name: Approve Purchase Order
+method: POST
+url: '{{baseUrl}}/api/v1/pos/{{poId}}/approve'
+order: 8000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "remarks": "Approved as per procurement policy"
+    }

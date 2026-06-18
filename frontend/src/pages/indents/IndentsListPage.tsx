@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Form, InputGroup, Row, Col, Card } from 'react-bootstrap';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { FaPlus, FaSearch, FaFilter, FaEye, FaEdit, FaTimes } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaFilter, FaEye, FaEdit, FaTimes, FaFileExport } from 'react-icons/fa';
 import {
   PageHeader,
   DataTable,
@@ -12,7 +12,8 @@ import {
   Column,
 } from '../../components/common';
 import { useAuth } from '../../contexts/AuthContext';
-import { indentsApi, Indent, IndentStatus, IndentSearchParams } from '../../api';
+import { indentsApi, companiesApi, departmentsApi, plantsApi, Indent, IndentStatus, IndentSearchParams } from '../../api';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 // Safe date formatter
 const formatDate = (dateStr: string | null | undefined): string => {
@@ -24,17 +25,6 @@ const formatDate = (dateStr: string | null | undefined): string => {
   } catch {
     return 'N/A';
   }
-};
-
-const statusMap: Record<number, { label: string; className: string }> = {
-  1: { label: 'Draft', className: 'draft' },
-  2: { label: 'Submitted', className: 'pending' },
-  3: { label: 'Dept Head Approved', className: 'approved' },
-  4: { label: 'Finance Approved', className: 'approved' },
-  5: { label: 'Procurement Approved', className: 'completed' },
-  6: { label: 'Rejected', className: 'rejected' },
-  7: { label: 'On Hold', className: 'pending' },
-  8: { label: 'Completed', className: 'completed' },
 };
 
 const IndentsListPage: React.FC = () => {
@@ -53,6 +43,19 @@ const IndentsListPage: React.FC = () => {
     queryFn: () => indentsApi.list(searchParams),
   });
 
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies-active'],
+    queryFn: () => companiesApi.getActive(0, 100),
+  });
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments-active'],
+    queryFn: () => departmentsApi.getActive(0, 100),
+  });
+  const { data: plantsData } = useQuery({
+    queryKey: ['plants-active'],
+    queryFn: () => plantsApi.getActive(0, 100),
+  });
+
   const handleSearch = () => {
     setSearchParams({ ...searchParams, search: searchTerm, page: 0 });
   };
@@ -65,12 +68,27 @@ const IndentsListPage: React.FC = () => {
     setSearchParams({ ...searchParams, size, page: 0 });
   };
 
-  const handleStatusFilter = (status: string) => {
+  const handleStatusFilter = (displayStatus: string) => {
     setSearchParams({
       ...searchParams,
-      status: status ? (Number(status) as IndentStatus) : undefined,
+      displayStatus: displayStatus || undefined,
       page: 0,
-    });
+    } as any);
+  };
+
+  const handleExport = async (fmt: 'excel' | 'csv') => {
+    try {
+      const { page: _p, size: _s, ...filterParams } = searchParams;
+      const blob = await indentsApi.export({ ...filterParams, format: fmt });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fmt === 'csv' ? 'indents_export.csv' : 'indents_export.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Export failed. You may not have permission.');
+    }
   };
 
   const columns: Column<Indent>[] = [
@@ -106,15 +124,10 @@ const IndentsListPage: React.FC = () => {
       key: 'status',
       label: 'Status',
       render: (item: any) => {
-        const sid = (item as any).statusId ?? (item as any).status;
-        const mapped = statusMap[sid];
-        if (mapped) {
-          const bgClass = mapped.className === 'draft' ? 'secondary' : mapped.className === 'pending' ? 'warning' : mapped.className === 'approved' ? 'info' : mapped.className === 'completed' ? 'success' : mapped.className === 'rejected' ? 'danger' : 'secondary';
-          return <span className={`badge bg-${bgClass}`}>{mapped.label}</span>;
-        }
-        const sname = (item as any).statusName;
-        if (sname) return <span className="badge bg-secondary">{sname}</span>;
-        return <span className="badge bg-secondary">Unknown</span>;
+        const ds: string | undefined = (item as any).displayStatus;
+        const label = ds ?? (item as any).statusName ?? 'Unknown';
+        const color = ds ? (INDENT_STATUS_COLORS[ds] ?? 'secondary') : 'secondary';
+        return <span className={`badge bg-${color}`}>{label}</span>;
       },
     },
     {
@@ -135,7 +148,7 @@ const IndentsListPage: React.FC = () => {
             <FaEye />
           </Button>
           {((item as any).statusId ?? (item as any).status) === 1 &&
-            hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'EMPLOYEE', 'DEPTHEAD', 'PROCUREMENT']) && (
+            hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT']) && (
               <Button
                 variant="outline-secondary"
                 size="sm"
@@ -163,11 +176,23 @@ const IndentsListPage: React.FC = () => {
           { label: 'Indents' },
         ]}
         actions={
-          hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'EMPLOYEE', 'DEPTHEAD', 'PROCUREMENT']) && (
-            <Button variant="primary" onClick={() => navigate('/indents/new')}>
-              <FaPlus className="me-2" /> New Indent
-            </Button>
-          )
+          <div className="d-flex gap-2">
+            {hasAnyRole(['SUPERADMIN', 'ADMIN']) && (
+              <>
+                <Button variant="outline-success" size="sm" onClick={() => handleExport('excel')}>
+                  <FaFileExport className="me-1" /> Excel
+                </Button>
+                <Button variant="outline-secondary" size="sm" onClick={() => handleExport('csv')}>
+                  <FaFileExport className="me-1" /> CSV
+                </Button>
+              </>
+            )}
+            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT']) && (
+              <Button variant="primary" onClick={() => navigate('/indents/new')}>
+                <FaPlus className="me-2" /> New Indent
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -190,16 +215,22 @@ const IndentsListPage: React.FC = () => {
             </Col>
             <Col md={3} lg={2}>
               <Form.Select
-                value={searchParams.status?.toString() || ''}
+                value={(searchParams as any).displayStatus || ''}
                 onChange={(e) => handleStatusFilter(e.target.value)}
               >
                 <option value="">All Statuses</option>
-                <option value="1">Draft</option>
-                <option value="2">Submitted</option>
-                <option value="3">Dept Head Approved</option>
-                <option value="5">Procurement Approved</option>
-                <option value="6">Rejected</option>
-                <option value="8">Completed</option>
+                <option value="Pending">Pending</option>
+                <option value="RM Approved">RM Approved</option>
+                <option value="RM Rejected">RM Rejected</option>
+                <option value="Dept. Head Approved">Dept. Head Approved</option>
+                <option value="Dept. Head Rejected">Dept. Head Rejected</option>
+                <option value="Quotations Collected">Quotations Collected</option>
+                <option value="Negotiation Done">Negotiation Done</option>
+                <option value="PO Released">PO Released</option>
+                <option value="Hold">Hold</option>
+                <option value="Cash Buy">Cash Buy</option>
+                <option value="Goods Receipt">Goods Receipt</option>
+                <option value="Goods Issued">Goods Issued</option>
               </Form.Select>
             </Col>
             <Col md="auto">
@@ -215,6 +246,48 @@ const IndentsListPage: React.FC = () => {
 
           {showFilters && (
             <Row className="g-3 mt-2">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Company</Form.Label>
+                  <Form.Select
+                    value={searchParams.companyId?.toString() || ''}
+                    onChange={(e) => setSearchParams({ ...searchParams, companyId: e.target.value ? Number(e.target.value) : undefined, page: 0 })}
+                  >
+                    <option value="">All Companies</option>
+                    {companiesData?.content?.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Department</Form.Label>
+                  <Form.Select
+                    value={searchParams.departmentId?.toString() || ''}
+                    onChange={(e) => setSearchParams({ ...searchParams, departmentId: e.target.value ? Number(e.target.value) : undefined, page: 0 })}
+                  >
+                    <option value="">All Departments</option>
+                    {departmentsData?.content?.map((d: any) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Plant</Form.Label>
+                  <Form.Select
+                    value={searchParams.plantId?.toString() || ''}
+                    onChange={(e) => setSearchParams({ ...searchParams, plantId: e.target.value ? Number(e.target.value) : undefined, page: 0 })}
+                  >
+                    <option value="">All Plants</option>
+                    {plantsData?.content?.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
               <Col md={3}>
                 <Form.Group>
                   <Form.Label>From Date</Form.Label>

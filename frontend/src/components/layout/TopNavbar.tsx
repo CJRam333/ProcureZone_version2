@@ -44,31 +44,13 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ onMenuToggle }) => {
             id="notifications-dropdown"
           >
             <FaBell size={18} />
-            <Badge
-              bg="danger"
-              pill
-              className="position-absolute"
-              style={{ top: '-5px', right: '-5px', fontSize: '0.65rem' }}
-            >
-              3
-            </Badge>
           </Dropdown.Toggle>
 
-          <Dropdown.Menu style={{ minWidth: '300px' }}>
+          <Dropdown.Menu style={{ minWidth: '280px' }}>
             <Dropdown.Header>Notifications</Dropdown.Header>
-            <Dropdown.Item>
-              <small className="text-muted">New indent pending approval</small>
-            </Dropdown.Item>
-            <Dropdown.Item>
-              <small className="text-muted">PO delivery due tomorrow</small>
-            </Dropdown.Item>
-            <Dropdown.Item>
-              <small className="text-muted">Low stock alert: 5 items</small>
-            </Dropdown.Item>
-            <Dropdown.Divider />
-            <Dropdown.Item className="text-center text-primary">
-              View all notifications
-            </Dropdown.Item>
+            <div className="px-3 py-4 text-center text-muted">
+              <small>No notifications</small>
+            </div>
           </Dropdown.Menu>
         </Dropdown>
 

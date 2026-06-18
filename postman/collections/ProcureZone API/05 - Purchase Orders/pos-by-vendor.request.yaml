@@ -1,0 +1,10 @@
+$kind: http-request
+name: POs By Vendor
+method: GET
+url: '{{baseUrl}}/api/v1/pos/by-vendor/{{vendorId}}'
+order: 15000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'

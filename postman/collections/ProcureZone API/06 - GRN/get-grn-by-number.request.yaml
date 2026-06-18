@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get GRN By Number
+method: GET
+url: '{{baseUrl}}/api/v1/grn/number/{{grnNumber}}'
+order: 4000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{authToken}}'
