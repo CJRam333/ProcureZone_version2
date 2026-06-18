@@ -1,17 +1,16 @@
-name: Build and Deploy
+name: Build and Deploy ProcureZone
 
 on:
   push:
-    branches:
-      - main
-      - auth/employee-only-login
+    branches: [ main, auth/employee-only-login ]
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -27,7 +26,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Build backend
+      - name: Build backend JAR
         run: mvn package -DskipTests -f backend/pom.xml
 
       - name: Build frontend
@@ -36,57 +35,42 @@ jobs:
           npm ci
           npm run build
 
-      - name: Deploy JAR to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "backend/target/procurezone-backend-0.1.0-SNAPSHOT.jar"
-          target: "/opt/procurezone/backend/"
-          strip_components: 2
+      - name: Stop existing application
+        run: |
+          PID=$(pgrep -f "procurezone-backend" || true)
+          if [ -n "$PID" ]; then
+            kill -15 $PID
+            sleep 10
+            echo "Stopped PID: $PID"
+          else
+            echo "No running instance found"
+          fi
 
-      - name: Deploy frontend dist to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          source: "frontend/dist/*"
-          target: "/opt/procurezone/frontend/"
-          strip_components: 2
+      - name: Deploy JAR
+        run: |
+          cp backend/target/procurezone-backend-0.1.0-SNAPSHOT.jar \
+             /opt/procurezone/backend/procurezone-backend-0.1.0-SNAPSHOT.jar
 
-      - name: Restart application on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            # Stop existing JAR process
-            PID=$(pgrep -f "procurezone-backend" || true)
-            if [ -n "$PID" ]; then
-              kill -15 $PID
-              sleep 10
-            fi
+      - name: Deploy frontend
+        run: |
+          cp -r frontend/dist/* /opt/procurezone/frontend/
 
-            # Start new JAR
-            nohup java -jar /opt/procurezone/backend/procurezone-backend-0.1.0-SNAPSHOT.jar \
-              --spring.profiles.active=prod \
-              >> /opt/procurezone/logs/app.log 2>&1 &
+      - name: Start application
+        run: |
+          nohup java -jar /opt/procurezone/backend/procurezone-backend-0.1.0-SNAPSHOT.jar \
+            --spring.profiles.active=prod \
+            >> /opt/procurezone/logs/app.log 2>&1 &
+          echo "Started PID: $!"
+          sleep 20
 
-            echo "Started PID: $!"
+      - name: Reload Nginx
+        run: sudo systemctl reload nginx
 
-            # Wait for startup
-            sleep 20
-
-            # Reload Nginx
-            sudo systemctl reload nginx
-
-            # Health check
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health || echo "000")
-            echo "Health check status: $STATUS"
-            if [ "$STATUS" != "200" ]; then
-              echo "WARNING: Health check did not return 200"
-              exit 1
-            fi
+      - name: Health check
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health || echo "000")
+          echo "Health check: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "WARNING: Health check failed"
+            exit 1
+          fi
