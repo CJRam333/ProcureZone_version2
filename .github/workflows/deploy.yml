@@ -61,16 +61,22 @@ jobs:
             --spring.profiles.active=prod \
             >> /opt/procurezone/logs/app.log 2>&1 &
           echo "Started PID: $!"
-          sleep 20
 
       - name: Reload Nginx
         run: sudo systemctl reload nginx
 
       - name: Health check
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health || echo "000")
-          echo "Health check: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "WARNING: Health check failed"
-            exit 1
-          fi
+          echo "Waiting for application to start..."
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health || echo "000")
+            echo "Attempt $i: $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Application is up!"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "ERROR: Application did not start within 2 minutes"
+          tail -50 /opt/procurezone/logs/app.log
+          exit 1
