@@ -102,13 +102,17 @@ public class IndentController {
             @RequestParam(required = false) Integer plantId,
             @RequestParam(required = false) Integer companyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) Integer approvedStatus,
+            @RequestParam(required = false) Integer finalStatus,
+            @RequestParam(required = false) Integer procurementStatus) {
 
         Pageable pageable = createPageable(page, size, sort);
         LocalDateTime fromDt = fromDate != null ? fromDate.atStartOfDay() : null;
         LocalDateTime toDt = toDate != null ? toDate.atTime(23, 59, 59) : null;
         Page<IndentListResponse> response = indentService.filterIndents(
-                search, status, departmentId, plantId, companyId, fromDt, toDt, pageable);
+                search, status, departmentId, plantId, companyId, fromDt, toDt,
+                approvedStatus, finalStatus, procurementStatus, pageable);
         return ResponseEntity.ok(response);
     }
 

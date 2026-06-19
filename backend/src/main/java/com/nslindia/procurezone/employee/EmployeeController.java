@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -23,6 +24,7 @@ import com.nslindia.procurezone.employee.dto.CreateEmployeeRequest;
 import com.nslindia.procurezone.employee.dto.EmployeeResponse;
 import com.nslindia.procurezone.employee.dto.EmployeeStatisticsResponse;
 import com.nslindia.procurezone.employee.dto.EmployeeSummaryResponse;
+import com.nslindia.procurezone.employee.dto.ResetPasswordRequest;
 import com.nslindia.procurezone.employee.dto.UpdateEmployeeRequest;
 import com.nslindia.procurezone.security.UserPrincipal;
 
@@ -257,5 +259,19 @@ public class EmployeeController {
     public ResponseEntity<EmployeeResponse> getEmployeeById(@PathVariable Integer id) {
         EmployeeResponse response = employeeService.getEmployeeById(id);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * PATCH /api/v1/employees/{id}/password - Reset employee user-account password.
+     * Roles: ADMIN, SUPERADMIN
+     */
+    @PatchMapping("/{id}/password")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN')")
+    public ResponseEntity<Void> resetPassword(
+            @PathVariable Integer id,
+            @Valid @RequestBody ResetPasswordRequest request) {
+
+        employeeService.resetPassword(id, request.newPassword());
+        return ResponseEntity.ok().build();
     }
 }

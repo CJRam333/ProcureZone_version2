@@ -246,15 +246,19 @@ public class IndentService {
         }
 
         /**
-         * List indents with pagination
-         * A.1 FIX: Added plant-level data isolation
+         * List indents with pagination.
+         * approvedStatusId, finalStatusId, procurementStatusId filter by the three-column
+         * workflow state; pass null to skip that filter dimension.
          */
         @Transactional(readOnly = true)
         public Page<IndentListResponse> filterIndents(
                         String search, Integer statusId, Integer departmentId, Integer plantId,
-                        Integer companyId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable) {
+                        Integer companyId, LocalDateTime fromDate, LocalDateTime toDate,
+                        Integer approvedStatusId, Integer finalStatusId, Integer procurementStatusId,
+                        Pageable pageable) {
                 return indentRepository
-                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate, pageable)
+                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
+                                               approvedStatusId, finalStatusId, procurementStatusId, pageable)
                                 .map(this::toIndentListResponse);
         }
 
@@ -268,7 +272,8 @@ public class IndentService {
                 Pageable exportPageable = PageRequest.of(0, 10_000,
                         Sort.by("indentDate").descending());
                 return indentRepository
-                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate, exportPageable)
+                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
+                                               null, null, null, exportPageable)
                                 .map(this::toIndentListResponse)
                                 .getContent();
         }

@@ -27,16 +27,34 @@ const formatDate = (dateStr: string | null | undefined): string => {
   }
 };
 
+// Maps each display-status label to the three workflow-column IDs that produce it.
+// Derived from IndentService.deriveDisplayStatus() compound matrix.
+const DISPLAY_STATUS_FILTERS: Record<string, { approvedStatus?: number; finalStatus?: number; procurementStatus?: number }> = {
+  'Pending':              { approvedStatus: 1, finalStatus: 1, procurementStatus: 1 },
+  'RM Rejected':          { approvedStatus: 2, finalStatus: 1 },
+  'RM Approved':          { approvedStatus: 3, finalStatus: 1 },
+  'Dept. Head Rejected':  { finalStatus: 2 },
+  'Dept. Head Approved':  { approvedStatus: 3, finalStatus: 4, procurementStatus: 4 },
+  'Quotations Collected': { approvedStatus: 3, finalStatus: 4, procurementStatus: 5 },
+  'Negotiation Done':     { approvedStatus: 3, finalStatus: 4, procurementStatus: 6 },
+  'PO Released':          { approvedStatus: 3, finalStatus: 4, procurementStatus: 7 },
+  'Hold':                 { approvedStatus: 3, finalStatus: 4, procurementStatus: 8 },
+  'Cash Buy':             { approvedStatus: 3, finalStatus: 4, procurementStatus: 9 },
+  'Goods Receipt':        { approvedStatus: 3, finalStatus: 4, procurementStatus: 10 },
+  'Goods Issued':         { approvedStatus: 3, finalStatus: 4, procurementStatus: 11 },
+};
+
 const IndentsListPage: React.FC = () => {
   const navigate = useNavigate();
   const { hasAnyRole } = useAuth();
-  
+
   const [searchParams, setSearchParams] = useState<IndentSearchParams>({
     page: 0,
     size: 10,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedStatusLabel, setSelectedStatusLabel] = useState('');
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['indents', searchParams],
@@ -68,12 +86,16 @@ const IndentsListPage: React.FC = () => {
     setSearchParams({ ...searchParams, size, page: 0 });
   };
 
-  const handleStatusFilter = (displayStatus: string) => {
+  const handleStatusFilter = (label: string) => {
+    setSelectedStatusLabel(label);
+    const filters = label ? (DISPLAY_STATUS_FILTERS[label] ?? {}) : {};
     setSearchParams({
       ...searchParams,
-      displayStatus: displayStatus || undefined,
+      approvedStatus: filters.approvedStatus,
+      finalStatus: filters.finalStatus,
+      procurementStatus: filters.procurementStatus,
       page: 0,
-    } as any);
+    });
   };
 
   const handleExport = async (fmt: 'excel' | 'csv') => {
@@ -215,7 +237,7 @@ const IndentsListPage: React.FC = () => {
             </Col>
             <Col md={3} lg={2}>
               <Form.Select
-                value={(searchParams as any).displayStatus || ''}
+                value={selectedStatusLabel}
                 onChange={(e) => handleStatusFilter(e.target.value)}
               >
                 <option value="">All Statuses</option>
@@ -318,6 +340,7 @@ const IndentsListPage: React.FC = () => {
                   onClick={() => {
                     setSearchParams({ page: 0, size: 10 });
                     setSearchTerm('');
+                    setSelectedStatusLabel('');
                   }}
                 >
                   <FaTimes className="me-2" /> Clear Filters

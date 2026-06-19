@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Form, Button, Row, Col, Badge } from 'react-bootstrap';
+import { Card, Form, Button, Row, Col, Badge, InputGroup, Spinner } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { FaSave, FaTimes, FaUser, FaKey, FaUserShield, FaSitemap } from 'react-icons/fa';
+import { FaSave, FaTimes, FaUser, FaKey, FaUserShield, FaSitemap, FaEye, FaEyeSlash, FaLock } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { employeesApi, departmentsApi, locationsApi, companiesApi, plantsApi, getErrorMessage } from '../../api';
 import type { Plant } from '../../api/plants';
@@ -51,6 +51,14 @@ const EmployeeFormPage: React.FC = () => {
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<number>>(new Set());
   const [reportingManagerId, setReportingManagerId] = useState<number | null>(null);
   const [isPlantEmployee, setIsPlantEmployee] = useState(false);
+
+  // Password reset state (edit mode only, ADMIN/SUPERADMIN)
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
 
   const canEditReportingManager = hasAnyRole(['SUPERADMIN', 'ADMIN']);
 
@@ -185,6 +193,30 @@ const EmployeeFormPage: React.FC = () => {
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
+
+  // ── Password reset ───────────────────────────────────────────────────────
+  const handlePasswordReset = async () => {
+    setPasswordResetError(null);
+    if (newPassword.length < 8) {
+      setPasswordResetError('Password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordResetError('Passwords do not match.');
+      return;
+    }
+    setIsResettingPassword(true);
+    try {
+      await apiClient.patch(`/employees/${id}/password`, { newPassword });
+      toast.success('Password reset successfully.');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
 
   // ── Submit ───────────────────────────────────────────────────────────────
   const onSubmit = (data: FormData) => {
@@ -556,6 +588,82 @@ const EmployeeFormPage: React.FC = () => {
             </Row>
           </Card.Body>
         </Card>
+
+        {/* ── Section 5: Password Reset (edit mode, ADMIN/SUPERADMIN only) ── */}
+        {isEditMode && hasAnyRole(['ADMIN', 'SUPERADMIN']) && (
+          <Card className="mb-3 border-warning">
+            <Card.Header className="d-flex align-items-center gap-2 bg-warning bg-opacity-10">
+              <FaLock className="text-warning" />
+              <span className="fw-bold">Reset Password</span>
+            </Card.Header>
+            <Card.Body>
+              {passwordResetError && (
+                <div className="alert alert-danger py-2 mb-3">{passwordResetError}</div>
+              )}
+              <Row className="g-3 align-items-end">
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>New Password</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type={showNewPassword ? 'text' : 'password'}
+                        placeholder="Min 8 characters"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        disabled={isResettingPassword}
+                      />
+                      <Button
+                        variant="outline-secondary"
+                        onClick={() => setShowNewPassword((p) => !p)}
+                        tabIndex={-1}
+                        disabled={isResettingPassword}
+                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                      </Button>
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group>
+                    <Form.Label>Confirm Password</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Repeat new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        disabled={isResettingPassword}
+                      />
+                      <Button
+                        variant="outline-secondary"
+                        onClick={() => setShowConfirmPassword((p) => !p)}
+                        tabIndex={-1}
+                        disabled={isResettingPassword}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                      </Button>
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Button
+                    variant="warning"
+                    onClick={handlePasswordReset}
+                    disabled={isResettingPassword || !newPassword || !confirmPassword}
+                  >
+                    {isResettingPassword ? (
+                      <><Spinner as="span" animation="border" size="sm" className="me-2" />Resetting...</>
+                    ) : (
+                      <><FaLock className="me-2" />Reset Password</>
+                    )}
+                  </Button>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        )}
 
         {/* ── Actions ──────────────────────────────────────────────────── */}
         <div className="d-flex justify-content-end gap-2 mb-4">

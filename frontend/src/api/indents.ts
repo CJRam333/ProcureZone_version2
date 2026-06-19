@@ -140,6 +140,9 @@ export interface IndentSearchParams extends PageRequest {
     priority?: string;
     fromDate?: string;
     toDate?: string;
+    approvedStatus?: number;
+    finalStatus?: number;
+    procurementStatus?: number;
 }
 
 export interface ApproveIndentRequest {

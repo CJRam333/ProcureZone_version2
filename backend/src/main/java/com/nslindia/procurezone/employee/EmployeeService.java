@@ -503,4 +503,15 @@ public class EmployeeService {
                 location != null ? location.getName() : null,
                 (int) activeRoles);
     }
+
+    /* ================= PASSWORD RESET ================= */
+
+    public void resetPassword(Integer employeeId, String newPassword) {
+        UserAccount userAccount = userRepository.findByEmployee_EmployeeNumber(employeeId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No user account found for employee ID: " + employeeId));
+        userAccount.setPasswordHash(passwordEncoder.encode(newPassword));
+        userAccount.setLastModifiedDate(java.time.LocalDate.now());
+        userRepository.save(userAccount);
+    }
 }

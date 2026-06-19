@@ -85,15 +85,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       path: '/indents',
       label: 'Indents',
       icon: <FaFileAlt />,
-      // Legacy: SuperAdmin, Admin, Manager(role=3), Procurement(6), Supervisor(4), DepartmentHead(5)
-      roles: ['SUPERADMIN', 'ADMIN', 'PROCUREMENT', 'DEPTHEAD', 'USER'],
+      // All authenticated roles
     },
     {
       path: '/plant-indent',
       label: 'Plant Indent',
       icon: <FaSeedling />,
-      // Plant-specific indent management with crop type tracking
-      roles: ['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE'],
+      // All authenticated roles
     },
     {
       path: '/purchase-orders',
@@ -153,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
   const masterDataGroup: NavGroup = {
     label: 'Master Data',
     icon: <FaDatabase />,
-    roles: ['SUPERADMIN', 'ADMIN'],
+    roles: ['SUPERADMIN', 'ADMIN', 'MASTER_DATA_ADMIN'],
     groupKey: 'masters',
     items: [
       { path: '/masters/companies', label: 'Companies', icon: <FaBuilding /> },
@@ -166,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       { path: '/masters/materials', label: 'Materials', icon: <FaCubes /> },
       { path: '/masters/vendors', label: 'Vendors', icon: <FaHandshake />, hidden: true }, // SCOPE-REDUCTION: not active in current production phase
       { path: '/masters/employees', label: 'Employees', icon: <FaUsers /> },
-      { path: '/masters/users', label: 'Users', icon: <FaUserCog /> },
+      { path: '/masters/users', label: 'Users', icon: <FaUserCog />, hidden: true }, // TASK 4: removed from nav; route and backend intact
       { path: '/masters/roles', label: 'Roles', icon: <FaUserTag />, roles: ['SUPERADMIN'] },
     ],
   };
@@ -174,10 +172,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
   const adminGroup: NavGroup = {
     label: 'Administration',
     icon: <FaCog />,
-    roles: ['SUPERADMIN', 'ADMIN'],
+    roles: ['SUPERADMIN', 'ADMIN', 'ROLE_VIEWER'],
     groupKey: 'admin',
     items: [
-      { path: '/admin/audit-logs', label: 'Audit Logs', icon: <FaHistory />, roles: ['SUPERADMIN', 'ADMIN'] },
+      { path: '/admin/audit-logs', label: 'Audit Logs', icon: <FaHistory />, roles: ['SUPERADMIN', 'ADMIN', 'ROLE_VIEWER'] },
       { path: '/admin/email-templates', label: 'Email Templates', icon: <FaEnvelope />, roles: ['SUPERADMIN', 'ADMIN'] },
       { path: '/materials/import', label: 'Material Import', icon: <FaCubes />, roles: ['SUPERADMIN', 'ADMIN'] },
     ],

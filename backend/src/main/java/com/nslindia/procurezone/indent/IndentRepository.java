@@ -217,6 +217,8 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
          * Combined multi-filter query for the list endpoint.
          * All params are optional; null means "no filter on this field".
          * Includes workflow columns for displayStatus derivation.
+         * Three workflow-column params (approvedStatusId, finalStatusId, procurementStatusId)
+         * enable filtering by display status label from the frontend.
          */
         @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status",
                         "approvedStatus", "finalStatus", "procurementStatus" })
@@ -227,7 +229,10 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
                         "(:plantId IS NULL OR i.plant.id = :plantId) AND " +
                         "(:companyId IS NULL OR i.company.id = :companyId) AND " +
                         "(:fromDate IS NULL OR i.indentDate >= :fromDate) AND " +
-                        "(:toDate IS NULL OR i.indentDate <= :toDate)")
+                        "(:toDate IS NULL OR i.indentDate <= :toDate) AND " +
+                        "(:approvedStatusId IS NULL OR i.approvedStatus.id = :approvedStatusId) AND " +
+                        "(:finalStatusId IS NULL OR i.finalStatus.id = :finalStatusId) AND " +
+                        "(:procurementStatusId IS NULL OR i.procurementStatus.id = :procurementStatusId)")
         Page<Indent> filterIndents(
                         @Param("search") String search,
                         @Param("statusId") Integer statusId,
@@ -236,5 +241,8 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
                         @Param("companyId") Integer companyId,
                         @Param("fromDate") LocalDateTime fromDate,
                         @Param("toDate") LocalDateTime toDate,
+                        @Param("approvedStatusId") Integer approvedStatusId,
+                        @Param("finalStatusId") Integer finalStatusId,
+                        @Param("procurementStatusId") Integer procurementStatusId,
                         Pageable pageable);
 }
