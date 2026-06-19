@@ -59,6 +59,7 @@ jobs:
         run: |
           nohup java -jar /opt/procurezone/backend/procurezone-backend-0.1.0-SNAPSHOT.jar \
             --spring.profiles.active=prod \
+            --spring.config.additional-location=file:/opt/procurezone/application-prod.yml \
             >> /opt/procurezone/logs/app.log 2>&1 &
           echo "Started PID: $!"
 
