@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Form, Button, Alert, Spinner } from 'react-bootstrap';
+import { Form, Button, Alert, Spinner, InputGroup } from 'react-bootstrap';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
 import { getErrorMessage } from '../../api';
-import { FaBox, FaUser, FaLock } from 'react-icons/fa';
+import { FaBox, FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -21,6 +21,7 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
@@ -89,17 +90,28 @@ const LoginPage: React.FC = () => {
               <FaLock className="me-2" style={{ opacity: 0.6 }} />
               Password
             </Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              {...register('password')}
-              isInvalid={!!errors.password}
-              disabled={isLoading}
-            />
-            <Form.Control.Feedback type="invalid">
-              {errors.password?.message}
-            </Form.Control.Feedback>
+            <InputGroup hasValidation>
+              <Form.Control
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                {...register('password')}
+                isInvalid={!!errors.password}
+                disabled={isLoading}
+              />
+              <Button
+                variant="outline-secondary"
+                onClick={() => setShowPassword((prev) => !prev)}
+                tabIndex={-1}
+                disabled={isLoading}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </Button>
+              <Form.Control.Feedback type="invalid">
+                {errors.password?.message}
+              </Form.Control.Feedback>
+            </InputGroup>
           </Form.Group>
 
           <Button

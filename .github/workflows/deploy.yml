@@ -35,17 +35,6 @@ jobs:
           npm ci
           npm run build
 
-      - name: Stop existing application
-        run: |
-          PID=$(pgrep -f "procurezone-backend" || true)
-          if [ -n "$PID" ]; then
-            kill -15 $PID
-            sleep 10
-            echo "Stopped PID: $PID"
-          else
-            echo "No running instance found"
-          fi
-
       - name: Deploy JAR
         run: |
           cp backend/target/procurezone-backend-0.1.0-SNAPSHOT.jar \
@@ -55,13 +44,8 @@ jobs:
         run: |
           cp -r frontend/dist/* /opt/procurezone/frontend/
 
-      - name: Start application
-        run: |
-          nohup java -jar /opt/procurezone/backend/procurezone-backend-0.1.0-SNAPSHOT.jar \
-            --spring.profiles.active=prod \
-            --spring.config.additional-location=file:/opt/procurezone/application-prod.yml \
-            >> /opt/procurezone/logs/app.log 2>&1 &
-          echo "Started PID: $!"
+      - name: Restart application
+        run: sudo systemctl restart procurezone
 
       - name: Reload Nginx
         run: sudo systemctl reload nginx
