@@ -42,6 +42,7 @@ jobs:
 
       - name: Deploy frontend
         run: |
+          rm -rf /opt/procurezone/frontend/*
           cp -r frontend/dist/* /opt/procurezone/frontend/
 
       - name: Restart application
