@@ -186,6 +186,13 @@ export type {
 export { adminApi } from "./admin";
 export type { SystemConfig, AuditLog, SystemStats, BackupInfo } from "./admin";
 
+export { moduleAccessApi } from "./moduleAccess";
+export type {
+    ModuleDefinition,
+    EmpModuleEntry,
+    ModuleUpdate,
+} from "./moduleAccess";
+
 // Extended list response types with statistics
 export type {
     MaterialsListResponse,

@@ -4,7 +4,7 @@ import { Card, Form, Button, Row, Col, Badge, InputGroup, Spinner } from 'react-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { FaSave, FaTimes, FaUser, FaKey, FaUserShield, FaSitemap, FaEye, FaEyeSlash, FaLock } from 'react-icons/fa';
+import { FaSave, FaTimes, FaUser, FaKey, FaUserShield, FaSitemap, FaEye, FaEyeSlash, FaLock, FaPuzzlePiece } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { employeesApi, departmentsApi, locationsApi, companiesApi, plantsApi, getErrorMessage } from '../../api';
 import type { Plant } from '../../api/plants';
@@ -13,6 +13,8 @@ import apiClient from '../../api/client';
 import type { EmployeeCreateRequest, EmployeeUpdateRequest, Department, Location, Company } from '../../api';
 import type { Role } from '../../api/roles';
 import { useAuth } from '../../contexts/AuthContext';
+import { moduleAccessApi } from '../../api/moduleAccess';
+import type { EmpModuleEntry, ModuleDefinition } from '../../api/moduleAccess';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -48,9 +50,13 @@ const EmployeeFormPage: React.FC = () => {
 
   // ── Local state ──────────────────────────────────────────────────────────
   const [authType, setAuthType] = useState<AuthType>('ldap');
-  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<number>>(new Set());
+  const [primaryRoleId, setPrimaryRoleId] = useState<number | null>(null);
+  const [moduleAccess, setModuleAccess] = useState<Record<string, boolean>>({});
   const [reportingManagerId, setReportingManagerId] = useState<number | null>(null);
   const [isPlantEmployee, setIsPlantEmployee] = useState(false);
+  const [isSavingModules, setIsSavingModules] = useState(false);
+
+  const canManageModules = hasAnyRole(['ADMIN', 'SUPERADMIN']);
 
   // Password reset state (edit mode only, ADMIN/SUPERADMIN)
   const [newPassword, setNewPassword] = useState('');
@@ -107,6 +113,20 @@ const EmployeeFormPage: React.FC = () => {
     enabled: isEditMode,
   });
 
+  // All module definitions (for admin module access card)
+  const { data: allModules = [] } = useQuery<ModuleDefinition[]>({
+    queryKey: ['all-modules'],
+    queryFn: () => moduleAccessApi.getAllModules(),
+    enabled: isEditMode && canManageModules,
+  });
+
+  // Current module access for the employee being edited
+  const { data: empModules } = useQuery<EmpModuleEntry[]>({
+    queryKey: ['employee-modules', id],
+    queryFn: () => moduleAccessApi.getEmployeeModules(Number(id)),
+    enabled: isEditMode && canManageModules,
+  });
+
   // Current supervisor for edit mode
   const { data: supervisorData } = useQuery<{ supervisorEmployeeNumber: number } | null>({
     queryKey: ['employee-supervisor', id],
@@ -149,12 +169,21 @@ const EmployeeFormPage: React.FC = () => {
     });
   }, [employee, reset]);
 
-  // Pre-select roles on edit
+  // Pre-select primary role on edit (use first role as primary)
   useEffect(() => {
-    if (currentRoles) {
-      setSelectedRoleIds(new Set(currentRoles.map(r => r.roleId)));
+    if (currentRoles && currentRoles.length > 0) {
+      setPrimaryRoleId(currentRoles[0].roleId);
     }
   }, [currentRoles]);
+
+  // Pre-populate module access toggles on edit
+  useEffect(() => {
+    if (empModules && empModules.length > 0) {
+      const map: Record<string, boolean> = {};
+      empModules.forEach(m => { map[m.moduleCode] = m.enabled; });
+      setModuleAccess(map);
+    }
+  }, [empModules]);
 
   // Pre-select supervisor on edit
   useEffect(() => {
@@ -163,13 +192,20 @@ const EmployeeFormPage: React.FC = () => {
     }
   }, [supervisorData]);
 
-  // ── Role toggle ──────────────────────────────────────────────────────────
-  const toggleRole = (roleId: number) => {
-    setSelectedRoleIds(prev => {
-      const next = new Set(prev);
-      next.has(roleId) ? next.delete(roleId) : next.add(roleId);
-      return next;
-    });
+  // ── Module access save ───────────────────────────────────────────────────
+  const handleSaveModules = async () => {
+    if (!id) return;
+    setIsSavingModules(true);
+    try {
+      const updates = Object.entries(moduleAccess).map(([code, enabled]) => ({ code, enabled }));
+      await moduleAccessApi.updateEmployeeModules(Number(id), updates);
+      queryClient.invalidateQueries({ queryKey: ['employee-modules', id] });
+      toast.success('Module access saved.');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsSavingModules(false);
+    }
   };
 
   // ── Mutations ────────────────────────────────────────────────────────────
@@ -220,7 +256,7 @@ const EmployeeFormPage: React.FC = () => {
 
   // ── Submit ───────────────────────────────────────────────────────────────
   const onSubmit = (data: FormData) => {
-    const roleIdList = Array.from(selectedRoleIds);
+    const roleIdList = primaryRoleId ? [primaryRoleId] : [];
 
     if (isEditMode) {
       const updatePayload: EmployeeUpdateRequest = {
@@ -514,36 +550,37 @@ const EmployeeFormPage: React.FC = () => {
           </Card.Body>
         </Card>
 
-        {/* ── Section 3: Roles ────────────────────────────────────────── */}
+        {/* ── Section 3: Role ─────────────────────────────────────────── */}
         <Card className="mb-3">
           <Card.Header className="d-flex align-items-center gap-2">
             <FaUserShield className="text-success" />
-            <span className="fw-bold">Roles</span>
-            {selectedRoleIds.size > 0 && (
-              <Badge bg="success" className="ms-2">{selectedRoleIds.size} selected</Badge>
+            <span className="fw-bold">Role</span>
+            {primaryRoleId && (
+              <Badge bg="success" className="ms-2">
+                {allRoles.find(r => r.id === primaryRoleId)?.name ?? 'Selected'}
+              </Badge>
             )}
           </Card.Header>
           <Card.Body>
-            {allRoles.length === 0 ? (
-              <div className="text-muted small">No roles available.</div>
-            ) : (
-              <Row className="g-2">
-                {allRoles.map((role: Role) => (
-                  <Col key={role.id} xs={6} sm={4} md={3} lg={3}>
-                    <Form.Check
-                      type="checkbox"
-                      id={`role-${role.id}`}
-                      label={role.name}
-                      checked={selectedRoleIds.has(role.id)}
-                      onChange={() => toggleRole(role.id)}
-                    />
-                  </Col>
-                ))}
-              </Row>
-            )}
-            <Form.Text className="text-muted d-block mt-2">
-              Roles can also be managed from the Role Mapping tab on the Employees list.
-            </Form.Text>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Primary Role</Form.Label>
+                  <Form.Select
+                    value={primaryRoleId ?? ''}
+                    onChange={e => setPrimaryRoleId(e.target.value ? Number(e.target.value) : null)}
+                  >
+                    <option value="">— No role assigned —</option>
+                    {allRoles.map((role: Role) => (
+                      <option key={role.id} value={role.id}>{role.name}</option>
+                    ))}
+                  </Form.Select>
+                  <Form.Text className="text-muted">
+                    The primary role determines default access and sidebar visibility.
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
           </Card.Body>
         </Card>
 
@@ -589,7 +626,70 @@ const EmployeeFormPage: React.FC = () => {
           </Card.Body>
         </Card>
 
-        {/* ── Section 5: Password Reset (edit mode, ADMIN/SUPERADMIN only) ── */}
+        {/* ── Section 5: Module Access (edit mode, ADMIN/SUPERADMIN only) ── */}
+        {isEditMode && canManageModules && allModules.length > 0 && (
+          <Card className="mb-3">
+            <Card.Header className="d-flex align-items-center gap-2">
+              <FaPuzzlePiece className="text-primary" />
+              <span className="fw-bold">Module Access</span>
+              <Badge bg="secondary" className="ms-2">
+                {Object.values(moduleAccess).filter(Boolean).length} enabled
+              </Badge>
+            </Card.Header>
+            <Card.Body>
+              <Row className="g-3">
+                {allModules.map(mod => {
+                  const isFuture = mod.isFuture;
+                  const currentEnabled = moduleAccess.hasOwnProperty(mod.moduleCode)
+                    ? moduleAccess[mod.moduleCode]
+                    : (!isFuture && mod.active);
+                  const canToggle =
+                    !isFuture &&
+                    (hasAnyRole(['SUPERADMIN']) ||
+                      (hasAnyRole(['ADMIN']) && mod.moduleCode !== 'ADMINISTRATION' && mod.moduleCode !== 'AUDIT_LOGS'));
+                  return (
+                    <Col key={mod.moduleCode} xs={12} sm={6} md={4}>
+                      <div className={`d-flex align-items-center justify-content-between p-2 border rounded ${isFuture ? 'opacity-50 bg-light' : ''}`}>
+                        <div>
+                          <div className="fw-semibold" style={isFuture ? { fontStyle: 'italic', fontSize: '0.9em' } : { fontSize: '0.9em' }}>
+                            {mod.moduleName}
+                          </div>
+                          <div className="text-muted" style={{ fontSize: '0.75em' }}>
+                            {mod.moduleCode}{isFuture ? ' — coming soon' : ''}
+                          </div>
+                        </div>
+                        <Form.Check
+                          type="switch"
+                          id={`mod-${mod.moduleCode}`}
+                          checked={currentEnabled}
+                          disabled={!canToggle}
+                          onChange={e => setModuleAccess(prev => ({ ...prev, [mod.moduleCode]: e.target.checked }))}
+                        />
+                      </div>
+                    </Col>
+                  );
+                })}
+              </Row>
+              <div className="mt-3 d-flex justify-content-end">
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={handleSaveModules}
+                  disabled={isSavingModules}
+                >
+                  {isSavingModules
+                    ? <><Spinner as="span" animation="border" size="sm" className="me-2" />Saving...</>
+                    : 'Save Module Access'}
+                </Button>
+              </div>
+              <Form.Text className="text-muted d-block mt-1">
+                Greyed-out toggles are locked for your role. Future modules cannot be enabled until implemented.
+              </Form.Text>
+            </Card.Body>
+          </Card>
+        )}
+
+        {/* ── Section 6: Password Reset (edit mode, ADMIN/SUPERADMIN only) ── */}
         {isEditMode && hasAnyRole(['ADMIN', 'SUPERADMIN']) && (
           <Card className="mb-3 border-warning">
             <Card.Header className="d-flex align-items-center gap-2 bg-warning bg-opacity-10">

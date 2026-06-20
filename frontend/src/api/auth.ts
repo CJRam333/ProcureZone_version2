@@ -34,6 +34,8 @@ export interface UserInfo {
     plantId?: number;
     plantName?: string;
     permissions?: string[];
+    // Module access codes — fetched after login from /module-access/my-modules
+    allowedModules?: string[];
 }
 
 export interface ChangePasswordRequest {

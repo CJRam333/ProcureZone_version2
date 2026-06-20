@@ -1050,14 +1050,30 @@ public class IndentService {
 
         /**
          * Get pending L2 approvals for a department head.
+         * Reads deptId from the current user's JWT — SUPERADMIN/ADMIN see all departments.
          */
         @Transactional(readOnly = true)
-        public List<PendingApprovalResponse> getPendingL2Approvals(String username, Integer departmentId) {
-                logger.info("Fetching pending L2 approvals for user: {} in department: {}", username, departmentId);
-
-                // Three-column filter: approvedStatus=3 (RM Approved), finalStatus=1 (Pending DeptHead), active
-                List<Indent> pendingIndents = indentRepository.findDeptHeadQueueByDepartment(departmentId);
-
+        public List<PendingApprovalResponse> getPendingL2Approvals(String username) {
+                var auth = org.springframework.security.core.context.SecurityContextHolder
+                                .getContext().getAuthentication();
+                List<Indent> pendingIndents;
+                if (auth != null && auth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal cu) {
+                        boolean isAdminOrSuper = cu.roles().stream()
+                                        .anyMatch(r -> "SUPERADMIN".equals(r) || "ADMIN".equals(r));
+                        if (isAdminOrSuper) {
+                                logger.info("Fetching L2 approvals for ADMIN user: {} — all departments", username);
+                                pendingIndents = indentRepository.findDeptHeadQueue();
+                        } else {
+                                Integer deptId = cu.deptId();
+                                logger.info("Fetching L2 approvals for user: {} in department: {}", username, deptId);
+                                if (deptId == null) {
+                                        return java.util.Collections.emptyList();
+                                }
+                                pendingIndents = indentRepository.findDeptHeadQueueByDepartment(deptId);
+                        }
+                } else {
+                        return java.util.Collections.emptyList();
+                }
                 return pendingIndents.stream()
                                 .map(this::toPendingApprovalResponse)
                                 .collect(Collectors.toList());

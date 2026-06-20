@@ -478,19 +478,18 @@ public class IndentController {
     }
 
     /**
-     * Get pending L2 approvals for current department
-     * GET /api/v1/indents/pending/l2?departmentId={deptId}
+     * Get pending L2 approvals for current user's department (from JWT).
+     * GET /api/v1/indents/pending/l2
+     * SUPERADMIN/ADMIN see all departments; DEPTHEAD/PLANTMANAGER see their own.
      */
     @GetMapping("/pending/l2")
     @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
     public ResponseEntity<java.util.List<PendingApprovalResponse>> getPendingL2Approvals(
-            @RequestParam Integer departmentId,
             Authentication authentication) {
 
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-        log.info("Fetching pending L2 approvals for user: {} in department: {}", principal.email(), departmentId);
-        java.util.List<PendingApprovalResponse> response = indentService.getPendingL2Approvals(principal.email(),
-                departmentId);
+        log.info("Fetching pending L2 approvals for user: {}", principal.email());
+        java.util.List<PendingApprovalResponse> response = indentService.getPendingL2Approvals(principal.email());
         return ResponseEntity.ok(response);
     }
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { authApi, UserInfo, LoginRequest } from '../api';
+import { moduleAccessApi } from '../api/moduleAccess';
 import queryClient from '../queryClient';
 
 interface AuthContextType {
@@ -12,6 +13,7 @@ interface AuthContextType {
   hasRole: (role: string) => boolean;
   hasAnyRole: (roles: string[]) => boolean;
   hasPermission: (permission: string) => boolean;
+  hasModuleAccess: (moduleCode: string) => boolean;
   canView: boolean;
   canAdd: boolean;
   canEdit: boolean;
@@ -108,9 +110,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear any previous session before storing the new one
       clearAllSession();
       const response = await authApi.login(credentials);
+      // Store token first so module-access request can authenticate
       localStorage.setItem('accessToken', response.accessToken);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
+
+      // Fetch module access codes and merge into user object
+      let userWithModules = response.user;
+      try {
+        const allowedModules = await moduleAccessApi.getMyModules();
+        userWithModules = { ...response.user, allowedModules };
+      } catch {
+        // Non-fatal: fall back to role-based defaults enforced in Sidebar
+        userWithModules = { ...response.user, allowedModules: [] };
+      }
+
+      localStorage.setItem('user', JSON.stringify(userWithModules));
+      setUser(userWithModules);
       scheduleAutoLogout(response.accessToken);
     },
     [clearAllSession, scheduleAutoLogout]
@@ -168,6 +182,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [user]
   );
 
+  const hasModuleAccess = useCallback(
+    (moduleCode: string): boolean => {
+      if (!user) return false;
+      // SUPERADMIN always has access to all modules
+      if (user.roles.includes('SUPERADMIN')) return true;
+      if (!user.allowedModules) return true; // no data yet — default open
+      return user.allowedModules.includes(moduleCode);
+    },
+    [user]
+  );
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -178,6 +203,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     hasRole,
     hasAnyRole,
     hasPermission,
+    hasModuleAccess,
     canView: user?.canView ?? false,
     canAdd: user?.canAdd ?? false,
     canEdit: user?.canEdit ?? false,

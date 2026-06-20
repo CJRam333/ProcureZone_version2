@@ -1,0 +1,165 @@
+package com.nslindia.procurezone.moduleaccess;
+
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.nslindia.procurezone.moduleaccess.dto.EmpModuleEntry;
+import com.nslindia.procurezone.moduleaccess.dto.ModuleResponse;
+import com.nslindia.procurezone.moduleaccess.dto.UpdateModuleAccessRequest;
+import com.nslindia.procurezone.security.UserPrincipal;
+
+@Service
+@Transactional(readOnly = true)
+public class ModuleAccessService {
+
+    private static final String ADMINISTRATION = "ADMINISTRATION";
+    private static final String AUDIT_LOGS = "AUDIT_LOGS";
+
+    private final ModuleMasterRepository moduleMasterRepository;
+    private final EmpModuleAccessRepository empModuleAccessRepository;
+
+    public ModuleAccessService(ModuleMasterRepository moduleMasterRepository,
+            EmpModuleAccessRepository empModuleAccessRepository) {
+        this.moduleMasterRepository = moduleMasterRepository;
+        this.empModuleAccessRepository = empModuleAccessRepository;
+    }
+
+    /**
+     * Returns module codes accessible to the current user.
+     * Custom overrides in tbl_map_emp_module_access take precedence over role defaults.
+     * Falls back to role-based defaults from tbl_module_master if no custom entry exists.
+     */
+    public List<String> getMyModuleCodes() {
+        UserPrincipal cu = currentUser();
+        List<ModuleMaster> allModules = moduleMasterRepository.findAllOrdered();
+
+        // Get all custom overrides for this employee
+        Map<String, Boolean> customAccess = empModuleAccessRepository
+                .findByEmpNumber(cu.employeeNumber())
+                .stream()
+                .collect(Collectors.toMap(EmpModuleAccess::getModuleCode, EmpModuleAccess::isEnabled));
+
+        Set<String> roles = cu.roles();
+
+        return allModules.stream()
+                .filter(m -> {
+                    if (customAccess.containsKey(m.getModuleCode())) {
+                        return customAccess.get(m.getModuleCode());
+                    }
+                    return isAllowedByRole(m, roles);
+                })
+                .map(ModuleMaster::getModuleCode)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns full module access list for an employee, for ADMIN/SUPERADMIN management.
+     */
+    public List<EmpModuleEntry> getEmployeeModules(Integer empNumber) {
+        List<ModuleMaster> allModules = moduleMasterRepository.findAllOrdered();
+        Map<String, Boolean> customAccess = empModuleAccessRepository
+                .findByEmpNumber(empNumber)
+                .stream()
+                .collect(Collectors.toMap(EmpModuleAccess::getModuleCode, EmpModuleAccess::isEnabled));
+
+        return allModules.stream()
+                .map(m -> {
+                    boolean hasCustom = customAccess.containsKey(m.getModuleCode());
+                    boolean enabled = hasCustom ? customAccess.get(m.getModuleCode()) : m.isModuleStatus() && !m.isFuture();
+                    return new EmpModuleEntry(
+                            m.getModuleCode(),
+                            m.getModuleName(),
+                            enabled,
+                            m.isFuture(),
+                            hasCustom);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns all modules from tbl_module_master for the management UI.
+     */
+    public List<ModuleResponse> getAllModules() {
+        return moduleMasterRepository.findAllOrdered().stream()
+                .map(m -> new ModuleResponse(
+                        m.getModuleCode(),
+                        m.getModuleName(),
+                        m.isModuleStatus(),
+                        m.isFuture(),
+                        m.getDefaultRoles()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Upserts per-employee module access.
+     * SUPERADMIN can set any module. ADMIN cannot set ADMINISTRATION or AUDIT_LOGS.
+     * An employee cannot modify their own access.
+     */
+    @Transactional
+    public void updateEmployeeModules(Integer empNumber, UpdateModuleAccessRequest request) {
+        UserPrincipal cu = currentUser();
+        Set<String> roles = cu.roles();
+
+        boolean isSuperAdmin = roles.contains("SUPERADMIN");
+        boolean isAdmin = roles.contains("ADMIN");
+
+        if (!isSuperAdmin && !isAdmin) {
+            throw new AccessDeniedException("Only ADMIN or SUPERADMIN can modify module access");
+        }
+        if (cu.employeeNumber() != null && cu.employeeNumber().equals(empNumber)) {
+            throw new AccessDeniedException("You cannot modify your own module access");
+        }
+
+        for (UpdateModuleAccessRequest.ModuleUpdate update : request.moduleCodes()) {
+            String code = update.code();
+
+            // ADMIN cannot touch ADMINISTRATION or AUDIT_LOGS
+            if (!isSuperAdmin && (ADMINISTRATION.equals(code) || AUDIT_LOGS.equals(code))) {
+                throw new AccessDeniedException("ADMIN cannot modify access for module: " + code);
+            }
+
+            EmpModuleAccess row = empModuleAccessRepository
+                    .findByEmpNumberAndModuleCode(empNumber, code)
+                    .orElseGet(() -> new EmpModuleAccess(empNumber, code, update.enabled(), cu.employeeNumber()));
+
+            row.setEnabled(update.enabled());
+            row.setGrantedBy(cu.employeeNumber());
+            row.setGrantedAt(LocalDateTime.now());
+            empModuleAccessRepository.save(row);
+        }
+    }
+
+    private boolean isAllowedByRole(ModuleMaster m, Set<String> roles) {
+        if (!m.isModuleStatus() || m.isFuture()) {
+            return false;
+        }
+        String defaultRoles = m.getDefaultRoles();
+        if ("ALL".equals(defaultRoles)) {
+            return true;
+        }
+        if (defaultRoles == null || defaultRoles.isBlank()) {
+            return false;
+        }
+        Set<String> allowed = Arrays.stream(defaultRoles.split(","))
+                .map(String::trim)
+                .collect(Collectors.toSet());
+        return roles.stream().anyMatch(allowed::contains);
+    }
+
+    private UserPrincipal currentUser() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal cu)) {
+            throw new AccessDeniedException("No authenticated user");
+        }
+        return cu;
+    }
+}
