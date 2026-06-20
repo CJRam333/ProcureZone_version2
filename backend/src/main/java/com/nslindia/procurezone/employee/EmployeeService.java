@@ -20,8 +20,12 @@ import java.util.List;
 import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import com.nslindia.procurezone.common.exception.BadRequestException;
 import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
+import com.nslindia.procurezone.security.UserPrincipal;
 import com.nslindia.procurezone.employee.dto.AssignRoleRequest;
 import com.nslindia.procurezone.employee.dto.CreateEmployeeRequest;
 import com.nslindia.procurezone.employee.dto.EmployeeResponse;
@@ -159,10 +163,13 @@ public class EmployeeService {
 
         // Assign roles to tbl_map_emp_roles
         if (request.roleIds() != null) {
+            boolean cuIsSuperAdmin = isCurrentUserSuperAdmin();
             for (Integer roleId : request.roleIds()) {
                 Role role = roleRepository.findById(roleId)
                         .orElseThrow(() -> new ResourceNotFoundException("Role", "id", roleId));
-
+                if ("Super Admin".equals(role.getCode()) && !cuIsSuperAdmin) {
+                    throw new AccessDeniedException("Only SUPERADMIN can assign the Super Admin role");
+                }
                 EmployeeRole er = new EmployeeRole();
                 er.setEmployee(employee);
                 er.setRole(role);
@@ -366,9 +373,13 @@ public class EmployeeService {
                     .findByEmployee_EmployeeNumber(employee.getEmployeeNumber());
             employeeRoleRepository.deleteAll(existing);
 
+            boolean cuIsSuperAdmin = isCurrentUserSuperAdmin();
             for (Integer roleId : request.roleIds()) {
                 Role role = roleRepository.findById(roleId)
                         .orElseThrow(() -> new ResourceNotFoundException("Role", "id", roleId));
+                if ("Super Admin".equals(role.getCode()) && !cuIsSuperAdmin) {
+                    throw new AccessDeniedException("Only SUPERADMIN can assign the Super Admin role");
+                }
                 EmployeeRole er = new EmployeeRole();
                 er.setEmployee(employee);
                 er.setRole(role);
@@ -413,6 +424,14 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee", "id", id));
         return mapToEmployeeResponse(employee);
+    }
+
+    /* ================= HELPERS ================= */
+
+    private boolean isCurrentUserSuperAdmin() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal cu)) return false;
+        return cu.roles().contains("SUPERADMIN");
     }
 
     /* ================= MAPPERS ================= */

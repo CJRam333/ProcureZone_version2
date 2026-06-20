@@ -12,9 +12,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.nslindia.procurezone.identity.EmployeeRoleRepository;
 import com.nslindia.procurezone.moduleaccess.dto.EmpModuleEntry;
 import com.nslindia.procurezone.moduleaccess.dto.ModuleResponse;
 import com.nslindia.procurezone.moduleaccess.dto.UpdateModuleAccessRequest;
+import com.nslindia.procurezone.security.RoleNormalizer;
 import com.nslindia.procurezone.security.UserPrincipal;
 
 @Service
@@ -22,27 +24,23 @@ import com.nslindia.procurezone.security.UserPrincipal;
 public class ModuleAccessService {
 
     private static final String ADMINISTRATION = "ADMINISTRATION";
-    private static final String AUDIT_LOGS = "AUDIT_LOGS";
 
     private final ModuleMasterRepository moduleMasterRepository;
     private final EmpModuleAccessRepository empModuleAccessRepository;
+    private final EmployeeRoleRepository employeeRoleRepository;
 
     public ModuleAccessService(ModuleMasterRepository moduleMasterRepository,
-            EmpModuleAccessRepository empModuleAccessRepository) {
+            EmpModuleAccessRepository empModuleAccessRepository,
+            EmployeeRoleRepository employeeRoleRepository) {
         this.moduleMasterRepository = moduleMasterRepository;
         this.empModuleAccessRepository = empModuleAccessRepository;
+        this.employeeRoleRepository = employeeRoleRepository;
     }
 
-    /**
-     * Returns module codes accessible to the current user.
-     * Custom overrides in tbl_map_emp_module_access take precedence over role defaults.
-     * Falls back to role-based defaults from tbl_module_master if no custom entry exists.
-     */
     public List<String> getMyModuleCodes() {
         UserPrincipal cu = currentUser();
         List<ModuleMaster> allModules = moduleMasterRepository.findAllOrdered();
 
-        // Get all custom overrides for this employee
         Map<String, Boolean> customAccess = empModuleAccessRepository
                 .findByEmpNumber(cu.employeeNumber())
                 .stream()
@@ -61,9 +59,6 @@ public class ModuleAccessService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Returns full module access list for an employee, for ADMIN/SUPERADMIN management.
-     */
     public List<EmpModuleEntry> getEmployeeModules(Integer empNumber) {
         List<ModuleMaster> allModules = moduleMasterRepository.findAllOrdered();
         Map<String, Boolean> customAccess = empModuleAccessRepository
@@ -71,10 +66,14 @@ public class ModuleAccessService {
                 .stream()
                 .collect(Collectors.toMap(EmpModuleAccess::getModuleCode, EmpModuleAccess::isEnabled));
 
+        Set<String> empRoles = getEmpNormalizedRoles(empNumber);
+
         return allModules.stream()
                 .map(m -> {
                     boolean hasCustom = customAccess.containsKey(m.getModuleCode());
-                    boolean enabled = hasCustom ? customAccess.get(m.getModuleCode()) : m.isModuleStatus() && !m.isFuture();
+                    boolean enabled = hasCustom
+                            ? customAccess.get(m.getModuleCode())
+                            : isAllowedByRole(m, empRoles);
                     return new EmpModuleEntry(
                             m.getModuleCode(),
                             m.getModuleName(),
@@ -85,9 +84,6 @@ public class ModuleAccessService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Returns all modules from tbl_module_master for the management UI.
-     */
     public List<ModuleResponse> getAllModules() {
         return moduleMasterRepository.findAllOrdered().stream()
                 .map(m -> new ModuleResponse(
@@ -99,11 +95,6 @@ public class ModuleAccessService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Upserts per-employee module access.
-     * SUPERADMIN can set any module. ADMIN cannot set ADMINISTRATION or AUDIT_LOGS.
-     * An employee cannot modify their own access.
-     */
     @Transactional
     public void updateEmployeeModules(Integer empNumber, UpdateModuleAccessRequest request) {
         UserPrincipal cu = currentUser();
@@ -122,9 +113,9 @@ public class ModuleAccessService {
         for (UpdateModuleAccessRequest.ModuleUpdate update : request.moduleCodes()) {
             String code = update.code();
 
-            // ADMIN cannot touch ADMINISTRATION or AUDIT_LOGS
-            if (!isSuperAdmin && (ADMINISTRATION.equals(code) || AUDIT_LOGS.equals(code))) {
-                throw new AccessDeniedException("ADMIN cannot modify access for module: " + code);
+            // ADMIN cannot enable ADMINISTRATION — skip silently rather than throwing
+            if (!isSuperAdmin && ADMINISTRATION.equals(code) && update.enabled()) {
+                continue;
             }
 
             EmpModuleAccess row = empModuleAccessRepository
@@ -136,6 +127,14 @@ public class ModuleAccessService {
             row.setGrantedAt(LocalDateTime.now());
             empModuleAccessRepository.save(row);
         }
+    }
+
+    private Set<String> getEmpNormalizedRoles(Integer empNumber) {
+        return employeeRoleRepository
+                .findByEmployee_EmployeeNumberAndStatus(empNumber, 1)
+                .stream()
+                .map(er -> RoleNormalizer.normalize(er.getRole().getCode()))
+                .collect(Collectors.toSet());
     }
 
     private boolean isAllowedByRole(ModuleMaster m, Set<String> roles) {

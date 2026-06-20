@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Form, Button, Row, Col, Badge, InputGroup, Spinner } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -38,6 +38,22 @@ interface FormData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Role-to-module defaults (normalized role code → enabled module codes)
+// Mirrors V44 migration logic so the create-page card pre-populates correctly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MODULE_ROLE_DEFAULTS: Record<string, string[]> = {
+  SUPERADMIN: ['INDENTS', 'PLANT_INDENTS', 'ISSUE_NOTES', 'REPORTS', 'CONFIRMATIONS', 'MASTERS', 'AUDIT_LOGS', 'ADMINISTRATION'],
+  ADMIN:      ['INDENTS', 'PLANT_INDENTS', 'ISSUE_NOTES', 'REPORTS', 'CONFIRMATIONS', 'MASTERS', 'AUDIT_LOGS'],
+  DEFAULT:    ['INDENTS', 'PLANT_INDENTS', 'ISSUE_NOTES', 'REPORTS', 'CONFIRMATIONS'],
+};
+
+// Matches RoleNormalizer.java fallback: strip spaces + uppercase
+function normalizeRoleCode(raw: string): string {
+  return raw.replace(/\s+/g, '').toUpperCase();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -45,7 +61,7 @@ const EmployeeFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, hasRole } = useAuth();
   const isEditMode = !!id;
 
   // ── Local state ──────────────────────────────────────────────────────────
@@ -55,6 +71,7 @@ const EmployeeFormPage: React.FC = () => {
   const [reportingManagerId, setReportingManagerId] = useState<number | null>(null);
   const [isPlantEmployee, setIsPlantEmployee] = useState(false);
   const [isSavingModules, setIsSavingModules] = useState(false);
+  const moduleAccessInitialized = useRef(false);
 
   const canManageModules = hasAnyRole(['ADMIN', 'SUPERADMIN']);
 
@@ -113,11 +130,11 @@ const EmployeeFormPage: React.FC = () => {
     enabled: isEditMode,
   });
 
-  // All module definitions (for admin module access card)
+  // All module definitions (needed in both create and edit modes for the module card)
   const { data: allModules = [] } = useQuery<ModuleDefinition[]>({
     queryKey: ['all-modules'],
     queryFn: () => moduleAccessApi.getAllModules(),
-    enabled: isEditMode && canManageModules,
+    enabled: canManageModules,
   });
 
   // Current module access for the employee being edited
@@ -185,6 +202,21 @@ const EmployeeFormPage: React.FC = () => {
     }
   }, [empModules]);
 
+  // Initialize module access with DEFAULT defaults in create mode (runs once when allModules loads)
+  useEffect(() => {
+    if (isEditMode || allModules.length === 0 || moduleAccessInitialized.current) return;
+    moduleAccessInitialized.current = true;
+    const defaults = MODULE_ROLE_DEFAULTS['DEFAULT'];
+    const newAccess: Record<string, boolean> = {};
+    allModules.forEach(mod => {
+      if (!mod.isFuture) {
+        newAccess[mod.moduleCode] = defaults.includes(mod.moduleCode);
+      }
+    });
+    setModuleAccess(newAccess);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allModules, isEditMode]);
+
   // Pre-select supervisor on edit
   useEffect(() => {
     if (supervisorData) {
@@ -208,15 +240,34 @@ const EmployeeFormPage: React.FC = () => {
     }
   };
 
+  // ── Role change handler (auto-adjusts module defaults + blocks SUPERADMIN) ──
+  const handleRoleChange = (newRoleId: number | null) => {
+    if (newRoleId !== null) {
+      const role = allRoles.find(r => r.id === newRoleId);
+      if (role) {
+        const normalizedCode = normalizeRoleCode(role.code);
+        if (normalizedCode === 'SUPERADMIN' && !hasRole('SUPERADMIN')) {
+          toast.error('Only a Super Admin can assign the Super Admin role.');
+          return; // controlled state unchanged → dropdown reverts
+        }
+        if (allModules.length > 0) {
+          const defaults = MODULE_ROLE_DEFAULTS[normalizedCode] ?? MODULE_ROLE_DEFAULTS['DEFAULT'];
+          const newAccess: Record<string, boolean> = {};
+          allModules.forEach(mod => {
+            if (!mod.isFuture) {
+              newAccess[mod.moduleCode] = defaults.includes(mod.moduleCode);
+            }
+          });
+          setModuleAccess(newAccess);
+        }
+      }
+    }
+    setPrimaryRoleId(newRoleId);
+  };
+
   // ── Mutations ────────────────────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: (data: EmployeeCreateRequest) => employeesApi.create(data),
-    onSuccess: () => {
-      toast.success('Employee created successfully');
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
-      navigate('/masters/employees');
-    },
-    onError: (error) => toast.error(getErrorMessage(error)),
   });
 
   const updateMutation = useMutation({
@@ -255,7 +306,7 @@ const EmployeeFormPage: React.FC = () => {
   };
 
   // ── Submit ───────────────────────────────────────────────────────────────
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     const roleIdList = primaryRoleId ? [primaryRoleId] : [];
 
     if (isEditMode) {
@@ -291,7 +342,22 @@ const EmployeeFormPage: React.FC = () => {
         roleIds:      roleIdList,
         reportingManagerId: reportingManagerId ?? undefined,
       };
-      createMutation.mutate(createPayload);
+      try {
+        const newEmployee = await createMutation.mutateAsync(createPayload);
+        if (canManageModules && allModules.length > 0 && Object.keys(moduleAccess).length > 0) {
+          try {
+            const updates = Object.entries(moduleAccess).map(([code, enabled]) => ({ code, enabled }));
+            await moduleAccessApi.updateEmployeeModules(newEmployee.id, updates);
+          } catch {
+            toast.warn('Employee created, but module access could not be saved. Update it from the edit page.');
+          }
+        }
+        toast.success('Employee created successfully');
+        queryClient.invalidateQueries({ queryKey: ['employees'] });
+        navigate('/masters/employees');
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      }
     }
   };
 
@@ -568,7 +634,7 @@ const EmployeeFormPage: React.FC = () => {
                   <Form.Label>Primary Role</Form.Label>
                   <Form.Select
                     value={primaryRoleId ?? ''}
-                    onChange={e => setPrimaryRoleId(e.target.value ? Number(e.target.value) : null)}
+                    onChange={e => handleRoleChange(e.target.value ? Number(e.target.value) : null)}
                   >
                     <option value="">— No role assigned —</option>
                     {allRoles.map((role: Role) => (
@@ -626,8 +692,8 @@ const EmployeeFormPage: React.FC = () => {
           </Card.Body>
         </Card>
 
-        {/* ── Section 5: Module Access (edit mode, ADMIN/SUPERADMIN only) ── */}
-        {isEditMode && canManageModules && allModules.length > 0 && (
+        {/* ── Section 5: Module Access (ADMIN/SUPERADMIN only, create + edit) ── */}
+        {canManageModules && allModules.length > 0 && (
           <Card className="mb-3">
             <Card.Header className="d-flex align-items-center gap-2">
               <FaPuzzlePiece className="text-primary" />
@@ -646,7 +712,7 @@ const EmployeeFormPage: React.FC = () => {
                   const canToggle =
                     !isFuture &&
                     (hasAnyRole(['SUPERADMIN']) ||
-                      (hasAnyRole(['ADMIN']) && mod.moduleCode !== 'ADMINISTRATION' && mod.moduleCode !== 'AUDIT_LOGS'));
+                      (hasAnyRole(['ADMIN']) && mod.moduleCode !== 'ADMINISTRATION'));
                   return (
                     <Col key={mod.moduleCode} xs={12} sm={6} md={4}>
                       <div className={`d-flex align-items-center justify-content-between p-2 border rounded ${isFuture ? 'opacity-50 bg-light' : ''}`}>
@@ -670,18 +736,24 @@ const EmployeeFormPage: React.FC = () => {
                   );
                 })}
               </Row>
-              <div className="mt-3 d-flex justify-content-end">
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={handleSaveModules}
-                  disabled={isSavingModules}
-                >
-                  {isSavingModules
-                    ? <><Spinner as="span" animation="border" size="sm" className="me-2" />Saving...</>
-                    : 'Save Module Access'}
-                </Button>
-              </div>
+              {isEditMode ? (
+                <div className="mt-3 d-flex justify-content-end">
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={handleSaveModules}
+                    disabled={isSavingModules}
+                  >
+                    {isSavingModules
+                      ? <><Spinner as="span" animation="border" size="sm" className="me-2" />Saving...</>
+                      : 'Save Module Access'}
+                  </Button>
+                </div>
+              ) : (
+                <Form.Text className="text-muted d-block mt-2">
+                  Module access will be saved automatically when the employee is created.
+                </Form.Text>
+              )}
               <Form.Text className="text-muted d-block mt-1">
                 Greyed-out toggles are locked for your role. Future modules cannot be enabled until implemented.
               </Form.Text>
