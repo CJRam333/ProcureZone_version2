@@ -256,8 +256,23 @@ public class IndentService {
                         Integer companyId, LocalDateTime fromDate, LocalDateTime toDate,
                         Integer approvedStatusId, Integer finalStatusId, Integer procurementStatusId,
                         Pageable pageable) {
+
+                // Department scoping: SUPERADMIN and ADMIN see all departments.
+                // All other roles are restricted to their own department (from JWT deptId claim).
+                // If the user has no department assigned, no extra filter is applied.
+                Integer effectiveDeptId = departmentId;
+                var auth = org.springframework.security.core.context.SecurityContextHolder
+                        .getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal cu) {
+                        boolean isAdminOrSuper = cu.roles().stream()
+                                .anyMatch(r -> "SUPERADMIN".equals(r) || "ADMIN".equals(r));
+                        if (!isAdminOrSuper && cu.deptId() != null) {
+                                effectiveDeptId = cu.deptId();
+                        }
+                }
+
                 return indentRepository
-                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
+                                .filterIndents(search, statusId, effectiveDeptId, plantId, companyId, fromDate, toDate,
                                                approvedStatusId, finalStatusId, procurementStatusId, pageable)
                                 .map(this::toIndentListResponse);
         }

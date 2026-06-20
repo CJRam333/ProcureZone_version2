@@ -41,4 +41,7 @@ public interface CompanyEmployeeRepository extends JpaRepository<CompanyEmployee
 
     @Query("SELECT ce.employeeNumber FROM CompanyEmployee ce WHERE ce.companyId = :companyId AND ce.status = 1")
     List<Integer> findActiveEmployeeNumbersByCompany(@Param("companyId") Integer companyId);
+
+    @Query("SELECT ce.companyId FROM CompanyEmployee ce WHERE ce.employeeNumber = :empNumber AND ce.status = 1")
+    List<Integer> findCompanyIdsByEmpNumber(@Param("empNumber") Integer empNumber);
 }

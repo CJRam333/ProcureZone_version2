@@ -1,6 +1,7 @@
 package com.nslindia.procurezone.auth.service;
 
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import com.nslindia.procurezone.audit.AuditService;
 import com.nslindia.procurezone.auth.dto.AuthenticatedUser;
+import com.nslindia.procurezone.repository.CompanyEmployeeRepository;
 import com.nslindia.procurezone.auth.dto.LoginRequest;
 import com.nslindia.procurezone.auth.dto.LoginResponse;
 import com.nslindia.procurezone.auth.dto.LogoutResponse;
@@ -40,14 +42,17 @@ public class AuthService {
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
     private final AuditService auditService;
+    private final CompanyEmployeeRepository companyEmployeeRepository;
 
     public AuthService(EmployeeRepository employeeRepository, PasswordService passwordService,
-            JwtService jwtService, TokenBlacklistService tokenBlacklistService, AuditService auditService) {
+            JwtService jwtService, TokenBlacklistService tokenBlacklistService, AuditService auditService,
+            CompanyEmployeeRepository companyEmployeeRepository) {
         this.employeeRepository = employeeRepository;
         this.passwordService = passwordService;
         this.jwtService = jwtService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.auditService = auditService;
+        this.companyEmployeeRepository = companyEmployeeRepository;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -111,6 +116,10 @@ public class AuthService {
             // Replaces tbl_user_master.user_id. JWT "uid" claim carries emp_number.
             Long userId = employee.getEmployeeNumber().longValue();
 
+            // Load company IDs from tbl_map_company_emp for JWT claim
+            List<Integer> companyIds = companyEmployeeRepository
+                    .findCompanyIdsByEmpNumber(employee.getEmployeeNumber());
+
             UserPrincipal principal = new UserPrincipal(
                     userId,
                     employee.getEmployeeNumber(),
@@ -122,7 +131,10 @@ public class AuthService {
                     canView,
                     canAdd,
                     canEdit,
-                    canDelete);
+                    canDelete,
+                    employee.getDepartmentId(),
+                    employee.getLocationId(),
+                    companyIds);
 
             JwtService.AccessToken accessToken = jwtService.generateAccessToken(principal);
 

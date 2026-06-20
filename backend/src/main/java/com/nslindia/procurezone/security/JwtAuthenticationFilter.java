@@ -80,7 +80,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 payload.canView(),
                                 payload.canAdd(),
                                 payload.canEdit(),
-                                payload.canDelete());
+                                payload.canDelete(),
+                                payload.deptId(),
+                                payload.locationId(),
+                                payload.companyIds());
 
                         logger.debug("JwtAuthenticationFilter: Creating principal with roles: {}", payload.roles());
                         logger.debug("JwtAuthenticationFilter: Authorities from principal: {}",

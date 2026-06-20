@@ -53,6 +53,9 @@ public class JwtService {
                 .claim("canAdd", principal.canAdd())
                 .claim("canEdit", principal.canEdit())
                 .claim("canDelete", principal.canDelete())
+                .claim("deptId", principal.deptId())
+                .claim("locationId", principal.locationId())
+                .claim("companyIds", principal.companyIds())
                 .signWith(secretKey)
                 .compact();
         return new AccessToken(token, issuedAt, expiresAt);
@@ -80,6 +83,9 @@ public class JwtService {
                     extractBoolean(claims, "canAdd"),
                     extractBoolean(claims, "canEdit"),
                     extractBoolean(claims, "canDelete"),
+                    extractInteger(claims, "deptId"),
+                    extractInteger(claims, "locationId"),
+                    extractCompanyIds(claims),
                     issuedAt,
                     expiresAt);
             return Optional.of(payload);
@@ -125,6 +131,20 @@ public class JwtService {
         }
     }
 
+    private List<Integer> extractCompanyIds(Claims claims) {
+        Object raw = claims.get("companyIds");
+        if (raw instanceof List<?> list) {
+            List<Integer> result = new java.util.ArrayList<>();
+            for (Object o : list) {
+                if (o instanceof Number n) {
+                    result.add(n.intValue());
+                }
+            }
+            return result;
+        }
+        return List.of();
+    }
+
     private Set<String> extractRoles(Claims claims) {
         Object raw = claims.get("roles");
         if (raw instanceof List<?> list) {
@@ -154,6 +174,9 @@ public class JwtService {
             boolean canAdd,
             boolean canEdit,
             boolean canDelete,
+            Integer deptId,
+            Integer locationId,
+            List<Integer> companyIds,
             Instant issuedAt,
             Instant expiresAt) {
     }

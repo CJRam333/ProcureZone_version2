@@ -1,6 +1,7 @@
 package com.nslindia.procurezone.security;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,10 +20,14 @@ public record UserPrincipal(
         boolean canView,
         boolean canAdd,
         boolean canEdit,
-        boolean canDelete) {
+        boolean canDelete,
+        Integer deptId,
+        Integer locationId,
+        List<Integer> companyIds) {
 
     public UserPrincipal {
         roles = roles == null ? Set.of() : Set.copyOf(roles);
+        companyIds = companyIds == null ? List.of() : List.copyOf(companyIds);
     }
 
     public Collection<? extends GrantedAuthority> authorities() {
