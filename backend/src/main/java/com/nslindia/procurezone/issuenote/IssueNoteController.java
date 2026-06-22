@@ -204,55 +204,36 @@ public class IssueNoteController {
         }
 
         /**
-         * Approve issue note (Manager)
-         * Changes status from 3 (RM Approved) to 4 (Approved)
+         * DEPRECATED — Manager approval stage removed to match legacy 3-stage flow.
+         * Legacy flow: Creator → RM → Stores. No Dept Head stage exists.
          */
         @PostMapping("/{id}/approve")
-        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> approveIssueNote(
                         @PathVariable Integer id,
                         @Valid @RequestBody ApproveIssueNoteRequest request,
                         Authentication authentication) {
 
-                UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-
-                log.info("Approving issue note {} by user: {}", id, userPrincipal.employeeNumber());
-
-                IssueNoteResponse response = issueNoteService.approve(
-                                id, request, userPrincipal.employeeNumber());
-
                 Map<String, Object> responseMap = new HashMap<>();
-                responseMap.put("success", true);
-                responseMap.put("message", "Issue note approved successfully");
-                responseMap.put("data", response);
-
-                return ResponseEntity.ok(responseMap);
+                responseMap.put("success", false);
+                responseMap.put("message", "Manager approval stage has been removed. After RM approval, issue notes go directly to Stores.");
+                return ResponseEntity.status(HttpStatus.GONE).body(responseMap);
         }
 
         /**
-         * Reject issue note (Manager)
-         * Changes status from 3 (RM Approved) to 6 (Rejected by Manager)
+         * DEPRECATED — Manager rejection stage removed to match legacy 3-stage flow.
          */
         @PostMapping("/{id}/reject")
-        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> rejectByManager(
                         @PathVariable Integer id,
                         @Valid @RequestBody RejectIssueNoteRequest request,
                         Authentication authentication) {
 
-                UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-
-                log.info("Rejecting issue note {} by manager, user: {}", id, userPrincipal.employeeNumber());
-
-                IssueNoteResponse response = issueNoteService.rejectByManager(
-                                id, request, userPrincipal.employeeNumber());
-
                 Map<String, Object> responseMap = new HashMap<>();
-                responseMap.put("success", true);
-                responseMap.put("message", "Issue note rejected");
-                responseMap.put("data", response);
-
-                return ResponseEntity.ok(responseMap);
+                responseMap.put("success", false);
+                responseMap.put("message", "Manager rejection stage has been removed. RM can reject via /rm-reject.");
+                return ResponseEntity.status(HttpStatus.GONE).body(responseMap);
         }
 
         /**
@@ -334,8 +315,8 @@ public class IssueNoteController {
         }
 
         /**
-         * Get pending approval queue (for managers)
-         * Status = 3 (RM Approved, pending manager approval)
+         * DEPRECATED — Manager approval queue removed. Manager approval stage no longer exists.
+         * Use /pending-rm-approval for RM queue or /pending-issue for Stores queue.
          */
         @GetMapping("/pending-approval")
         @PreAuthorize("hasAnyRole('PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
@@ -343,15 +324,10 @@ public class IssueNoteController {
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size) {
 
-                Page<IssueNoteSummaryResponse> issueNotePage = issueNoteService.getPendingApproval(page, size);
-
                 Map<String, Object> response = new HashMap<>();
-                response.put("content", issueNotePage.getContent());
-                response.put("currentPage", issueNotePage.getNumber());
-                response.put("totalItems", issueNotePage.getTotalElements());
-                response.put("totalPages", issueNotePage.getTotalPages());
-
-                return ResponseEntity.ok(response);
+                response.put("success", false);
+                response.put("message", "Manager approval stage removed. Use /pending-rm-approval or /pending-issue.");
+                return ResponseEntity.status(HttpStatus.GONE).body(response);
         }
 
         /**
@@ -440,6 +416,71 @@ public class IssueNoteController {
                 response.put("totalPages", issueNotePage.getTotalPages());
 
                 return ResponseEntity.ok(response);
+        }
+
+        /**
+         * Export issue notes as Excel or CSV.
+         * GET /api/v1/issue-notes/export?format=excel|csv&status=...&departmentId=...
+         */
+        @GetMapping("/export")
+        @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN')")
+        public ResponseEntity<byte[]> exportIssueNotes(
+                        @RequestParam(defaultValue = "excel") String format,
+                        @RequestParam(required = false) Integer status,
+                        @RequestParam(required = false) Integer departmentId) throws java.io.IOException {
+
+                java.util.List<IssueNoteSummaryResponse> rows = issueNoteService.exportAll(status, departmentId);
+
+                if ("csv".equalsIgnoreCase(format)) {
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("Issue Note No.,Date,Department,Issued To,Status,Items,Total Amount\n");
+                        for (var r : rows) {
+                                sb.append(csv(r.issueNoteNumber())).append(',')
+                                  .append(r.issueDate() != null ? r.issueDate().toLocalDate() : "").append(',')
+                                  .append(r.departmentId() != null ? r.departmentId() : "").append(',')
+                                  .append(csv(r.issuedTo())).append(',')
+                                  .append(csv(r.statusDescription())).append(',')
+                                  .append(r.lineItemCount() != null ? r.lineItemCount() : 0).append(',')
+                                  .append(r.totalAmount() != null ? r.totalAmount() : "0.00").append('\n');
+                        }
+                        byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        return ResponseEntity.ok()
+                                        .header("Content-Disposition", "attachment; filename=\"issue_notes_export.csv\"")
+                                        .header("Content-Type", "text/csv; charset=UTF-8")
+                                        .body(bytes);
+                }
+
+                // Excel
+                try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+                        org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Issue Notes");
+                        org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
+                        String[] cols = {"Issue Note No.", "Date", "Dept ID", "Issued To", "Status", "Items", "Total Amount"};
+                        for (int i = 0; i < cols.length; i++) {
+                                header.createCell(i).setCellValue(cols[i]);
+                        }
+                        int rowNum = 1;
+                        for (var r : rows) {
+                                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                                row.createCell(0).setCellValue(r.issueNoteNumber() != null ? r.issueNoteNumber() : "");
+                                row.createCell(1).setCellValue(r.issueDate() != null ? r.issueDate().toLocalDate().toString() : "");
+                                row.createCell(2).setCellValue(r.departmentId() != null ? r.departmentId() : 0);
+                                row.createCell(3).setCellValue(r.issuedTo() != null ? r.issuedTo() : "");
+                                row.createCell(4).setCellValue(r.statusDescription() != null ? r.statusDescription() : "");
+                                row.createCell(5).setCellValue(r.lineItemCount() != null ? r.lineItemCount() : 0);
+                                row.createCell(6).setCellValue(r.totalAmount() != null ? r.totalAmount().toPlainString() : "0.00");
+                        }
+                        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                        wb.write(bos);
+                        return ResponseEntity.ok()
+                                        .header("Content-Disposition", "attachment; filename=\"issue_notes_export.xlsx\"")
+                                        .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                        .body(bos.toByteArray());
+                }
+        }
+
+        private static String csv(String value) {
+                if (value == null) return "";
+                return "\"" + value.replace("\"", "\"\"") + "\"";
         }
 
         /**

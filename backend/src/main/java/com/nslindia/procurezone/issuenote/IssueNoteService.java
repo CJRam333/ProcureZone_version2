@@ -3,8 +3,11 @@ package com.nslindia.procurezone.issuenote;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nslindia.procurezone.audit.AuditService;
 import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
+import com.nslindia.procurezone.identity.Employee;
+import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.inventory.InventoryService;
 import com.nslindia.procurezone.issuenote.dto.*;
+import com.nslindia.procurezone.notification.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -13,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -37,6 +42,8 @@ public class IssueNoteService {
     private final IssueNoteRepository issueNoteRepository;
     private final AuditService auditService;
     private final InventoryService inventoryService;
+    private final EmailService emailService;
+    private final EmployeeRepository employeeRepository;
 
     private static final String ENTITY_TYPE = "Issue Note";
     private static final String ERROR_NOT_FOUND = "Issue Note not found with ID: ";
@@ -52,6 +59,9 @@ public class IssueNoteService {
         // Generate issue note number
         String issueNoteNumber = generateIssueNoteNumber();
 
+        // Supervisor bypass: DEPTHEAD creators skip RM and go directly to Stores
+        boolean isDeptHead = isCreatorDeptHead();
+
         // Build issue note entity
         IssueNote issueNote = IssueNote.builder()
                 .issueNoteNumber(issueNoteNumber)
@@ -64,7 +74,8 @@ public class IssueNoteService {
                 .purpose(request.purpose())
                 .comments(request.comments())
                 .createdBy(userId)
-                .status(1) // Created
+                .status(isDeptHead ? 3 : 1) // DEPTHEAD skips RM, goes directly to stores
+                .supervisorBypass(isDeptHead)
                 .lastModifiedDate(LocalDateTime.now())
                 .lastModifiedBy(userId)
                 .build();
@@ -91,6 +102,14 @@ public class IssueNoteService {
         }
 
         issueNote = issueNoteRepository.save(issueNote);
+
+        // Email notification
+        final IssueNote savedNote = issueNote;
+        java.util.Map<String, Object> createdVars = new HashMap<>();
+        createdVars.put("createdBy", "User #" + userId);
+        createdVars.put("issuedTo", savedNote.getIssuedTo() != null ? savedNote.getIssuedTo() : "N/A");
+        createdVars.put("department", "Dept #" + savedNote.getDepartmentId());
+        sendIssueNoteNotification("ISSUE_NOTE_CREATED", savedNote, createdVars);
 
         // Audit log
         auditService.logEntityChange(
@@ -221,6 +240,11 @@ public class IssueNoteService {
                 buildAuditDetails(issueNote, "RM approved", extraDetails));
 
         log.info("Issue note {} RM approved", issueNote.getIssueNoteNumber());
+        java.util.Map<String, Object> rmApprovedVars = new HashMap<>();
+        rmApprovedVars.put("approverName", "User #" + userId);
+        rmApprovedVars.put("approvalDate", LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        rmApprovedVars.put("department", "Dept #" + issueNote.getDepartmentId());
+        sendIssueNoteNotification("ISSUE_NOTE_RM_APPROVED", issueNote, rmApprovedVars);
         return mapToResponse(issueNote);
     }
 
@@ -263,6 +287,12 @@ public class IssueNoteService {
                 buildAuditDetails(issueNote, "RM rejected", extraDetails));
 
         log.info("Issue note {} RM rejected", issueNote.getIssueNoteNumber());
+        java.util.Map<String, Object> rmRejectedVars = new HashMap<>();
+        rmRejectedVars.put("rejectorName", "User #" + userId);
+        rmRejectedVars.put("rejectionDate", LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        rmRejectedVars.put("reason", request.reason() != null ? request.reason() : "No reason provided");
+        rmRejectedVars.put("department", "Dept #" + issueNote.getDepartmentId());
+        sendIssueNoteNotification("ISSUE_NOTE_RM_REJECTED", issueNote, rmRejectedVars);
         return mapToResponse(issueNote);
     }
 
@@ -351,7 +381,7 @@ public class IssueNoteService {
         issueNote.setStatus(8); // Issued
         issueNote.setStoresBy(userId);
         issueNote.setStoresByDate(LocalDateTime.now());
-        issueNote.setStoresByStatus(1); // Approved by stores
+        issueNote.setStoresByStatus(11); // 11 = Issued, matches legacy storesby_status value
         issueNote.setComments(issueNote.getComments() + "\nIssue remarks: " + request.remarks());
         issueNote.setLastModifiedDate(LocalDateTime.now());
         issueNote.setLastModifiedBy(userId);
@@ -371,6 +401,11 @@ public class IssueNoteService {
                 buildAuditDetails(issueNote, "Goods issued", extraDetails));
 
         log.info("Issue note {} goods issued successfully", issueNote.getIssueNoteNumber());
+        java.util.Map<String, Object> issuedVars = new HashMap<>();
+        issuedVars.put("issuedByName", "User #" + userId);
+        issuedVars.put("department", "Dept #" + issueNote.getDepartmentId());
+        issuedVars.put("issueDate", LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        sendIssueNoteNotification("ISSUE_NOTE_ISSUED", issueNote, issuedVars);
         return mapToResponse(issueNote);
     }
 
@@ -391,7 +426,7 @@ public class IssueNoteService {
         issueNote.setStatus(9); // Rejected by Stores
         issueNote.setStoresBy(userId);
         issueNote.setStoresByDate(LocalDateTime.now());
-        issueNote.setStoresByStatus(6); // Rejected (from tbl_indent_status)
+        issueNote.setStoresByStatus(2); // 2 = Rejected, matches legacy storesby_status value
         issueNote.setComments(issueNote.getComments() + "\nStores rejection reason: " + request.reason());
         issueNote.setLastModifiedDate(LocalDateTime.now());
         issueNote.setLastModifiedBy(userId);
@@ -411,6 +446,12 @@ public class IssueNoteService {
                 buildAuditDetails(issueNote, "Rejected by stores", extraDetails));
 
         log.info("Issue note {} rejected by stores", issueNote.getIssueNoteNumber());
+        java.util.Map<String, Object> storesRejectedVars = new HashMap<>();
+        storesRejectedVars.put("rejectorName", "User #" + userId);
+        storesRejectedVars.put("rejectionDate", LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        storesRejectedVars.put("reason", request.reason() != null ? request.reason() : "No reason provided");
+        storesRejectedVars.put("department", "Dept #" + issueNote.getDepartmentId());
+        sendIssueNoteNotification("ISSUE_NOTE_STORES_REJECTED", issueNote, storesRejectedVars);
         return mapToResponse(issueNote);
     }
 
@@ -428,8 +469,8 @@ public class IssueNoteService {
                     issueNote.getStatusDescription());
         }
 
-        // Mark as rejected
-        issueNote.setStatus(4); // Rejected
+        // Soft-delete: status=0 means cancelled/inactive, matches legacy issue_note_status=0
+        issueNote.setStatus(0);
         issueNote.setComments(issueNote.getComments() + "\nCancelled by user");
         issueNote.setLastModifiedDate(LocalDateTime.now());
         issueNote.setLastModifiedBy(userId);
@@ -547,6 +588,25 @@ public class IssueNoteService {
     }
 
     /**
+     * Export all issue notes (up to 10,000 rows) for file download, with optional filters.
+     */
+    @Transactional(readOnly = true)
+    public List<IssueNoteSummaryResponse> exportAll(Integer status, Integer departmentId) {
+        Pageable exportPageable = PageRequest.of(0, 10_000, Sort.by(Sort.Direction.DESC, "issueDate"));
+        Page<IssueNote> page;
+        if (status != null && departmentId != null) {
+            page = issueNoteRepository.findByDepartmentIdAndStatus(departmentId, status, exportPageable);
+        } else if (status != null) {
+            page = issueNoteRepository.findByStatus(status, exportPageable);
+        } else if (departmentId != null) {
+            page = issueNoteRepository.findByDepartmentId(departmentId, exportPageable);
+        } else {
+            page = issueNoteRepository.findAll(exportPageable);
+        }
+        return page.map(this::mapToSummaryResponse).getContent();
+    }
+
+    /**
      * Get dashboard statistics
      */
     @Transactional(readOnly = true)
@@ -584,6 +644,13 @@ public class IssueNoteService {
     private IssueNote findById(Integer id) {
         return issueNoteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ERROR_NOT_FOUND + id));
+    }
+
+    private boolean isCreatorDeptHead() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_DEPTHEAD".equals(a.getAuthority()));
     }
 
     private String generateIssueNoteNumber() {
@@ -754,5 +821,25 @@ public class IssueNoteService {
 
         log.info("Issue note {} materials returned successfully", issueNote.getIssueNoteNumber());
         return mapToResponse(issueNote);
+    }
+
+    private void sendIssueNoteNotification(String templateCode, IssueNote issueNote,
+            java.util.Map<String, Object> extraVars) {
+        try {
+            Employee creator = employeeRepository.findById(issueNote.getCreatedBy()).orElse(null);
+            if (creator == null || creator.getEmail() == null) {
+                log.warn("Cannot send {} - no creator email for issue note {}", templateCode,
+                        issueNote.getIssueNoteNumber());
+                return;
+            }
+            java.util.Map<String, Object> vars = new HashMap<>(extraVars);
+            vars.put("issueNoteNumber", issueNote.getIssueNoteNumber());
+            vars.put("issueDate", issueNote.getIssueDate() != null
+                    ? issueNote.getIssueDate().toLocalDate().toString() : "N/A");
+            emailService.sendEmailFromTemplate(templateCode, vars, creator.getEmail());
+        } catch (Exception e) {
+            log.error("Error sending {} for issue note {}: {}", templateCode,
+                    issueNote.getIssueNoteNumber(), e.getMessage());
+        }
     }
 }

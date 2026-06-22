@@ -279,16 +279,18 @@ public class IndentService {
 
         /**
          * Export indents matching filters — returns up to 10,000 rows for file export.
+         * Accepts the same filter params as filterIndents() so exported data matches what the user sees.
          */
         @Transactional(readOnly = true)
         public java.util.List<IndentListResponse> exportIndents(
                         String search, Integer statusId, Integer departmentId, Integer plantId,
-                        Integer companyId, LocalDateTime fromDate, LocalDateTime toDate) {
+                        Integer companyId, LocalDateTime fromDate, LocalDateTime toDate,
+                        Integer approvedStatusId, Integer finalStatusId, Integer procurementStatusId) {
                 Pageable exportPageable = PageRequest.of(0, 10_000,
                         Sort.by("indentDate").descending());
                 return indentRepository
                                 .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
-                                               null, null, null, exportPageable)
+                                               approvedStatusId, finalStatusId, procurementStatusId, exportPageable)
                                 .map(this::toIndentListResponse)
                                 .getContent();
         }
@@ -854,6 +856,7 @@ public class IndentService {
                                 String.format("L1 Rejected indent %s: %s", indent.getIndentNumber(), remarks));
 
                 logger.info("L1 Rejected indent {}", indent.getIndentNumber());
+                sendL1RejectionNotification(indent, currentUser, remarks);
 
                 return toIndentResponse(indent);
         }
@@ -1017,6 +1020,7 @@ public class IndentService {
                                 String.format("L2 Rejected indent %s: %s", indent.getIndentNumber(), remarks));
 
                 logger.info("L2 Rejected indent {}", indent.getIndentNumber());
+                sendL2RejectionNotification(indent, currentUser, remarks);
 
                 return toIndentResponse(indent);
         }
@@ -1134,6 +1138,62 @@ public class IndentService {
                         emailService.sendEmailFromTemplate("INDENT_L2_APPROVED", variables, indentCreator.getEmail());
                 } catch (Exception e) {
                         logger.error("Error sending L2 approval notification for indent {}: {}",
+                                        indent.getIndentNumber(), e.getMessage());
+                }
+        }
+
+        private void sendL1RejectionNotification(Indent indent, Employee rejector) {
+                sendL1RejectionNotification(indent, rejector, null);
+        }
+
+        private void sendL1RejectionNotification(Indent indent, Employee rejector, String remarks) {
+                try {
+                        Employee indentCreator = indent.getEmployee();
+                        if (indentCreator == null || indentCreator.getEmail() == null) {
+                                logger.warn("Cannot send L1 rejection notification - no creator email for indent {}",
+                                                indent.getIndentNumber());
+                                return;
+                        }
+                        java.util.Map<String, Object> variables = new java.util.HashMap<>();
+                        variables.put("indentNumber", indent.getIndentNumber());
+                        variables.put("creatorName", indentCreator.getFullName());
+                        variables.put("rejectorName", rejector.getFullName());
+                        variables.put("rejectionDate", LocalDateTime.now().format(
+                                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                        variables.put("reason", remarks != null ? remarks : "No reason provided");
+                        variables.put("department",
+                                        indent.getDepartment() != null ? indent.getDepartment().getName() : "N/A");
+                        emailService.sendEmailFromTemplate("INDENT_L1_REJECTED", variables, indentCreator.getEmail());
+                } catch (Exception e) {
+                        logger.error("Error sending L1 rejection notification for indent {}: {}",
+                                        indent.getIndentNumber(), e.getMessage());
+                }
+        }
+
+        private void sendL2RejectionNotification(Indent indent, Employee rejector) {
+                sendL2RejectionNotification(indent, rejector, null);
+        }
+
+        private void sendL2RejectionNotification(Indent indent, Employee rejector, String remarks) {
+                try {
+                        Employee indentCreator = indent.getEmployee();
+                        if (indentCreator == null || indentCreator.getEmail() == null) {
+                                logger.warn("Cannot send L2 rejection notification - no creator email for indent {}",
+                                                indent.getIndentNumber());
+                                return;
+                        }
+                        java.util.Map<String, Object> variables = new java.util.HashMap<>();
+                        variables.put("indentNumber", indent.getIndentNumber());
+                        variables.put("creatorName", indentCreator.getFullName());
+                        variables.put("rejectorName", rejector.getFullName());
+                        variables.put("rejectionDate", LocalDateTime.now().format(
+                                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                        variables.put("reason", remarks != null ? remarks : "No reason provided");
+                        variables.put("department",
+                                        indent.getDepartment() != null ? indent.getDepartment().getName() : "N/A");
+                        emailService.sendEmailFromTemplate("INDENT_L2_REJECTED", variables, indentCreator.getEmail());
+                } catch (Exception e) {
+                        logger.error("Error sending L2 rejection notification for indent {}: {}",
                                         indent.getIndentNumber(), e.getMessage());
                 }
         }
@@ -1435,6 +1495,65 @@ public class IndentService {
                                                 previousStatus));
 
                 logger.info("Resumed indent {} to status {}", indent.getIndentNumber(), previousStatus);
+
+                return toIndentResponse(indent);
+        }
+
+        /**
+         * Update procurement sub-stage on an indent.
+         * Sub-status values (indent_procurement_status FK):
+         *   5 = Quotations Collected, 6 = Negotiation Done,
+         *   7 = PO Released (poNumber + deliveryDate required),
+         *   8 = Hold (remarks required), 9 = Cash Buy (deliveryDate required)
+         */
+        public IndentResponse updateProcurementStatus(
+                        Integer id, String username,
+                        Integer procurementSubStatus, String poNumber,
+                        java.time.LocalDate deliveryDate, String remarks) {
+                logger.info("Updating procurement sub-status on indent {} to {} by {}", id, procurementSubStatus, username);
+
+                Indent indent = indentRepository.findById(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("Indent not found with ID: " + id));
+
+                // Must be in Dept-Head-Approved state (finalStatus id = 4)
+                if (indent.getFinalStatus() == null || indent.getFinalStatus().getId() != 4) {
+                        throw new IllegalStateException(
+                                        "Procurement update requires Dept Head approval first. Current final status: "
+                                                        + (indent.getFinalStatus() != null ? indent.getFinalStatus().getName() : "none"));
+                }
+
+                // Validate required fields per sub-status
+                if (procurementSubStatus == 7 && (poNumber == null || deliveryDate == null)) {
+                        throw new IllegalArgumentException("PO Released requires poNumber and deliveryDate");
+                }
+                if (procurementSubStatus == 8 && (remarks == null || remarks.isBlank())) {
+                        throw new IllegalArgumentException("Hold requires remarks");
+                }
+                if (procurementSubStatus == 9 && deliveryDate == null) {
+                        throw new IllegalArgumentException("Cash Buy requires deliveryDate");
+                }
+
+                Employee currentUser = employeeRepository.findByEmail(username)
+                                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+
+                indent.setProcurementStatus(entityManager.getReference(IndentStatus.class, procurementSubStatus));
+                if (poNumber != null) indent.setPoNumber(poNumber);
+                if (deliveryDate != null) indent.setDeliveryDate(deliveryDate);
+                if (remarks != null) indent.setProcurementRemarks(remarks);
+                indent.setProcurementBy(currentUser);
+                indent.setLastModifiedDate(LocalDateTime.now());
+                indent.setLastModifiedBy(currentUser.getEmpNumber());
+
+                indent = indentRepository.save(indent);
+
+                auditService.logEntityChange(
+                                "PROCUREMENT_UPDATE",
+                                "Indent",
+                                indent.getId(),
+                                currentUser.getEmpNumber(),
+                                username,
+                                String.format("Procurement sub-status updated to %d on indent %s",
+                                                procurementSubStatus, indent.getIndentNumber()));
 
                 return toIndentResponse(indent);
         }

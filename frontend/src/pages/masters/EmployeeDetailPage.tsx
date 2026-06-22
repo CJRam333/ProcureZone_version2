@@ -23,6 +23,9 @@ import {
     FaSitemap,
     FaHistory,
     FaUserTag,
+    FaUsers,
+    FaArrowDown,
+    FaUserTie,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { employeesApi, getErrorMessage } from '../../api';
@@ -57,6 +60,68 @@ const EmployeeDetailPage: React.FC = () => {
                 const response = await apiClient.get(`/employees/${id}/roles`);
                 const data = response.data as Array<{ roleId: number; roleCode: string; roleName: string }>;
                 return data.map(r => ({ id: r.roleId, code: r.roleCode, name: r.roleName }));
+            } catch {
+                return [];
+            }
+        },
+        enabled: !!id,
+    });
+
+    // Supervisor + their employee details
+    const { data: supervisorInfo } = useQuery({
+        queryKey: ['employee-supervisor', id],
+        queryFn: async () => {
+            try {
+                const res = await apiClient.get(`/employee-reporting/employee/${id}/supervisor`);
+                const rel = res.data?.data;
+                if (!rel?.supervisorEmployeeNumber) return null;
+                const supId = rel.supervisorEmployeeNumber as number;
+                const emp = await employeesApi.getById(supId);
+                return { ...emp, numericId: supId };
+            } catch {
+                return null;
+            }
+        },
+        enabled: !!id,
+    });
+
+    // Manager chain IDs → employee details
+    const { data: managerChain } = useQuery({
+        queryKey: ['manager-chain', id],
+        queryFn: async () => {
+            try {
+                const res = await apiClient.get(`/employee-reporting/employee/${id}/manager-chain`);
+                const ids: number[] = res.data?.data || [];
+                if (ids.length === 0) return [];
+                const emps = await Promise.all(ids.map(async (empId) => {
+                    try {
+                        const emp = await employeesApi.getById(empId);
+                        return { ...emp, numericId: empId };
+                    } catch { return null; }
+                }));
+                return emps.filter(Boolean) as (Employee & { numericId: number })[];
+            } catch {
+                return [];
+            }
+        },
+        enabled: !!id,
+    });
+
+    // Direct reports (subordinate relationships → employee details)
+    const { data: directReports } = useQuery({
+        queryKey: ['direct-reports', id],
+        queryFn: async () => {
+            try {
+                const res = await apiClient.get(`/employee-reporting/employee/${id}/subordinates`);
+                const items: Array<{ subordinateEmployeeNumber: number }> = res.data?.data || [];
+                if (items.length === 0) return [];
+                const emps = await Promise.all(items.map(async (item) => {
+                    try {
+                        const emp = await employeesApi.getById(item.subordinateEmployeeNumber);
+                        return { ...emp, numericId: item.subordinateEmployeeNumber };
+                    } catch { return null; }
+                }));
+                return emps.filter(Boolean) as (Employee & { numericId: number })[];
             } catch {
                 return [];
             }
@@ -291,6 +356,143 @@ const EmployeeDetailPage: React.FC = () => {
                             </div>
                         </Card.Body>
                     </Card>
+                </Tab>
+
+                {/* Hierarchy Tab */}
+                <Tab eventKey="hierarchy" title={<><FaSitemap className="me-2" />Hierarchy</>}>
+                    <Row className="g-4">
+                        {/* Reports To */}
+                        <Col lg={6}>
+                            <Card>
+                                <Card.Header>
+                                    <h5 className="mb-0"><FaUserTie className="me-2" />Reports To</h5>
+                                </Card.Header>
+                                <Card.Body>
+                                    {supervisorInfo ? (
+                                        <div className="d-flex align-items-center gap-3">
+                                            <div
+                                                className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0"
+                                                style={{ width: 48, height: 48, fontSize: 18 }}
+                                            >
+                                                <FaUser />
+                                            </div>
+                                            <div className="flex-grow-1">
+                                                <strong className="d-block">{supervisorInfo.empName}</strong>
+                                                <small className="text-muted">{supervisorInfo.empDesignation || 'N/A'}</small>
+                                                <small className="text-muted d-block">{supervisorInfo.departmentName || ''}</small>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="outline-primary"
+                                                onClick={() => navigate(`/masters/employees/${supervisorInfo.numericId}`)}
+                                            >
+                                                View
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted mb-0">
+                                            {employee.reportingManagerName || 'No supervisor assigned'}
+                                        </p>
+                                    )}
+                                </Card.Body>
+                            </Card>
+                        </Col>
+
+                        {/* Manager Chain */}
+                        <Col lg={6}>
+                            <Card>
+                                <Card.Header>
+                                    <h5 className="mb-0"><FaSitemap className="me-2" />Manager Chain</h5>
+                                </Card.Header>
+                                <Card.Body>
+                                    {managerChain && managerChain.length > 0 ? (
+                                        <div>
+                                            {managerChain.map((mgr, idx) => (
+                                                <div key={mgr.numericId} className="d-flex align-items-center gap-2 mb-2">
+                                                    <Badge bg="secondary" style={{ minWidth: 24, textAlign: 'center' }}>{idx + 1}</Badge>
+                                                    <span
+                                                        className="text-primary"
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => navigate(`/masters/employees/${mgr.numericId}`)}
+                                                    >
+                                                        {mgr.empName}
+                                                    </span>
+                                                    <small className="text-muted">— {mgr.empDesignation || 'N/A'}</small>
+                                                    {idx < managerChain.length - 1 && (
+                                                        <FaArrowDown className="text-muted ms-1" size={10} />
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <div className="d-flex align-items-center gap-2 mt-2 pt-2 border-top">
+                                                <Badge bg="primary" style={{ minWidth: 24, textAlign: 'center' }}>{managerChain.length + 1}</Badge>
+                                                <strong>{employee.empName}</strong>
+                                                <small className="text-muted">— (this employee)</small>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted mb-0">No management chain data</p>
+                                    )}
+                                </Card.Body>
+                            </Card>
+                        </Col>
+
+                        {/* Direct Reports */}
+                        <Col xs={12}>
+                            <Card>
+                                <Card.Header>
+                                    <h5 className="mb-0">
+                                        <FaUsers className="me-2" />
+                                        Direct Reports
+                                        {directReports && directReports.length > 0 && (
+                                            <Badge bg="primary" className="ms-2">{directReports.length}</Badge>
+                                        )}
+                                    </h5>
+                                </Card.Header>
+                                <Card.Body className="p-0">
+                                    <div className="table-responsive">
+                                        <Table hover className="mb-0">
+                                            <thead className="bg-light">
+                                                <tr>
+                                                    <th>Employee Code</th>
+                                                    <th>Name</th>
+                                                    <th>Designation</th>
+                                                    <th>Department</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {directReports && directReports.length > 0 ? (
+                                                    directReports.map((emp) => (
+                                                        <tr key={emp.numericId}>
+                                                            <td><Badge bg="secondary">{emp.empId}</Badge></td>
+                                                            <td><strong>{emp.empName}</strong></td>
+                                                            <td>{emp.empDesignation || '-'}</td>
+                                                            <td>{emp.departmentName || '-'}</td>
+                                                            <td>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline-primary"
+                                                                    onClick={() => navigate(`/masters/employees/${emp.numericId}`)}
+                                                                >
+                                                                    View
+                                                                </Button>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan={5} className="text-center text-muted py-4">
+                                                            No direct reports
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </Table>
+                                    </div>
+                                </Card.Body>
+                            </Card>
+                        </Col>
+                    </Row>
                 </Tab>
 
                 {/* History Tab */}

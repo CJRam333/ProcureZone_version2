@@ -131,13 +131,17 @@ public class IndentController {
             @RequestParam(required = false) Integer plantId,
             @RequestParam(required = false) Integer companyId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) throws java.io.IOException {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(required = false) Integer approvedStatus,
+            @RequestParam(required = false) Integer finalStatus,
+            @RequestParam(required = false) Integer procurementStatus) throws java.io.IOException {
 
         LocalDateTime fromDt = fromDate != null ? fromDate.atStartOfDay() : null;
         LocalDateTime toDt   = toDate   != null ? toDate.atTime(23, 59, 59) : null;
 
         java.util.List<com.nslindia.procurezone.indent.dto.IndentListResponse> rows =
-                indentService.exportIndents(search, status, departmentId, plantId, companyId, fromDt, toDt);
+                indentService.exportIndents(search, status, departmentId, plantId, companyId, fromDt, toDt,
+                                            approvedStatus, finalStatus, procurementStatus);
 
         if ("csv".equalsIgnoreCase(format)) {
             StringBuilder sb = new StringBuilder();
@@ -533,6 +537,27 @@ public class IndentController {
                 principal.email());
         IndentResponse response = indentService.procurementApproveIndent(id, principal.email(), remarks);
         log.info("Indent ID: {} procurement approved by: {}", id, principal.email());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Update procurement sub-stage.
+     * POST /api/v1/indents/{id}/procurement-update
+     * Sets indent_procurement_status to one of: 5=Quotations, 6=Negotiation, 7=PO Released, 8=Hold, 9=Cash Buy.
+     */
+    @PostMapping("/{id}/procurement-update")
+    @PreAuthorize("hasAnyRole('PROCUREMENT', 'ADMIN', 'SUPERADMIN')")
+    public ResponseEntity<IndentResponse> updateProcurementStatus(
+            @PathVariable Integer id,
+            @Valid @RequestBody com.nslindia.procurezone.indent.dto.ProcurementUpdateRequest request,
+            Authentication authentication) {
+
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        log.info("Procurement update for indent {} sub-status {} by {}", id, request.procurementSubStatus(), principal.email());
+        IndentResponse response = indentService.updateProcurementStatus(
+                id, principal.email(),
+                request.procurementSubStatus(), request.poNumber(),
+                request.deliveryDate(), request.remarks());
         return ResponseEntity.ok(response);
     }
 

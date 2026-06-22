@@ -38,7 +38,7 @@ export { VendorsListPage, VendorFormPage, VendorDetailPage } from './vendors';
 export { MaterialsListPage, MaterialFormPage, MaterialDetailPage, MaterialBulkImportPage } from './materials';
 
 // Reports
-export { ReportsPage } from './reports';
+export { ReportsPage, IndentReportPage, IssueNoteReportPage } from './reports';
 
 // Admin
 export { AdminPage, AuditLogViewerPage, EmailTemplateManagerPage } from './admin';

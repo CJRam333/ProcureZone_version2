@@ -34,7 +34,6 @@ const issueNoteLineItemSchema = z.object({
   uomCode: z.string().optional(),
   unitOfMeasureId: z.number().min(1, 'UOM is required'),
   quantity: z.number().min(0.01, 'Quantity must be greater than 0'),
-  rate: z.number().optional(),
   purpose: z.string().optional(),
 });
 
@@ -83,7 +82,7 @@ const IssueNoteFormPage: React.FC = () => {
       issuedTo: '',
       purpose: '',
       comments: '',
-      lineItems: [{ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, rate: 0, purpose: '' }],
+      lineItems: [{ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, purpose: '' }],
     },
   });
 
@@ -158,9 +157,8 @@ const IssueNoteFormPage: React.FC = () => {
           uomCode: '',
           unitOfMeasureId: item.unitOfMeasureId,
           quantity: Number(item.quantity) || 1,
-          rate: Number(item.rate) || 0,
           purpose: item.purpose || '',
-        })) || [{ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, rate: 0, purpose: '' }],
+        })) || [{ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, purpose: '' }],
       });
     }
   }, [existingIssueNote, reset]);
@@ -225,7 +223,6 @@ const IssueNoteFormPage: React.FC = () => {
         materialId: item.materialId,
         unitOfMeasureId: item.unitOfMeasureId,
         quantity: item.quantity,
-        rate: item.rate,
         purpose: item.purpose,
       })),
     };
@@ -255,7 +252,6 @@ const IssueNoteFormPage: React.FC = () => {
           materialId: item.materialId,
           unitOfMeasureId: item.unitOfMeasureId,
           quantity: item.quantity,
-          rate: item.rate,
           purpose: item.purpose,
         })),
       };
@@ -462,7 +458,7 @@ const IssueNoteFormPage: React.FC = () => {
               variant="primary"
               size="sm"
               onClick={() =>
-                append({ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, rate: 0, purpose: '' })
+                append({ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, purpose: '' })
               }
             >
               <FaPlus className="me-1" /> Add Item
@@ -477,7 +473,6 @@ const IssueNoteFormPage: React.FC = () => {
                     <th style={{ minWidth: '300px' }}>Material</th>
                     <th style={{ width: '120px' }}>UOM</th>
                     <th style={{ width: '120px' }}>Quantity</th>
-                    <th style={{ width: '120px' }}>Rate</th>
                     <th style={{ width: '150px' }}>Purpose</th>
                     <th style={{ width: '60px' }}></th>
                   </tr>
@@ -625,15 +620,6 @@ const IssueNoteFormPage: React.FC = () => {
                       </td>
                       <td>
                         <Form.Control
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          {...register(`lineItems.${index}.rate`, { valueAsNumber: true })}
-                          placeholder="0.00"
-                        />
-                      </td>
-                      <td>
-                        <Form.Control
                           type="text"
                           {...register(`lineItems.${index}.purpose`)}
                           placeholder="Purpose"
@@ -656,7 +642,7 @@ const IssueNoteFormPage: React.FC = () => {
                 </tbody>
                 <tfoot className="bg-light">
                   <tr>
-                    <td colSpan={4} className="text-end fw-bold">
+                    <td colSpan={3} className="text-end fw-bold">
                       Total Items:
                     </td>
                     <td className="fw-bold">

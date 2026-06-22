@@ -118,6 +118,9 @@ public class Indent {
     @JoinColumn(name = "indent_procurement_status")
     private IndentStatus procurementStatus;
 
+    @Column(name = "indent_procurement_remarks", columnDefinition = "MEDIUMTEXT")
+    private String procurementRemarks;
+
     @Column(name = "indent_lmd")
     private LocalDateTime lastModifiedDate;
 
@@ -330,6 +333,14 @@ public class Indent {
 
     public void setProcurementStatus(IndentStatus procurementStatus) {
         this.procurementStatus = procurementStatus;
+    }
+
+    public String getProcurementRemarks() {
+        return procurementRemarks;
+    }
+
+    public void setProcurementRemarks(String procurementRemarks) {
+        this.procurementRemarks = procurementRemarks;
     }
 
     public LocalDateTime getLastModifiedDate() {

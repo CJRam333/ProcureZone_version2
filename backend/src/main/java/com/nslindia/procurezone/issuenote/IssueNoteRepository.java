@@ -72,9 +72,9 @@ public interface IssueNoteRepository extends JpaRepository<IssueNote, Integer> {
         Page<IssueNote> findPendingApproval(Pageable pageable);
 
         /**
-         * Find pending issue (status = 4 Approved or 7 Pending Store Issue)
+         * Find pending issue (status = 3 RM Approved — goes directly to stores, no Manager stage)
          */
-        @Query("SELECT i FROM IssueNote i WHERE i.status IN (4, 7)")
+        @Query("SELECT i FROM IssueNote i WHERE i.status = 3")
         Page<IssueNote> findPendingIssue(Pageable pageable);
 
         /**

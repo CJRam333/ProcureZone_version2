@@ -40,6 +40,8 @@ import {
   MaterialDetailPage,
   MaterialBulkImportPage,
   ReportsPage,
+  IndentReportPage,
+  IssueNoteReportPage,
   AuditLogViewerPage,
   EmailTemplateManagerPage,
   ProfilePage,
@@ -497,35 +499,73 @@ const router = createBrowserRouter([
       },
       {
         path: 'reports',
+        children: [
+          {
+            index: true,
+            element: (
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'indents',
+            element: (
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
+                <IndentReportPage />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'issue-notes',
+            element: (
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
+                <IssueNoteReportPage />
+              </ProtectedRoute>
+            ),
+          },
+        ],
+      },
+      // Standalone admin pages (no longer nested under /admin group)
+      {
+        path: 'audit-logs',
         element: (
-          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
-            <ReportsPage />
+          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN']}>
+            <AuditLogViewerPage />
           </ProtectedRoute>
         ),
       },
       {
-        // Admin routes - system administration
+        path: 'email-templates',
+        element: (
+          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN']}>
+            <EmailTemplateManagerPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'material-import',
+        element: (
+          <ProtectedRoute roles={['SUPERADMIN', 'ADMIN']}>
+            <MaterialBulkImportPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        // Legacy /admin/* redirects for bookmarked links
         path: 'admin',
         children: [
           {
             index: true,
-            element: <Navigate to="/admin/audit-logs" replace />,
+            element: <Navigate to="/audit-logs" replace />,
           },
           {
             path: 'audit-logs',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN']}>
-                <AuditLogViewerPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/audit-logs" replace />,
           },
           {
             path: 'email-templates',
-            element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN']}>
-                <EmailTemplateManagerPage />
-              </ProtectedRoute>
-            ),
+            element: <Navigate to="/email-templates" replace />,
           },
           {
             path: 'users',

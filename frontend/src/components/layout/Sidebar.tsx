@@ -148,13 +148,40 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       future: true,
     },
     {
-      path: '/reports',
-      label: 'Reports',
-      icon: <FaChartBar />,
-      roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD'],
-      moduleCode: 'REPORTS',
+      path: '/audit-logs',
+      label: 'Audit Logs',
+      icon: <FaHistory />,
+      roles: ['SUPERADMIN', 'ADMIN', 'ROLE_VIEWER'],
+      moduleCode: 'AUDIT_LOGS',
+    },
+    {
+      path: '/email-templates',
+      label: 'Email Templates',
+      icon: <FaEnvelope />,
+      roles: ['SUPERADMIN', 'ADMIN'],
+      moduleCode: 'EMAIL_TEMPLATES',
+    },
+    {
+      path: '/material-import',
+      label: 'Material Import',
+      icon: <FaCubes />,
+      roles: ['SUPERADMIN', 'ADMIN'],
+      moduleCode: 'MATERIAL_IMPORT',
     },
   ];
+
+  const reportsGroup: NavGroup = {
+    label: 'Reports',
+    icon: <FaChartBar />,
+    roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD'],
+    groupKey: 'reports',
+    moduleCode: 'REPORTS',
+    items: [
+      { path: '/reports', label: 'Summary', icon: <FaChartLine /> },
+      { path: '/reports/indents', label: 'Indents', icon: <FaFileAlt /> },
+      { path: '/reports/issue-notes', label: 'Issue Notes', icon: <FaClipboardList /> },
+    ],
+  };
 
   const masterDataGroup: NavGroup = {
     label: 'Master Data',
@@ -178,20 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
     ],
   };
 
-  const adminGroup: NavGroup = {
-    label: 'Administration',
-    icon: <FaCog />,
-    roles: ['SUPERADMIN', 'ADMIN', 'ROLE_VIEWER'],
-    groupKey: 'admin',
-    moduleCode: 'ADMINISTRATION',
-    items: [
-      { path: '/admin/audit-logs', label: 'Audit Logs', icon: <FaHistory />, roles: ['SUPERADMIN', 'ADMIN', 'ROLE_VIEWER'], moduleCode: 'AUDIT_LOGS' },
-      { path: '/admin/email-templates', label: 'Email Templates', icon: <FaEnvelope />, roles: ['SUPERADMIN', 'ADMIN'] },
-      { path: '/materials/import', label: 'Material Import', icon: <FaCubes />, roles: ['SUPERADMIN', 'ADMIN'] },
-    ],
-  };
-
-  const navGroups: NavGroup[] = [masterDataGroup, adminGroup];
+  const navGroups: NavGroup[] = [reportsGroup, masterDataGroup];
 
   // Auto-expand sidebar group when URL matches a child route
   useEffect(() => {

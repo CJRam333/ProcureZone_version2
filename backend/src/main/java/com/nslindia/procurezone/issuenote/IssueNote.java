@@ -187,11 +187,11 @@ public class IssueNote {
     }
 
     public boolean canBeIssued() {
-        return status != null && (status == 4 || status == 7);
+        return status != null && status == 3;
     }
 
     public boolean canBeRejectedByStores() {
-        return status != null && (status == 4 || status == 7);
+        return status != null && status == 3;
     }
 
     public boolean canBeCancelled() {
@@ -251,14 +251,12 @@ public class IssueNote {
      */
     public String getStatusDescription() {
         return switch (status) {
-            case 1 -> "Created";
+            case 0 -> "Cancelled";
+            case 1 -> "Draft";
             case 2 -> "Pending RM Approval";
-            case 3 -> "RM Approved";
-            case 4 -> "Approved";
+            case 3 -> "Awaiting Stores Issue";
             case 5 -> "Rejected by RM";
-            case 6 -> "Rejected by Manager";
-            case 7 -> "Pending Store Issue";
-            case 8 -> "Issued";
+            case 8 -> "Goods Issued";
             case 9 -> "Rejected by Stores";
             case 10 -> "Returned";
             default -> "Unknown";
