@@ -2,9 +2,11 @@
 -- add EMAIL_TEMPLATES and MATERIAL_IMPORT as standalone modules,
 -- update AUDIT_LOGS to include ROLE_VIEWER in defaults.
 
--- Remove the ADMINISTRATION umbrella module (items are now top-level)
+-- Deactivate the ADMINISTRATION umbrella module (items are now top-level).
+-- Using UPDATE instead of DELETE to avoid FK violations from tbl_map_emp_module_access
+-- and any other tables that reference module_code.
 DELETE FROM tbl_map_emp_module_access WHERE access_module = 'ADMINISTRATION';
-DELETE FROM tbl_module_master WHERE module_code = 'ADMINISTRATION';
+UPDATE tbl_module_master SET module_status = 0 WHERE module_code = 'ADMINISTRATION';
 
 -- Update AUDIT_LOGS default roles to include ROLE_VIEWER
 UPDATE tbl_module_master
