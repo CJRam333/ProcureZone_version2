@@ -1,6 +1,7 @@
 package com.nslindia.procurezone.moduleaccess;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -95,7 +96,7 @@ public class ModuleAccessService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
+    @Transactional(readOnly = false)
     public void updateEmployeeModules(Integer empNumber, UpdateModuleAccessRequest request) {
         UserPrincipal cu = currentUser();
         Set<String> roles = cu.roles();
@@ -110,11 +111,14 @@ public class ModuleAccessService {
             throw new AccessDeniedException("You cannot modify your own module access");
         }
 
+        List<EmpModuleAccess> toSave = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
         for (UpdateModuleAccessRequest.ModuleUpdate update : request.moduleCodes()) {
             String code = update.code();
 
-            // ADMIN cannot enable ADMINISTRATION — skip silently rather than throwing
-            if (!isSuperAdmin && ADMINISTRATION.equals(code) && update.enabled()) {
+            // ADMIN cannot modify ADMINISTRATION in any direction — only SUPERADMIN can
+            if (!isSuperAdmin && ADMINISTRATION.equals(code)) {
                 continue;
             }
 
@@ -124,9 +128,11 @@ public class ModuleAccessService {
 
             row.setEnabled(update.enabled());
             row.setGrantedBy(cu.employeeNumber());
-            row.setGrantedAt(LocalDateTime.now());
-            empModuleAccessRepository.save(row);
+            row.setGrantedAt(now);
+            toSave.add(row);
         }
+
+        empModuleAccessRepository.saveAllAndFlush(toSave);
     }
 
     private Set<String> getEmpNormalizedRoles(Integer empNumber) {
