@@ -27,7 +27,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to RM approver when an indent is submitted',
  '["indentNumber","department","creatorName","deliveryDate"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- INDENT: RM (L1) Approved
 ('INDENT_L1_APPROVED',
@@ -51,7 +51,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to indent creator when RM approves (L1)',
  '["indentNumber","department","creatorName","approverName","approvalDate","remarks"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- INDENT: RM (L1) Rejected
 ('INDENT_L1_REJECTED',
@@ -75,7 +75,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to indent creator when RM rejects (L1)',
  '["indentNumber","department","creatorName","rejectorName","rejectionDate","reason"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- INDENT: Department Head (L2) Approved
 ('INDENT_L2_APPROVED',
@@ -99,7 +99,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to indent creator when Dept Head gives final approval (L2)',
  '["indentNumber","department","creatorName","approverName","approvalDate","remarks"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- INDENT: Department Head (L2) Rejected
 ('INDENT_L2_REJECTED',
@@ -123,7 +123,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to indent creator when Dept Head rejects (L2)',
  '["indentNumber","department","creatorName","rejectorName","rejectionDate","reason"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- INDENT: Cancelled
 ('INDENT_CANCELLED',
@@ -147,7 +147,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to indent creator when an indent is cancelled',
  '["indentNumber","department","creatorName","cancelledByName","cancellationDate","reason"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- ISSUE NOTE: Created
 ('ISSUE_NOTE_CREATED',
@@ -170,7 +170,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent when an issue note is created and awaiting RM approval',
  '["issueNoteNumber","department","issuedTo","createdBy","issueDate"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- ISSUE NOTE: RM Approved
 ('ISSUE_NOTE_RM_APPROVED',
@@ -192,7 +192,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to issue note creator when RM approves',
  '["issueNoteNumber","department","approverName","approvalDate"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- ISSUE NOTE: RM Rejected
 ('ISSUE_NOTE_RM_REJECTED',
@@ -215,7 +215,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to issue note creator when RM rejects',
  '["issueNoteNumber","department","rejectorName","rejectionDate","reason"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- ISSUE NOTE: Goods Issued by Stores
 ('ISSUE_NOTE_ISSUED',
@@ -237,7 +237,7 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to issue note creator when stores issues the goods',
  '["issueNoteNumber","department","issuedByName","issueDate"]',
- 1, 1, CURDATE(), 'SYSTEM'),
+ 1, 1, CURDATE(), 1),
 
 -- ISSUE NOTE: Rejected by Stores
 ('ISSUE_NOTE_STORES_REJECTED',
@@ -260,4 +260,4 @@ INSERT INTO tbl_email_template (
  'NOTIFICATION', 'APPROVAL_WORKFLOW',
  'Sent to issue note creator when Stores rejects the issue',
  '["issueNoteNumber","department","rejectorName","rejectionDate","reason"]',
- 1, 1, CURDATE(), 'SYSTEM');
+ 1, 1, CURDATE(), 1);
