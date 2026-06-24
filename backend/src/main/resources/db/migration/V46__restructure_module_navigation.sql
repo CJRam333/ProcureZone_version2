@@ -15,15 +15,15 @@ WHERE module_code = 'AUDIT_LOGS';
 
 -- Add EMAIL_TEMPLATES standalone module
 INSERT IGNORE INTO tbl_module_master
-    (module_code, module_name, module_status, module_is_future, module_default_roles, module_lmd, module_lmu)
+    (module_code, module_name, module_status, module_is_future, module_default_roles)
 VALUES
-    ('EMAIL_TEMPLATES', 'Email Templates', 1, 0, 'Super Admin,Admin', CURDATE(), 1);
+    ('EMAIL_TEMPLATES', 'Email Templates', 1, 0, 'Super Admin,Admin');
 
 -- Add MATERIAL_IMPORT standalone module
 INSERT IGNORE INTO tbl_module_master
-    (module_code, module_name, module_status, module_is_future, module_default_roles, module_lmd, module_lmu)
+    (module_code, module_name, module_status, module_is_future, module_default_roles)
 VALUES
-    ('MATERIAL_IMPORT', 'Material Import', 1, 0, 'Super Admin,Admin', CURDATE(), 1);
+    ('MATERIAL_IMPORT', 'Material Import', 1, 0, 'Super Admin,Admin');
 
 -- Seed module access for SUPERADMIN and ADMIN employees for the new modules
 INSERT IGNORE INTO tbl_map_emp_module_access
