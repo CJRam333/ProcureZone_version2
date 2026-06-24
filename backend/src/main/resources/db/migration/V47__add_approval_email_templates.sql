@@ -1,3 +1,4 @@
+-- flyway:placeholderReplacement=false
 -- V47: Add workflow approval/rejection email templates
 -- Covers indent and issue note lifecycle notification points
 
