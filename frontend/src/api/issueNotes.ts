@@ -134,6 +134,21 @@ export interface ReturnIssueNoteRequest {
     remarks?: string;
 }
 
+export interface IssueNoteFormMeta {
+    empNumber: number;
+    empName: string;
+    empId: string;
+    departmentId: number | null;
+    departmentName: string | null;
+    companies: { id: number; name: string }[];
+    defaultCompanyId: number | null;
+    locationId: number | null;
+    locationName: string | null;
+    financialYear: string;
+    date: string;
+    nextIssueNoteNumber: string;
+}
+
 // ============== API Functions ==============
 
 export const issueNotesApi = {
@@ -345,6 +360,11 @@ export const issueNotesApi = {
 
     getStatistics: async (): Promise<any> => {
         const response = await apiClient.get("/issue-notes/statistics");
+        return response.data;
+    },
+
+    getMeta: async (): Promise<IssueNoteFormMeta> => {
+        const response = await apiClient.get<IssueNoteFormMeta>("/issue-notes/meta");
         return response.data;
     },
 };

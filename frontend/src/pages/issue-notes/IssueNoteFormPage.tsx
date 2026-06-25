@@ -19,12 +19,9 @@ import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch } from 're
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, materialsApi, companiesApi, departmentsApi, plantsApi, sectionsApi, uomApi, getErrorMessage } from '../../api';
 import { inventoryApi } from '../../api/inventory';
-import type { Material } from '../../api/materials';
-import type { Company } from '../../api/companies';
-import type { Department } from '../../api/departments';
-import type { Plant } from '../../api/plants';
-import type { Section } from '../../api/sections';
-import type { UOM } from '../../api/uom';
+import type { MaterialDropdownItem } from '../../api/materials';
+import type { IssueNoteFormMeta } from '../../api/issueNotes';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Validation schema - updated to match backend DTO
 const issueNoteLineItemSchema = z.object({
@@ -54,6 +51,7 @@ const IssueNoteFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const isEdit = !!id;
 
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +59,9 @@ const IssueNoteFormPage: React.FC = () => {
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
   const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
+  type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
+  const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
+  const [formMeta, setFormMeta] = useState<IssueNoteFormMeta | null>(null);
 
   // Form setup - updated for new schema
   const {
@@ -132,11 +133,19 @@ const IssueNoteFormPage: React.FC = () => {
     enabled: isEdit,
   });
 
-  // Fetch materials for search
-  const { data: materialsData } = useQuery({
-    queryKey: ['materials', materialSearch],
-    queryFn: () => materialsApi.list({ search: materialSearch, size: 20, isActive: true }),
-    enabled: materialSearch.length >= 2,
+  // Fetch materials for dropdown — uses the enriched dropdown endpoint with company/plant/stock info
+  const { data: dropdownMaterials } = useQuery<MaterialDropdownItem[]>({
+    queryKey: ['materials-dropdown', materialSearch],
+    queryFn: () => materialsApi.dropdown(materialSearch || undefined),
+    staleTime: 30000,
+  });
+
+  // Fetch form meta (employee info, financial year, next issue note number)
+  const { data: metaData } = useQuery({
+    queryKey: ['issue-note-form-meta'],
+    queryFn: issueNotesApi.getMeta,
+    enabled: !isEdit,
+    staleTime: 60000,
   });
 
   // Load existing data in edit mode
@@ -162,6 +171,15 @@ const IssueNoteFormPage: React.FC = () => {
       });
     }
   }, [existingIssueNote, reset]);
+
+  // Auto-fill form fields from meta on create mode
+  useEffect(() => {
+    if (!isEdit && metaData) {
+      setFormMeta(metaData);
+      if (metaData.departmentId) setValue('departmentId', metaData.departmentId);
+      if (metaData.defaultCompanyId) setValue('companyId', metaData.defaultCompanyId);
+    }
+  }, [isEdit, metaData, setValue]);
 
   // Re-fetch stock whenever the plant selection changes
   useEffect(() => {
@@ -269,23 +287,26 @@ const IssueNoteFormPage: React.FC = () => {
     }
   };
 
-  // Handle material selection - UOM needs to be selected separately since Material doesn't have UOM
-  const selectMaterial = (material: Material, index: number) => {
-    setValue(`lineItems.${index}.materialId`, material.id, { shouldDirty: true, shouldValidate: true });
-    setValue(`lineItems.${index}.materialCode`, material.code, { shouldDirty: true });
-    setValue(`lineItems.${index}.materialDescription`, material.name || material.description, { shouldDirty: true });
-    // Don't set UOM - user needs to select it separately since Material doesn't have UOM info
+  // Handle material selection from dropdown — MaterialDropdownItem includes company, plant, stock info
+  const selectMaterial = (item: MaterialDropdownItem, index: number) => {
+    setValue(`lineItems.${index}.materialId`, item.materialId, { shouldDirty: true, shouldValidate: true });
+    setValue(`lineItems.${index}.materialCode`, item.materialCode, { shouldDirty: true });
+    setValue(`lineItems.${index}.materialDescription`, item.materialName || '', { shouldDirty: true });
     setShowMaterialSearch(false);
     setMaterialSearch('');
     setSelectedItemIndex(null);
-    // Fetch available stock for this material at the selected plant
-    const plantId = getValues('plantId');
-    if (plantId > 0) {
-      inventoryApi
-        .getStockByMaterialAndPlant(material.id, plantId)
-        .then((r) => setStockByIndex((prev) => ({ ...prev, [index]: r.availableStock })))
-        .catch(() => setStockByIndex((prev) => ({ ...prev, [index]: null })));
-    }
+    // Store company / stock info for this item
+    setItemCompanyMap((prev) => ({
+      ...prev,
+      [index]: {
+        companyId: item.companyId,
+        companyName: item.companyName,
+        plantId: item.plantId,
+        plantName: item.plantName,
+        stock: item.stockQuantity !== null ? Number(item.stockQuantity) : null,
+      },
+    }));
+    setStockByIndex((prev) => ({ ...prev, [index]: item.stockQuantity !== null ? Number(item.stockQuantity) : null }));
   };
 
   if (isEdit && loadingIssueNote) {
@@ -322,6 +343,29 @@ const IssueNoteFormPage: React.FC = () => {
             <h5 className="mb-0">Issue Note Information</h5>
           </Card.Header>
           <Card.Body>
+            {/* Read-only reference info — only shown when creating a new issue note */}
+            {!isEdit && formMeta && (
+              <Row className="g-3 mb-3 pb-3" style={{ borderBottom: '1px solid #dee2e6' }}>
+                <Col md={4}>
+                  <small className="text-muted d-block fw-semibold">Employee</small>
+                  <span className="fw-bold">{formMeta.empName}</span>
+                  <small className="text-muted ms-2">({formMeta.empId || formMeta.empNumber})</small>
+                </Col>
+                <Col md={2}>
+                  <small className="text-muted d-block fw-semibold">Financial Year</small>
+                  <span className="fw-bold text-primary">{formMeta.financialYear}</span>
+                </Col>
+                <Col md={2}>
+                  <small className="text-muted d-block fw-semibold">Date</small>
+                  <span className="fw-bold">{formMeta.date}</span>
+                </Col>
+                <Col md={4}>
+                  <small className="text-muted d-block fw-semibold">Issue Note No. (Preview)</small>
+                  <span className="fw-bold text-success">{formMeta.nextIssueNoteNumber}</span>
+                  <small className="text-muted ms-1">(auto-assigned on save)</small>
+                </Col>
+              </Row>
+            )}
             <Row className="g-3">
               {/* Company */}
               <Col md={6}>
@@ -549,27 +593,32 @@ const IssueNoteFormPage: React.FC = () => {
                           {/* Material Search Dropdown */}
                           {showMaterialSearch &&
                             selectedItemIndex === index &&
-                            materialsData?.content &&
-                            materialsData.content.length > 0 && (
+                            dropdownMaterials &&
+                            dropdownMaterials.length > 0 && (
                               <div
                                 className="position-absolute bg-white border rounded shadow-lg w-100"
                                 style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0 }}
                               >
-                                {materialsData.content.map((material) => (
+                                {dropdownMaterials.map((item) => (
                                   <div
-                                    key={material.id}
+                                    key={`${item.materialId}-${item.companyId}`}
                                     className="p-2 border-bottom"
                                     style={{ cursor: 'pointer', transition: 'background-color 0.15s ease' }}
                                     onMouseDown={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      selectMaterial(material, index);
+                                      selectMaterial(item, index);
                                     }}
                                     onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
                                     onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
                                   >
-                                    <div className="fw-semibold text-primary">{material.code}</div>
-                                    <small className="text-muted d-block">{material.name || material.description}</small>
+                                    <div className="fw-semibold text-primary">{item.materialCode}</div>
+                                    <small className="text-muted d-block">{item.materialName}</small>
+                                    {item.stockQuantity !== null && (
+                                      <small className={`d-block fw-medium ${(item.stockQuantity ?? 0) > 0 ? 'text-success' : 'text-danger'}`}>
+                                        Stock: {item.stockQuantity}
+                                      </small>
+                                    )}
                                   </div>
                                 ))}
                               </div>

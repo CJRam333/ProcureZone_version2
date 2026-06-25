@@ -1,7 +1,9 @@
 package com.nslindia.procurezone.issuenote;
 
 import com.nslindia.procurezone.security.UserPrincipal;
+import com.nslindia.procurezone.indent.IndentFormMetaService;
 import com.nslindia.procurezone.issuenote.dto.*;
+import com.nslindia.procurezone.issuenote.dto.IssueNoteFormMetaResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,18 @@ import java.util.Map;
 public class IssueNoteController {
 
         private final IssueNoteService issueNoteService;
+        private final IndentFormMetaService indentFormMetaService;
+
+        /**
+         * GET /api/v1/issue-notes/meta
+         * Returns pre-populated form metadata for the issue note creation form.
+         */
+        @GetMapping("/meta")
+        @PreAuthorize("isAuthenticated()")
+        public ResponseEntity<IssueNoteFormMetaResponse> getFormMeta(Authentication authentication) {
+                UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+                return ResponseEntity.ok(indentFormMetaService.getIssueNoteMeta(principal));
+        }
 
         /**
          * Create a new issue note

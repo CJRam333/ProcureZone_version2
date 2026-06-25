@@ -1838,6 +1838,19 @@ public class IndentService {
                 return "1";
         }
 
+        /** Returns the Indian financial year string, e.g. "2026-27" for Apr 2026 – Mar 2027. */
+        public static String getCurrentFinancialYear() {
+                java.time.LocalDate today = java.time.LocalDate.now();
+                int year = today.getMonthValue() >= 4 ? today.getYear() : today.getYear() - 1;
+                return year + "-" + String.valueOf(year + 1).substring(2);
+        }
+
+        /** Read-only preview of what the next indent number will be (does not consume the number). */
+        @Transactional(readOnly = true)
+        public String previewNextIndentNumber() {
+                return generateLegacyNumericIndentNumber();
+        }
+
         /**
          * Check if an employee has a specific role by role code.
          * Used for Supervisor Auto-Approval logic (DEPTHEAD bypasses L1).

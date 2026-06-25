@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch, FaEdit, FaTimes } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { indentsApi, materialsApi, uomApi, companiesApi, departmentsApi, plantsApi, sectionsApi, getErrorMessage } from '../../api';
+import type { IndentFormMeta } from '../../api/indents';
 import { inventoryApi } from '../../api/inventory';
 import type { MaterialDropdownItem } from '../../api/materials';
 import { useAuth } from '../../contexts/AuthContext';
@@ -66,6 +67,7 @@ const IndentFormPage: React.FC = () => {
   const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
   // legacy stock state kept for plant-change re-fetch compatibility
   const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
+  const [formMeta, setFormMeta] = useState<IndentFormMeta | null>(null);
 
   // Form setup
   const {
@@ -142,24 +144,29 @@ const IndentFormPage: React.FC = () => {
     queryFn: () => sectionsApi.getActive(0, 100),
   });
 
-  // Set default values from user when data is loaded
+  // Fetch form meta (employee info, financial year, next indent number)
+  const { data: metaData } = useQuery({
+    queryKey: ['indent-form-meta'],
+    queryFn: indentsApi.getMeta,
+    enabled: !isEdit,
+    staleTime: 60000,
+  });
+
+  // Auto-fill form fields from meta on create mode
   useEffect(() => {
-    if (!isEdit && user) {
-      if (user.departmentId && departmentsData?.content) {
-        setValue('departmentId', user.departmentId);
-      }
-      if (user.plantId && plantsData?.content) {
-        setValue('plantId', user.plantId);
-      }
-      // Set first company as default if only one
-      if (companiesData?.content?.length === 1) {
-        setValue('companyId', companiesData.content[0].id);
-      }
-      if (sectionsData?.content?.length) {
-        setValue('sectionId', sectionsData.content[0].id);
-      }
+    if (!isEdit && metaData) {
+      setFormMeta(metaData);
+      if (metaData.departmentId) setValue('departmentId', metaData.departmentId);
+      if (metaData.defaultCompanyId) setValue('companyId', metaData.defaultCompanyId);
     }
-  }, [isEdit, user, departmentsData, plantsData, companiesData, sectionsData, setValue]);
+  }, [isEdit, metaData, setValue]);
+
+  // Auto-fill section when sections load
+  useEffect(() => {
+    if (!isEdit && sectionsData?.content?.length) {
+      setValue('sectionId', sectionsData.content[0].id);
+    }
+  }, [isEdit, sectionsData, setValue]);
 
   // Load existing data in edit mode
   useEffect(() => {
@@ -365,12 +372,35 @@ const IndentFormPage: React.FC = () => {
             </h5>
           </Card.Header>
           <Card.Body>
+            {/* Read-only reference info — only shown when creating a new indent */}
+            {!isEdit && formMeta && (
+              <Row className="g-3 mb-3 pb-3" style={{ borderBottom: '1px solid #dee2e6' }}>
+                <Col md={4}>
+                  <small className="text-muted d-block fw-semibold">Employee</small>
+                  <span className="fw-bold">{formMeta.empName}</span>
+                  <small className="text-muted ms-2">({formMeta.empId || formMeta.empNumber})</small>
+                </Col>
+                <Col md={2}>
+                  <small className="text-muted d-block fw-semibold">Financial Year</small>
+                  <span className="fw-bold text-primary">{formMeta.financialYear}</span>
+                </Col>
+                <Col md={2}>
+                  <small className="text-muted d-block fw-semibold">Date</small>
+                  <span className="fw-bold">{formMeta.date}</span>
+                </Col>
+                <Col md={4}>
+                  <small className="text-muted d-block fw-semibold">Indent No. (Preview)</small>
+                  <span className="fw-bold text-success">{formMeta.nextIndentNumber}</span>
+                  <small className="text-muted ms-1">(auto-assigned on save)</small>
+                </Col>
+              </Row>
+            )}
             <Row className="g-3">
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Company <span className="text-danger">*</span></Form.Label>
-                  <Form.Select 
-                    {...register('companyId', { valueAsNumber: true })} 
+                  <Form.Select
+                    {...register('companyId', { valueAsNumber: true })}
                     isInvalid={!!errors.companyId}
                   >
                     <option value={0}>Select Company...</option>

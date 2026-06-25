@@ -158,6 +158,21 @@ export interface CancelIndentRequest {
     reason: string;
 }
 
+export interface IndentFormMeta {
+    empNumber: number;
+    empName: string;
+    empId: string;
+    departmentId: number | null;
+    departmentName: string | null;
+    companies: { id: number; name: string }[];
+    defaultCompanyId: number | null;
+    locationId: number | null;
+    locationName: string | null;
+    financialYear: string;
+    date: string;
+    nextIndentNumber: string;
+}
+
 // ============== API Functions ==============
 
 export const indentsApi = {
@@ -317,6 +332,11 @@ export const indentsApi = {
 
     getStatistics: async (): Promise<any> => {
         const response = await apiClient.get("/indents/statistics");
+        return response.data;
+    },
+
+    getMeta: async (): Promise<IndentFormMeta> => {
+        const response = await apiClient.get<IndentFormMeta>("/indents/meta");
         return response.data;
     },
 };

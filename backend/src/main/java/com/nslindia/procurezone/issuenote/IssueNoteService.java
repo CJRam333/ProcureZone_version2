@@ -688,6 +688,12 @@ public class IssueNoteService {
         return String.format("IN/%s/%05d", year, nextNumber);
     }
 
+    /** Read-only preview of what the next issue note number will be (does not consume the number). */
+    @Transactional(readOnly = true)
+    public String previewNextIssueNoteNumber() {
+        return generateIssueNoteNumber();
+    }
+
     private IssueNoteResponse mapToResponse(IssueNote issueNote) {
         List<IssueNoteResponse.IssueNoteDetailResponse> detailResponses = issueNote.getDetails().stream()
                 .map(d -> new IssueNoteResponse.IssueNoteDetailResponse(
