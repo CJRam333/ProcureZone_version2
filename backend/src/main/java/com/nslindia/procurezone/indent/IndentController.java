@@ -153,7 +153,7 @@ public class IndentController {
                   .append(csv(r.departmentName())).append(',')
                   .append(csv(r.employeeName())).append(',')
                   .append(csv(r.deliveryDate() != null ? r.deliveryDate().toString() : "")).append(',')
-                  .append(csv(r.statusName())).append(',')
+                  .append(csv(r.displayStatus() != null ? r.displayStatus() : r.statusName())).append(',')
                   .append(r.detailsCount() != null ? r.detailsCount() : 0).append('\n');
             }
             byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -193,7 +193,7 @@ public class IndentController {
                 row.createCell(3).setCellValue(r.departmentName() != null ? r.departmentName() : "");
                 row.createCell(4).setCellValue(r.employeeName() != null ? r.employeeName() : "");
                 row.createCell(5).setCellValue(r.deliveryDate() != null ? r.deliveryDate().toString() : "");
-                row.createCell(6).setCellValue(r.statusName() != null ? r.statusName() : "");
+                row.createCell(6).setCellValue(r.displayStatus() != null ? r.displayStatus() : (r.statusName() != null ? r.statusName() : ""));
                 row.createCell(7).setCellValue(r.detailsCount() != null ? r.detailsCount() : 0);
             }
 

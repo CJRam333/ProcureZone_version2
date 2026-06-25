@@ -67,10 +67,11 @@ export const authApi = {
         return response.data;
     },
 
-    // Note: /auth/change-password does NOT exist in backend yet.
-    // Keeping this for future use but it will 404 if called.
     changePassword: async (data: ChangePasswordRequest): Promise<void> => {
-        await apiClient.post("/auth/change-password", data);
+        await apiClient.patch("/auth/change-password", {
+            currentPassword: data.currentPassword,
+            newPassword: data.newPassword,
+        });
     },
 };
 

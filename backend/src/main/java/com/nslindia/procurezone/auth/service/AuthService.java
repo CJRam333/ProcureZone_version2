@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -20,6 +21,7 @@ import com.nslindia.procurezone.auth.dto.LoginResponse;
 import com.nslindia.procurezone.auth.dto.LogoutResponse;
 import com.nslindia.procurezone.auth.exception.InactiveUserException;
 import com.nslindia.procurezone.auth.exception.InvalidCredentialsException;
+import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
 import com.nslindia.procurezone.common.web.RequestUtils;
 import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
@@ -161,6 +163,27 @@ public class AuthService {
             auditService.logAuthentication(username, false, ipAddress);
             throw new InvalidCredentialsException();
         }
+    }
+
+    /**
+     * Change the password for the currently authenticated employee.
+     * Verifies current password (MD5 or BCrypt), then re-encodes new password as BCrypt
+     * and stores it in tbl_emp_master.emp_password.
+     */
+    @Transactional
+    public void changePassword(String email, String currentPassword, String newPassword) {
+        Employee employee = employeeRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found: " + email));
+
+        PasswordVerificationResult verification = passwordService.verifyPassword(
+                currentPassword, employee.getLegacyPasswordHash());
+        if (!verification.successful()) {
+            throw new BadCredentialsException("Current password is incorrect");
+        }
+
+        employee.setLegacyPasswordHash(passwordService.encodePassword(newPassword));
+        employeeRepository.save(employee);
+        log.info("Password changed successfully for employee: {}", email);
     }
 
     /**

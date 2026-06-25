@@ -23,6 +23,30 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 
 /**
+ * Derives a user-visible operational status from the three workflow columns.
+ * Mirrors IndentService.deriveDisplayStatus() — same matrix, same logic.
+ */
+class PlantIndentStatusHelper {
+    static String derive(Integer approvedId, Integer finalId, Integer procurementId) {
+        if (approvedId == null || finalId == null || procurementId == null) return "Pending";
+        if (approvedId == 1 && finalId == 1 && procurementId == 1) return "Pending";
+        if (approvedId == 2 && finalId == 1 && procurementId == 1) return "RM Rejected";
+        if (approvedId == 3 && finalId == 1 && procurementId == 1) return "RM Approved";
+        if (approvedId == 3 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
+        if (approvedId == 2 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
+        if (approvedId == 3 && finalId == 4 && procurementId == 4) return "Dept. Head Approved";
+        if (approvedId == 3 && finalId == 4 && procurementId == 5) return "Quotations Collected";
+        if (approvedId == 3 && finalId == 4 && procurementId == 6) return "Negotiation Done";
+        if (approvedId == 3 && finalId == 4 && procurementId == 7) return "PO Released";
+        if (approvedId == 3 && finalId == 4 && procurementId == 8) return "Hold";
+        if (approvedId == 3 && finalId == 4 && procurementId == 9) return "Cash Buy";
+        if (approvedId == 3 && finalId == 4 && procurementId == 10) return "Goods Receipt";
+        if (approvedId == 3 && finalId == 4 && procurementId == 11) return "Goods Issued";
+        return "In Progress";
+    }
+}
+
+/**
  * Service for Plant Indent operations (R&D / Production workflow).
  * 
  * 8-Status Workflow:
@@ -383,7 +407,7 @@ public class PlantIndentService {
                 pi.getLineDescription(),
                 pi.getExpectedQuantity() != null ? String.valueOf(pi.getExpectedQuantity()) : null,
                 pi.getStatus(),
-                pi.getStatusName(),
+                PlantIndentStatusHelper.derive(pi.getApprovedStatus(), pi.getFinalStatus(), pi.getProcurementStatus()),
                 pi.getCreatedDate(),
                 details.size(),
                 details);

@@ -1,6 +1,7 @@
 package com.nslindia.procurezone.mapping.repository;
 
 import com.nslindia.procurezone.mapping.entity.CompanyPlantMaterial;
+import com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -217,4 +218,30 @@ public interface CompanyPlantMaterialRepository extends JpaRepository<CompanyPla
                         "ORDER BY cpm.quantityStores ASC")
         List<CompanyPlantMaterial> findLowStockMappings(
                         @Param("threshold") Double threshold);
+
+        @Query("SELECT new com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse(" +
+                        "m.id, m.code, m.name, m.description, co.id, co.name, pl.id, pl.name, cpm.quantityStores) " +
+                        "FROM CompanyPlantMaterial cpm " +
+                        "JOIN Material m ON m.id = cpm.materialId " +
+                        "JOIN Company co ON co.id = cpm.companyId " +
+                        "JOIN Plant pl ON pl.id = cpm.plantId " +
+                        "WHERE cpm.status = 1 AND m.status = 1 " +
+                        "AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
+                        "OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+                        "ORDER BY m.code, co.name, pl.name")
+        List<MaterialDropdownResponse> searchForDropdownAllCompanies(@Param("search") String search);
+
+        @Query("SELECT new com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse(" +
+                        "m.id, m.code, m.name, m.description, co.id, co.name, pl.id, pl.name, cpm.quantityStores) " +
+                        "FROM CompanyPlantMaterial cpm " +
+                        "JOIN Material m ON m.id = cpm.materialId " +
+                        "JOIN Company co ON co.id = cpm.companyId " +
+                        "JOIN Plant pl ON pl.id = cpm.plantId " +
+                        "WHERE cpm.status = 1 AND m.status = 1 AND cpm.companyId IN :companyIds " +
+                        "AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
+                        "OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+                        "ORDER BY m.code, co.name, pl.name")
+        List<MaterialDropdownResponse> searchForDropdownByCompanies(
+                        @Param("search") String search,
+                        @Param("companyIds") List<Integer> companyIds);
 }

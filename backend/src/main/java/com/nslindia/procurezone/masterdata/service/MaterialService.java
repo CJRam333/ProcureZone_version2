@@ -15,7 +15,9 @@ import com.nslindia.procurezone.common.exception.DuplicateResourceException;
 import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
 import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
+import com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository;
 import com.nslindia.procurezone.masterdata.Material;
+import com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse;
 import com.nslindia.procurezone.masterdata.dto.MaterialResponse;
 import com.nslindia.procurezone.masterdata.dto.CreateMaterialRequest;
 import com.nslindia.procurezone.masterdata.dto.UpdateMaterialRequest;
@@ -35,12 +37,14 @@ public class MaterialService {
     private final MaterialRepository materialRepository;
     private final EmployeeRepository employeeRepository;
     private final AuditService auditService;
+    private final CompanyPlantMaterialRepository companyPlantMaterialRepository;
 
     public MaterialService(MaterialRepository materialRepository, EmployeeRepository employeeRepository,
-            AuditService auditService) {
+            AuditService auditService, CompanyPlantMaterialRepository companyPlantMaterialRepository) {
         this.materialRepository = materialRepository;
         this.employeeRepository = employeeRepository;
         this.auditService = auditService;
+        this.companyPlantMaterialRepository = companyPlantMaterialRepository;
     }
 
     /**
@@ -109,9 +113,19 @@ public class MaterialService {
         return MaterialResponse.from(material);
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<MaterialDropdownResponse> searchMaterialsForDropdown(
+            String search, boolean adminView, java.util.List<Integer> companyIds) {
+        String term = (search == null) ? "" : search.trim();
+        if (adminView || companyIds == null || companyIds.isEmpty()) {
+            return companyPlantMaterialRepository.searchForDropdownAllCompanies(term);
+        }
+        return companyPlantMaterialRepository.searchForDropdownByCompanies(term, companyIds);
+    }
+
     /**
      * Create a new material.
-     * 
+     *
      * @param request  the create request
      * @param username the username of the user creating the material
      * @return the created material response

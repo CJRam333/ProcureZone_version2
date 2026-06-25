@@ -20,7 +20,7 @@ import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch, FaEdit, F
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { indentsApi, materialsApi, uomApi, companiesApi, departmentsApi, plantsApi, sectionsApi, getErrorMessage } from '../../api';
 import { inventoryApi } from '../../api/inventory';
-import type { Material } from '../../api/materials';
+import type { MaterialDropdownItem } from '../../api/materials';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Validation schema
@@ -61,7 +61,10 @@ const IndentFormPage: React.FC = () => {
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
   const [dropdownAnchorRect, setDropdownAnchorRect] = useState<DOMRect | null>(null);
   const dropdownAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
-  // index → available stock (null = failed to fetch, undefined = not fetched yet)
+  // index → material company/stock info from the dropdown selection
+  type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
+  const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
+  // legacy stock state kept for plant-change re-fetch compatibility
   const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
 
   // Form setup
@@ -102,11 +105,11 @@ const IndentFormPage: React.FC = () => {
     enabled: isEdit,
   });
 
-  // Fetch materials for search
-  const { data: materialsData } = useQuery({
-    queryKey: ['materials', materialSearch],
-    queryFn: () => materialsApi.list({ search: materialSearch, size: 20, isActive: true }),
-    enabled: true,
+  // Fetch materials for dropdown — returns items with company, plant, stock info
+  const { data: dropdownMaterials } = useQuery<MaterialDropdownItem[]>({
+    queryKey: ['materials-dropdown', materialSearch],
+    queryFn: () => materialsApi.dropdown(materialSearch || undefined),
+    staleTime: 30000,
   });
 
   // Fetch UOMs for dropdown
@@ -296,23 +299,26 @@ const IndentFormPage: React.FC = () => {
     }
   };
 
-  // Handle material selection - Note: UOM is selected separately
-  const selectMaterial = (material: Material, index: number) => {
-    setValue(`items.${index}.materialId`, material.id, { shouldDirty: true, shouldValidate: true });
-    setValue(`items.${index}.materialCode`, material.code, { shouldDirty: true });
-    setValue(`items.${index}.materialDescription`, material.name || material.description || '', { shouldDirty: true });
-    // Don't set UOM from material - user selects it separately
+  // Handle material selection from the dropdown
+  const selectMaterial = (item: MaterialDropdownItem, index: number) => {
+    setValue(`items.${index}.materialId`, item.materialId, { shouldDirty: true, shouldValidate: true });
+    setValue(`items.${index}.materialCode`, item.materialCode, { shouldDirty: true });
+    setValue(`items.${index}.materialDescription`, item.materialName || '', { shouldDirty: true });
     setShowMaterialSearch(false);
     setMaterialSearch('');
     setSelectedItemIndex(null);
-    // Fetch available stock for this material at the selected plant
-    const plantId = getValues('plantId');
-    if (plantId > 0) {
-      inventoryApi
-        .getStockByMaterialAndPlant(material.id, plantId)
-        .then((r) => setStockByIndex((prev) => ({ ...prev, [index]: r.availableStock })))
-        .catch(() => setStockByIndex((prev) => ({ ...prev, [index]: null })));
-    }
+    // Store company / stock info for this item
+    setItemCompanyMap((prev) => ({
+      ...prev,
+      [index]: {
+        companyId: item.companyId,
+        companyName: item.companyName,
+        plantId: item.plantId,
+        plantName: item.plantName,
+        stock: item.stockQuantity !== null ? Number(item.stockQuantity) : null,
+      },
+    }));
+    setStockByIndex((prev) => ({ ...prev, [index]: item.stockQuantity !== null ? Number(item.stockQuantity) : null }));
   };
 
   // Calculate totals
@@ -487,8 +493,6 @@ const IndentFormPage: React.FC = () => {
                     <th style={{ minWidth: '280px' }}>Material</th>
                     <th style={{ width: '80px' }} className="text-center">UOM</th>
                     <th style={{ width: '100px' }} className="text-center">Qty</th>
-                    {/* <th style={{ width: '120px' }} className="text-end">Rate</th> */}
-                    <th style={{ width: '130px' }} className="text-end">Value (₹)</th>
                     <th style={{ width: '150px' }}>Purpose</th>
                     <th style={{ width: '150px' }}>Vendor</th>
                     <th style={{ width: '50px' }}></th>
@@ -512,6 +516,11 @@ const IndentFormPage: React.FC = () => {
                                 <small className="text-muted d-block" style={{ lineHeight: 1.3 }}>
                                   {watchItems[index].materialDescription}
                                 </small>
+                                {itemCompanyMap[index] && (
+                                  <small className="text-muted d-block" style={{ lineHeight: 1.3 }}>
+                                    {itemCompanyMap[index].companyName} · {itemCompanyMap[index].plantName}
+                                  </small>
+                                )}
                                 {stockByIndex[index] !== undefined && (
                                   <small
                                     className={`d-block fw-medium mt-1 ${
@@ -520,7 +529,7 @@ const IndentFormPage: React.FC = () => {
                                         : 'text-danger'
                                     }`}
                                   >
-                                    Avail:{' '}
+                                    Stock:{' '}
                                     {stockByIndex[index] !== null ? stockByIndex[index] : 'N/A'}
                                   </small>
                                 )}
@@ -616,19 +625,6 @@ const IndentFormPage: React.FC = () => {
                           isInvalid={!!errors.items?.[index]?.requestedQuantity}
                         />
                       </td>
-                      {/* <td>estimatedRate input hidden</td> */}
-                      <td className="text-end">
-                        <strong className="text-success">
-                          {new Intl.NumberFormat('en-IN', {
-                            style: 'currency',
-                            currency: 'INR',
-                            maximumFractionDigits: 0
-                          }).format(
-                            (watchItems[index]?.requestedQuantity || 0) *
-                              (watchItems[index]?.estimatedRate || 0)
-                          )}
-                        </strong>
-                      </td>
                       <td>
                         <Form.Control
                           type="text"
@@ -661,21 +657,6 @@ const IndentFormPage: React.FC = () => {
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="table-light">
-                  <tr>
-                    <td colSpan={4} className="text-end fw-bold border-0 py-3">
-                      Total Estimated Value:
-                    </td>
-                    <td className="text-end fw-bold text-success border-0 py-3 fs-5">
-                      {new Intl.NumberFormat('en-IN', {
-                        style: 'currency',
-                        currency: 'INR',
-                        maximumFractionDigits: 0
-                      }).format(calculateTotal())}
-                    </td>
-                    <td colSpan={3} className="border-0"></td>
-                  </tr>
-                </tfoot>
               </Table>
             </div>
             {errors.items?.message && (
@@ -722,16 +703,16 @@ const IndentFormPage: React.FC = () => {
       </Form>
 
       {/* Material search dropdown portal — escapes .table-responsive overflow clipping */}
-      {showMaterialSearch && dropdownAnchorRect && materialsData?.content && materialsData.content.length > 0 &&
+      {showMaterialSearch && dropdownAnchorRect && dropdownMaterials && dropdownMaterials.length > 0 &&
         createPortal(
           <div
             style={{
               position: 'fixed',
               top: dropdownAnchorRect.bottom,
               left: dropdownAnchorRect.left,
-              width: dropdownAnchorRect.width,
+              width: Math.max(dropdownAnchorRect.width, 420),
               zIndex: 9999,
-              maxHeight: '250px',
+              maxHeight: '280px',
               overflowY: 'auto',
               backgroundColor: 'white',
               border: '1px solid #dee2e6',
@@ -739,23 +720,29 @@ const IndentFormPage: React.FC = () => {
               boxShadow: '0 0.5rem 1rem rgba(0, 0, 0, 0.15)',
             }}
           >
-            {materialsData.content.map((material) => (
-              <div
-                key={material.id}
-                className="p-2 border-bottom"
-                style={{ cursor: 'pointer', transition: 'background-color 0.15s ease' }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (selectedItemIndex !== null) selectMaterial(material, selectedItemIndex);
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e9ecef'; }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
-              >
-                <div className="fw-semibold text-primary">{material.code}</div>
-                <small className="text-muted d-block">{material.name || material.description}</small>
-              </div>
-            ))}
+            {dropdownMaterials.map((item, idx) => {
+              const desc = item.materialDescription ? ` (${item.materialDescription})` : '';
+              const stock = item.stockQuantity !== null ? item.stockQuantity : 0;
+              return (
+                <div
+                  key={`${item.materialId}-${item.companyId}-${idx}`}
+                  className="p-2 border-bottom"
+                  style={{ cursor: 'pointer', transition: 'background-color 0.15s ease' }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (selectedItemIndex !== null) selectMaterial(item, selectedItemIndex);
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e9ecef'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
+                >
+                  <div className="fw-semibold text-primary">[{item.materialCode}] {item.materialName}{desc}</div>
+                  <small className="text-muted d-block">
+                    Company: <strong>{item.companyName}</strong> | Plant: {item.plantName} | Stock: <span className={Number(stock) > 0 ? 'text-success fw-medium' : 'text-danger fw-medium'}>{stock}</span>
+                  </small>
+                </div>
+              );
+            })}
           </div>,
           document.body
         )

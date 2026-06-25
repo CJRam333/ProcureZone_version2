@@ -228,13 +228,6 @@ const IndentDetailPage: React.FC = () => {
             </div>
             <div className="vr d-none d-sm-block" />
             <div>
-              <small className="text-muted d-block">Total Value</small>
-              <strong className="text-primary fs-5">
-                {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalValue)}
-              </strong>
-            </div>
-            <div className="vr d-none d-sm-block" />
-            <div>
               <small className="text-muted d-block">Items</small>
               <strong>{details.length}</strong>
             </div>
@@ -494,17 +487,6 @@ const IndentDetailPage: React.FC = () => {
                           })
                         )}
                       </tbody>
-                      {details.length > 0 && (
-                        <tfoot className="bg-light">
-                          <tr>
-                            <td colSpan={6} className="text-end fw-bold">Total Estimated Value:</td>
-                            <td className="text-end fw-bold text-primary">
-                              {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalValue)}
-                            </td>
-                            <td></td>
-                          </tr>
-                        </tfoot>
-                      )}
                     </Table>
                   </div>
                 </Card.Body>

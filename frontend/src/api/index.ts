@@ -193,6 +193,12 @@ export type {
     ModuleUpdate,
 } from "./moduleAccess";
 
+export { notificationsApi } from "./notifications";
+export type {
+    NotificationItem,
+    NotificationPage,
+} from "./notifications";
+
 // Extended list response types with statistics
 export type {
     MaterialsListResponse,

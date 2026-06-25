@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse;
 import com.nslindia.procurezone.masterdata.dto.MaterialResponse;
 import com.nslindia.procurezone.masterdata.dto.CreateMaterialRequest;
 import com.nslindia.procurezone.masterdata.dto.UpdateMaterialRequest;
@@ -21,6 +22,8 @@ import com.nslindia.procurezone.security.UserPrincipal;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import java.util.List;
+import java.util.Set;
 
 /**
  * REST Controller for Material master data management.
@@ -90,9 +93,21 @@ public class MaterialController {
         return ResponseEntity.ok(materials);
     }
 
+    @GetMapping("/dropdown")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<MaterialDropdownResponse>> getMaterialsForDropdown(
+            @RequestParam(required = false) String search,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Set<String> roles = principal.roles();
+        boolean adminView = roles.contains("SUPERADMIN") || roles.contains("ADMIN");
+        List<MaterialDropdownResponse> result = materialService.searchMaterialsForDropdown(
+                search, adminView, principal.companyIds());
+        return ResponseEntity.ok(result);
+    }
+
     /**
      * Get material by ID.
-     * 
+     *
      * @param id the material ID
      * @return the material
      */

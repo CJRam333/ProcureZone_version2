@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.nslindia.procurezone.audit.AuditService;
 import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
 import com.nslindia.procurezone.identity.Employee;
+import com.nslindia.procurezone.repository.EmployeeReportingRepository;
 import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.identity.EmployeeRole;
 import com.nslindia.procurezone.identity.EmployeeRoleRepository;
@@ -108,6 +109,7 @@ public class IndentService {
         private final ReportingHierarchyService reportingHierarchyService;
         private final EmployeeRoleRepository employeeRoleRepository;
         private final SectionRepository sectionRepository;
+        private final EmployeeReportingRepository employeeReportingRepository;
 
         @PersistenceContext
         private EntityManager entityManager;
@@ -121,7 +123,8 @@ public class IndentService {
                         EmailService emailService,
                         ReportingHierarchyService reportingHierarchyService,
                         EmployeeRoleRepository employeeRoleRepository,
-                        SectionRepository sectionRepository) {
+                        SectionRepository sectionRepository,
+                        EmployeeReportingRepository employeeReportingRepository) {
                 this.indentRepository = indentRepository;
                 this.indentDetailRepository = indentDetailRepository;
                 this.employeeRepository = employeeRepository;
@@ -132,6 +135,7 @@ public class IndentService {
                 this.reportingHierarchyService = reportingHierarchyService;
                 this.employeeRoleRepository = employeeRoleRepository;
                 this.sectionRepository = sectionRepository;
+                this.employeeReportingRepository = employeeReportingRepository;
         }
 
         /**
@@ -172,14 +176,12 @@ public class IndentService {
                 indent.setStatus(entityManager.getReference(IndentStatus.class, 1)); // soft-delete active flag
 
                 // Initialize three-column workflow status to Pending (ID=1)
+                // DEPTHEAD bypass is intentionally NOT applied at creation time.
+                // Auto-approval only fires in submitIndent() when the submitter is a DEPTHEAD
+                // with no supervisor of their own in the reporting hierarchy.
                 indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 1));
                 indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 1));
                 indent.setProcurementStatus(entityManager.getReference(IndentStatus.class, 1));
-
-                // DEPTHEAD bypass: pre-approve L1 at creation (mirrors submitIndent DEPTHEAD logic)
-                if (hasRoleByCode(currentUser.getEmpNumber(), "DEPTHEAD")) {
-                        indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 3));
-                }
 
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
@@ -600,10 +602,12 @@ public class IndentService {
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
-                // SUPERVISOR AUTO-APPROVAL: Check if submitter has DEPTHEAD role (role_id=4)
-                // If yes, auto-approve L1 (RM approval) - legacy business logic
+                // SUPERVISOR AUTO-APPROVAL: Only bypass L1 if the submitter has DEPTHEAD role
+                // AND has no supervisor of their own in the reporting hierarchy.
+                // A DEPTHEAD who still reports to someone must go through their RM like any employee.
                 boolean isDeptHead = hasRoleByCode(currentUser.getEmpNumber(), "DEPTHEAD");
-                if (isDeptHead) {
+                boolean hasSupervisor = employeeReportingRepository.hasSupervisor(currentUser.getEmpNumber());
+                if (isDeptHead && !hasSupervisor) {
                         logger.info("Supervisor auto-approval: User {} has DEPTHEAD role, bypassing L1 approval",
                                         username);
 
@@ -626,13 +630,14 @@ public class IndentService {
                 indent = indentRepository.save(indent);
 
                 // Record workflow action
-                String action = isDeptHead ? "SUBMITTED_AUTO_L1" : "SUBMITTED";
+                boolean autoApproved = isDeptHead && !hasSupervisor;
+                String action = autoApproved ? "SUBMITTED_AUTO_L1" : "SUBMITTED";
                 recordWorkflowAction(indent, currentUser, action,
-                                isDeptHead ? "L1 auto-approved for DEPTHEAD" : null, 0);
+                                autoApproved ? "L1 auto-approved for DEPTHEAD without supervisor" : null, 0);
 
                 // Audit log
-                String auditMessage = isDeptHead
-                                ? String.format("Submitted indent %s for approval (L1 auto-approved - DEPTHEAD)",
+                String auditMessage = autoApproved
+                                ? String.format("Submitted indent %s for approval (L1 auto-approved - DEPTHEAD without supervisor)",
                                                 indent.getIndentNumber())
                                 : String.format("Submitted indent %s for approval", indent.getIndentNumber());
                 auditService.logEntityChange(

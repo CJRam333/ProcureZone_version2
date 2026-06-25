@@ -49,6 +49,23 @@ public class IssueNoteService {
     private static final String ERROR_NOT_FOUND = "Issue Note not found with ID: ";
 
     /**
+     * Derives user-visible display status from the two-column issue note workflow:
+     * approvedStatus = RM approval (1=pending, 2=rejected, 3=approved)
+     * storesByStatus = Stores action  (1=pending, 2=rejected, 11=issued)
+     */
+    static String deriveIssueNoteDisplayStatus(Integer approvedStatusId, Integer storesByStatusId) {
+        if (approvedStatusId == null) return "Pending";
+        if (approvedStatusId == 1) return "Pending RM Approval";
+        if (approvedStatusId == 2) return "Rejected by RM";
+        if (approvedStatusId == 3) {
+            if (storesByStatusId == null || storesByStatusId == 1) return "Awaiting Stores Issue";
+            if (storesByStatusId == 2) return "Rejected by Stores";
+            if (storesByStatusId == 11) return "Goods Issued";
+        }
+        return "In Progress";
+    }
+
+    /**
      * Create a new issue note
      */
     @Transactional
@@ -705,7 +722,7 @@ public class IssueNoteService {
                 issueNote.getStoresBy(),
                 issueNote.getStoresByDate(),
                 issueNote.getStatus(),
-                issueNote.getStatusDescription(),
+                deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),
                 issueNote.getApprovedStatus(),
                 issueNote.getStoresByStatus(),
                 issueNote.getLastModifiedDate(),
@@ -726,7 +743,7 @@ public class IssueNoteService {
                 issueNote.getDepartmentId(),
                 issueNote.getIssuedTo(),
                 issueNote.getStatus(),
-                issueNote.getStatusDescription(),
+                deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),
                 totalAmount,
                 issueNote.getDetails().size());
     }

@@ -80,6 +80,19 @@ export interface MaterialSearchParams extends PageRequest {
     categoryId?: number;
 }
 
+// Dropdown item returned by GET /materials/dropdown — includes company and stock
+export interface MaterialDropdownItem {
+    materialId: number;
+    materialCode: string;
+    materialName: string;
+    materialDescription: string | null;
+    companyId: number;
+    companyName: string;
+    plantId: number;
+    plantName: string;
+    stockQuantity: number | null;
+}
+
 // ============== API Functions ==============
 
 export const materialsApi = {
@@ -167,6 +180,13 @@ export const materialsApi = {
         const response = await apiClient.get("/materials/template", {
             responseType: "blob",
         });
+        return response.data;
+    },
+
+    dropdown: async (search?: string): Promise<MaterialDropdownItem[]> => {
+        const params: Record<string, string> = {};
+        if (search) params.search = search;
+        const response = await apiClient.get<MaterialDropdownItem[]>("/materials/dropdown", { params });
         return response.data;
     },
 

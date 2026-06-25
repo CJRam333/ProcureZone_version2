@@ -14,7 +14,7 @@ import {
 } from 'react-icons/fa';
 import { PageHeader } from '../../components/common';
 import { useAuth } from '../../contexts/AuthContext';
-import { getErrorMessage, userApi } from '../../api';
+import { getErrorMessage, authApi, userApi } from '../../api';
 
 interface ProfileFormData {
   fullName: string;
@@ -42,10 +42,10 @@ const ProfilePage: React.FC = () => {
     formState: { errors: profileErrors },
   } = useForm<ProfileFormData>({
     defaultValues: {
-      fullName: (user as any)?.fullName || user?.username || '',
-      email: (user as any)?.email || '',
+      fullName: user?.displayName || '',
+      email: user?.email || '',
       phone: '',
-      department: (user as any)?.departmentName || '',
+      department: user?.departmentName || '',
       designation: '',
       address: '',
     },
@@ -84,10 +84,7 @@ const ProfilePage: React.FC = () => {
       if (data.newPassword !== data.confirmPassword) {
         throw new Error('New password and confirm password do not match');
       }
-      if (!user?.userId) {
-        throw new Error('User ID not found');
-      }
-      return userApi.changePassword(user.userId, {
+      return authApi.changePassword({
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
         confirmPassword: data.confirmPassword,
@@ -157,7 +154,7 @@ const ProfilePage: React.FC = () => {
                   style={{ width: 100, height: 100 }}
                 >
                   <span className="text-white display-6">
-                    {user?.username?.charAt(0).toUpperCase() || 'U'}
+                    {user?.displayName?.charAt(0).toUpperCase() || 'U'}
                   </span>
                 </div>
                 <Button
@@ -170,8 +167,8 @@ const ProfilePage: React.FC = () => {
                   <FaCamera size={12} />
                 </Button>
               </div>
-              <h5 className="mb-1">{user?.username}</h5>
-              <p className="text-muted mb-2">@{user?.username}</p>
+              <h5 className="mb-1">{user?.displayName}</h5>
+              <p className="text-muted mb-2">{user?.employeeId || user?.email}</p>
               <Badge bg={getRoleColor(user?.roles?.[0] || '')} className="mb-3">
                 {user?.roles?.[0]?.replace('_', ' ')}
               </Badge>
@@ -180,10 +177,10 @@ const ProfilePage: React.FC = () => {
                   <FaEnvelope className="me-2" />
                   {user?.email}
                 </div>
-                {(user as any)?.departmentName && (
+                {user?.departmentName && (
                   <div>
                     <FaBuilding className="me-2" />
-                    {(user as any).departmentName}
+                    {user.departmentName}
                   </div>
                 )}
               </div>
@@ -197,16 +194,16 @@ const ProfilePage: React.FC = () => {
             </Card.Header>
             <Card.Body>
               <div className="mb-3">
-                <small className="text-muted d-block">User ID</small>
-                <strong>{user?.userId}</strong>
+                <small className="text-muted d-block">Employee Number</small>
+                <strong>{user?.employeeNumber || 'N/A'}</strong>
               </div>
               <div className="mb-3">
-                <small className="text-muted d-block">Username</small>
-                <strong>{user?.username}</strong>
-              </div>
-              <div className="mb-3">
-                <small className="text-muted d-block">Employee ID</small>
+                <small className="text-muted d-block">Employee Code</small>
                 <strong>{user?.employeeId || 'N/A'}</strong>
+              </div>
+              <div className="mb-3">
+                <small className="text-muted d-block">Email</small>
+                <strong>{user?.email}</strong>
               </div>
               <div>
                 <small className="text-muted d-block">Account Created</small>
