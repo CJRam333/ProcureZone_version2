@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Row, Col, Form, Button, Badge, Alert, Spinner } from 'react-bootstrap';
+import { Card, Row, Col, Form, Button, Badge, Alert, Spinner, InputGroup } from 'react-bootstrap';
 import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -11,6 +11,8 @@ import {
   FaSave,
   FaKey,
   FaCamera,
+  FaEye,
+  FaEyeSlash,
 } from 'react-icons/fa';
 import { PageHeader } from '../../components/common';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,6 +37,9 @@ const ProfilePage: React.FC = () => {
   const { user } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const {
     register: registerProfile,
@@ -46,7 +51,7 @@ const ProfilePage: React.FC = () => {
       email: user?.email || '',
       phone: '',
       department: user?.departmentName || '',
-      designation: '',
+      designation: user?.designation || '',
       address: '',
     },
   });
@@ -342,43 +347,70 @@ const ProfilePage: React.FC = () => {
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Current Password <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="password"
-                        autoComplete="current-password"
-                        {...registerPassword('currentPassword')}
-                        isInvalid={!!passwordErrors.currentPassword}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {passwordErrors.currentPassword?.message}
-                      </Form.Control.Feedback>
+                      <InputGroup hasValidation>
+                        <Form.Control
+                          type={showCurrent ? 'text' : 'password'}
+                          autoComplete="current-password"
+                          {...registerPassword('currentPassword')}
+                          isInvalid={!!passwordErrors.currentPassword}
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          tabIndex={-1}
+                          onClick={() => setShowCurrent(v => !v)}
+                        >
+                          {showCurrent ? <FaEyeSlash /> : <FaEye />}
+                        </Button>
+                        <Form.Control.Feedback type="invalid">
+                          {passwordErrors.currentPassword?.message}
+                        </Form.Control.Feedback>
+                      </InputGroup>
                     </Form.Group>
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>New Password <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="password"
-                        autoComplete="new-password"
-                        {...registerPassword('newPassword')}
-                        isInvalid={!!passwordErrors.newPassword}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {passwordErrors.newPassword?.message}
-                      </Form.Control.Feedback>
+                      <InputGroup hasValidation>
+                        <Form.Control
+                          type={showNew ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          {...registerPassword('newPassword')}
+                          isInvalid={!!passwordErrors.newPassword}
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          tabIndex={-1}
+                          onClick={() => setShowNew(v => !v)}
+                        >
+                          {showNew ? <FaEyeSlash /> : <FaEye />}
+                        </Button>
+                        <Form.Control.Feedback type="invalid">
+                          {passwordErrors.newPassword?.message}
+                        </Form.Control.Feedback>
+                      </InputGroup>
                     </Form.Group>
                   </Col>
                   <Col md={4}>
                     <Form.Group className="mb-3">
                       <Form.Label>Confirm Password <span className="text-danger">*</span></Form.Label>
-                      <Form.Control
-                        type="password"
-                        autoComplete="new-password"
-                        {...registerPassword('confirmPassword')}
-                        isInvalid={!!passwordErrors.confirmPassword}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {passwordErrors.confirmPassword?.message}
-                      </Form.Control.Feedback>
+                      <InputGroup hasValidation>
+                        <Form.Control
+                          type={showConfirm ? 'text' : 'password'}
+                          autoComplete="new-password"
+                          {...registerPassword('confirmPassword')}
+                          isInvalid={!!passwordErrors.confirmPassword}
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          tabIndex={-1}
+                          onClick={() => setShowConfirm(v => !v)}
+                        >
+                          {showConfirm ? <FaEyeSlash /> : <FaEye />}
+                        </Button>
+                        <Form.Control.Feedback type="invalid">
+                          {passwordErrors.confirmPassword?.message}
+                        </Form.Control.Feedback>
+                      </InputGroup>
                     </Form.Group>
                   </Col>
                 </Row>

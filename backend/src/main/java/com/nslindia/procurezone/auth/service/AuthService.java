@@ -163,6 +163,7 @@ public class AuthService {
                     ? locationRepository.findById(employee.getLocationId())
                             .map(l -> l.getName()).orElse(null)
                     : null;
+            String designation = employee.getDesignation();
 
             AuthenticatedUser authenticatedUser = new AuthenticatedUser(
                     userId,
@@ -177,7 +178,8 @@ public class AuthService {
                     canDelete,
                     deptName,
                     companyName,
-                    locName);
+                    locName,
+                    designation);
 
             auditService.logAuthentication(username, true, ipAddress);
             log.info("Successful login for employee: {} from IP: {}", username, ipAddress);

@@ -225,7 +225,7 @@ public interface CompanyPlantMaterialRepository extends JpaRepository<CompanyPla
                         "JOIN Material m ON m.id = cpm.materialId " +
                         "JOIN Company co ON co.id = cpm.companyId " +
                         "JOIN Plant pl ON pl.id = cpm.plantId " +
-                        "WHERE cpm.status = 1 AND m.status = 1 " +
+                        "WHERE m.status = 1 " +
                         "AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
                         "OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
                         "ORDER BY m.code, co.name, pl.name")
@@ -237,7 +237,7 @@ public interface CompanyPlantMaterialRepository extends JpaRepository<CompanyPla
                         "JOIN Material m ON m.id = cpm.materialId " +
                         "JOIN Company co ON co.id = cpm.companyId " +
                         "JOIN Plant pl ON pl.id = cpm.plantId " +
-                        "WHERE cpm.status = 1 AND m.status = 1 AND cpm.companyId IN :companyIds " +
+                        "WHERE m.status = 1 AND cpm.companyId IN :companyIds " +
                         "AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
                         "OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
                         "ORDER BY m.code, co.name, pl.name")

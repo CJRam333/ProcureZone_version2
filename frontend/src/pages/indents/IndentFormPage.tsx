@@ -59,6 +59,7 @@ const IndentFormPage: React.FC = () => {
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [dropdownAnchor, setDropdownAnchor] = useState<{ top: number; left: number } | null>(null);
   // index → material company/stock info from the dropdown selection
   type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
   const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
@@ -573,11 +574,15 @@ const IndentFormPage: React.FC = () => {
                                 placeholder="Search material..."
                                 value={selectedItemIndex === index ? materialSearch : ''}
                                 onChange={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setDropdownAnchor({ top: rect.bottom, left: rect.left });
                                   setMaterialSearch(e.target.value);
                                   setSelectedItemIndex(index);
                                   setShowMaterialSearch(true);
                                 }}
-                                onFocus={() => {
+                                onFocus={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setDropdownAnchor({ top: rect.bottom, left: rect.left });
                                   setSelectedItemIndex(index);
                                   setShowMaterialSearch(true);
                                 }}
@@ -596,11 +601,11 @@ const IndentFormPage: React.FC = () => {
                             </InputGroup>
                           )}
                           
-                          {/* Inline material search dropdown — position:absolute relative to this container */}
-                          {showMaterialSearch && selectedItemIndex === index && (
+                          {/* Material search dropdown — fixed positioning escapes overflow containers */}
+                          {showMaterialSearch && selectedItemIndex === index && dropdownAnchor && (
                             <div
-                              className="position-absolute bg-white border rounded shadow-lg"
-                              style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0, minWidth: '400px' }}
+                              className="bg-white border rounded shadow-lg"
+                              style={{ position: 'fixed', top: dropdownAnchor.top, left: dropdownAnchor.left, minWidth: '400px', maxHeight: '250px', overflowY: 'auto', zIndex: 9999 }}
                             >
                               {dropdownMaterials && dropdownMaterials.length > 0 ? (
                                 dropdownMaterials.map((item, idx) => {

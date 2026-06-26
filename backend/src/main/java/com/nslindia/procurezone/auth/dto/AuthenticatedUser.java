@@ -15,5 +15,6 @@ public record AuthenticatedUser(
                 boolean canDelete,
                 String departmentName,
                 String companyName,
-                String locationName) {
+                String locationName,
+                String designation) {
 }

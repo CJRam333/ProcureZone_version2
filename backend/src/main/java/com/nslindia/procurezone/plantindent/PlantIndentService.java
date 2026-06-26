@@ -44,6 +44,22 @@ class PlantIndentStatusHelper {
         if (approvedId == 3 && finalId == 4 && procurementId == 11) return "Goods Issued";
         return "In Progress";
     }
+
+    /** Maps the 8-status workflow column directly to a display string. */
+    static String describeStatus(Integer status) {
+        if (status == null) return "Draft";
+        return switch (status) {
+            case 0 -> "Draft";
+            case 1 -> "Pending DEO/QM Review";
+            case 2 -> "Pending Manager Approval";
+            case 3 -> "Manager Approved";
+            case 4 -> "Rejected by DEO/QM";
+            case 5 -> "Rejected by Manager";
+            case 6 -> "Processing";
+            case 7 -> "Completed";
+            default -> "Unknown";
+        };
+    }
 }
 
 /**
@@ -407,7 +423,7 @@ public class PlantIndentService {
                 pi.getLineDescription(),
                 pi.getExpectedQuantity() != null ? String.valueOf(pi.getExpectedQuantity()) : null,
                 pi.getStatus(),
-                PlantIndentStatusHelper.derive(pi.getApprovedStatus(), pi.getFinalStatus(), pi.getProcurementStatus()),
+                PlantIndentStatusHelper.describeStatus(pi.getStatus()),
                 pi.getCreatedDate(),
                 details.size(),
                 details);

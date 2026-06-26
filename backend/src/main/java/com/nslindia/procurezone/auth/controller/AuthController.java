@@ -110,6 +110,7 @@ public class AuthController {
         String deptName = null;
         String companyName = null;
         String locName = null;
+        String designation = null;
         try {
             if (principal.employeeNumber() != null) {
                 var emp = employeeRepository.findByEmployeeNumber(principal.employeeNumber()).orElse(null);
@@ -124,6 +125,7 @@ public class AuthController {
                     if (!cids.isEmpty())
                         companyName = companyRepository.findById(cids.get(0))
                                 .map(c -> c.getName()).orElse(null);
+                    designation = emp.getDesignation();
                 }
             }
         } catch (Exception ex) {
@@ -142,6 +144,7 @@ public class AuthController {
                 principal.canDelete(),
                 deptName,
                 companyName,
-                locName);
+                locName,
+                designation);
     }
 }

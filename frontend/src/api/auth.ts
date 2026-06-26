@@ -33,6 +33,7 @@ export interface UserInfo {
     departmentName?: string;
     companyName?: string;
     locationName?: string;
+    designation?: string;
     plantId?: number;
     plantName?: string;
     permissions?: string[];
