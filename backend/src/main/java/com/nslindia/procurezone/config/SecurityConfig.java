@@ -17,6 +17,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 import com.nslindia.procurezone.security.JwtAuthenticationFilter;
 
+// @EnableMethodSecurity enables @PreAuthorize on controller methods.
+// All endpoint-level role/permission checks live there — not here.
+// This class only configures CORS, CSRF-off, stateless sessions, and the JWT filter.
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)

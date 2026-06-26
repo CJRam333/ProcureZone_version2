@@ -51,6 +51,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       expiryTimerRef.current = null;
     }
     SESSION_KEYS.forEach((key) => localStorage.removeItem(key));
+    sessionStorage.clear();
     queryClient.clear();
     setUser(null);
   }, []);

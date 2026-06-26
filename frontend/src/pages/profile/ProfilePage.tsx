@@ -194,10 +194,6 @@ const ProfilePage: React.FC = () => {
             </Card.Header>
             <Card.Body>
               <div className="mb-3">
-                <small className="text-muted d-block">Employee Number</small>
-                <strong>{user?.employeeNumber || 'N/A'}</strong>
-              </div>
-              <div className="mb-3">
                 <small className="text-muted d-block">Employee Code</small>
                 <strong>{user?.employeeId || 'N/A'}</strong>
               </div>
@@ -205,9 +201,27 @@ const ProfilePage: React.FC = () => {
                 <small className="text-muted d-block">Email</small>
                 <strong>{user?.email}</strong>
               </div>
+              {user?.departmentName && (
+                <div className="mb-3">
+                  <small className="text-muted d-block">Department</small>
+                  <strong>{user.departmentName}</strong>
+                </div>
+              )}
+              {user?.companyName && (
+                <div className="mb-3">
+                  <small className="text-muted d-block">Company</small>
+                  <strong>{user.companyName}</strong>
+                </div>
+              )}
+              {user?.locationName && (
+                <div className="mb-3">
+                  <small className="text-muted d-block">Location</small>
+                  <strong>{user.locationName}</strong>
+                </div>
+              )}
               <div>
-                <small className="text-muted d-block">Account Created</small>
-                <strong>{format(new Date(), 'PPP')}</strong>
+                <small className="text-muted d-block">Roles</small>
+                <strong>{user?.roles?.join(', ') || 'N/A'}</strong>
               </div>
             </Card.Body>
           </Card>

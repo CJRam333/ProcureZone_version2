@@ -16,6 +16,9 @@ import org.springframework.util.StringUtils;
 import com.nslindia.procurezone.audit.AuditService;
 import com.nslindia.procurezone.auth.dto.AuthenticatedUser;
 import com.nslindia.procurezone.repository.CompanyEmployeeRepository;
+import com.nslindia.procurezone.masterdata.LocationRepository;
+import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
+import com.nslindia.procurezone.masterdata.repository.DepartmentRepository;
 import com.nslindia.procurezone.auth.dto.LoginRequest;
 import com.nslindia.procurezone.auth.dto.LoginResponse;
 import com.nslindia.procurezone.auth.dto.LogoutResponse;
@@ -45,16 +48,24 @@ public class AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final AuditService auditService;
     private final CompanyEmployeeRepository companyEmployeeRepository;
+    private final DepartmentRepository departmentRepository;
+    private final CompanyRepository companyRepository;
+    private final LocationRepository locationRepository;
 
     public AuthService(EmployeeRepository employeeRepository, PasswordService passwordService,
             JwtService jwtService, TokenBlacklistService tokenBlacklistService, AuditService auditService,
-            CompanyEmployeeRepository companyEmployeeRepository) {
+            CompanyEmployeeRepository companyEmployeeRepository,
+            DepartmentRepository departmentRepository, CompanyRepository companyRepository,
+            LocationRepository locationRepository) {
         this.employeeRepository = employeeRepository;
         this.passwordService = passwordService;
         this.jwtService = jwtService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.auditService = auditService;
         this.companyEmployeeRepository = companyEmployeeRepository;
+        this.departmentRepository = departmentRepository;
+        this.companyRepository = companyRepository;
+        this.locationRepository = locationRepository;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -140,6 +151,19 @@ public class AuthService {
 
             JwtService.AccessToken accessToken = jwtService.generateAccessToken(principal);
 
+            String deptName = employee.getDepartmentId() != null
+                    ? departmentRepository.findById(employee.getDepartmentId())
+                            .map(d -> d.getName()).orElse(null)
+                    : null;
+            String companyName = !companyIds.isEmpty()
+                    ? companyRepository.findById(companyIds.get(0))
+                            .map(c -> c.getName()).orElse(null)
+                    : null;
+            String locName = employee.getLocationId() != null
+                    ? locationRepository.findById(employee.getLocationId())
+                            .map(l -> l.getName()).orElse(null)
+                    : null;
+
             AuthenticatedUser authenticatedUser = new AuthenticatedUser(
                     userId,
                     employee.getEmployeeNumber(),
@@ -150,7 +174,10 @@ public class AuthService {
                     canView,
                     canAdd,
                     canEdit,
-                    canDelete);
+                    canDelete,
+                    deptName,
+                    companyName,
+                    locName);
 
             auditService.logAuthentication(username, true, ipAddress);
             log.info("Successful login for employee: {} from IP: {}", username, ipAddress);

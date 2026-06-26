@@ -12,5 +12,8 @@ public record AuthenticatedUser(
                 boolean canView,
                 boolean canAdd,
                 boolean canEdit,
-                boolean canDelete) {
+                boolean canDelete,
+                String departmentName,
+                String companyName,
+                String locationName) {
 }

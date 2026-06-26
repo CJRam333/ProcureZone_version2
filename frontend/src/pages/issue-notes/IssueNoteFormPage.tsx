@@ -133,10 +133,11 @@ const IssueNoteFormPage: React.FC = () => {
     enabled: isEdit,
   });
 
-  // Fetch materials for dropdown — uses the enriched dropdown endpoint with company/plant/stock info
+  // Fetch materials for dropdown — fires only when user types ≥2 chars
   const { data: dropdownMaterials } = useQuery<MaterialDropdownItem[]>({
     queryKey: ['materials-dropdown', materialSearch],
-    queryFn: () => materialsApi.dropdown(materialSearch || undefined),
+    queryFn: () => materialsApi.dropdown(materialSearch),
+    enabled: materialSearch.length >= 2,
     staleTime: 30000,
   });
 
@@ -509,7 +510,7 @@ const IssueNoteFormPage: React.FC = () => {
             </Button>
           </Card.Header>
           <Card.Body className="p-0">
-            <div className="table-responsive">
+            <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
               <Table className="mb-0">
                 <thead className="bg-light">
                   <tr>
@@ -591,15 +592,13 @@ const IssueNoteFormPage: React.FC = () => {
                           )}
 
                           {/* Material Search Dropdown */}
-                          {showMaterialSearch &&
-                            selectedItemIndex === index &&
-                            dropdownMaterials &&
-                            dropdownMaterials.length > 0 && (
-                              <div
-                                className="position-absolute bg-white border rounded shadow-lg w-100"
-                                style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0 }}
-                              >
-                                {dropdownMaterials.map((item) => (
+                          {showMaterialSearch && selectedItemIndex === index && (
+                            <div
+                              className="position-absolute bg-white border rounded shadow-lg"
+                              style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0, minWidth: '360px' }}
+                            >
+                              {dropdownMaterials && dropdownMaterials.length > 0 ? (
+                                dropdownMaterials.map((item) => (
                                   <div
                                     key={`${item.materialId}-${item.companyId}`}
                                     className="p-2 border-bottom"
@@ -609,20 +608,22 @@ const IssueNoteFormPage: React.FC = () => {
                                       e.stopPropagation();
                                       selectMaterial(item, index);
                                     }}
-                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e9ecef'}
-                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e9ecef'; }}
+                                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
                                   >
-                                    <div className="fw-semibold text-primary">{item.materialCode}</div>
-                                    <small className="text-muted d-block">{item.materialName}</small>
-                                    {item.stockQuantity !== null && (
-                                      <small className={`d-block fw-medium ${(item.stockQuantity ?? 0) > 0 ? 'text-success' : 'text-danger'}`}>
-                                        Stock: {item.stockQuantity}
-                                      </small>
-                                    )}
+                                    <div className="fw-semibold text-primary">[{item.materialCode}] {item.materialName}</div>
+                                    <small className="text-muted d-block">
+                                      Company: <strong>{item.companyName}</strong> | Plant: {item.plantName} | Stock: <span className={(item.stockQuantity ?? 0) > 0 ? 'text-success fw-medium' : 'text-danger fw-medium'}>{item.stockQuantity ?? 0}</span>
+                                    </small>
                                   </div>
-                                ))}
-                              </div>
-                            )}
+                                ))
+                              ) : materialSearch.length >= 2 ? (
+                                <div className="p-3 text-muted text-center small">No materials found for &ldquo;{materialSearch}&rdquo;</div>
+                              ) : (
+                                <div className="p-3 text-muted text-center small">Type at least 2 characters to search</div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         {errors.lineItems?.[index]?.materialId && (
                           <div className="text-danger small mt-1">

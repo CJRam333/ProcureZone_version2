@@ -31,6 +31,8 @@ export interface UserInfo {
     employeeCode?: string;
     departmentId?: number;
     departmentName?: string;
+    companyName?: string;
+    locationName?: string;
     plantId?: number;
     plantName?: string;
     permissions?: string[];

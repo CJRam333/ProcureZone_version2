@@ -1,7 +1,10 @@
 package com.nslindia.procurezone.auth.controller;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -20,6 +23,11 @@ import com.nslindia.procurezone.auth.dto.LoginRequest;
 import com.nslindia.procurezone.auth.dto.LoginResponse;
 import com.nslindia.procurezone.auth.dto.LogoutResponse;
 import com.nslindia.procurezone.auth.service.AuthService;
+import com.nslindia.procurezone.identity.EmployeeRepository;
+import com.nslindia.procurezone.masterdata.LocationRepository;
+import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
+import com.nslindia.procurezone.masterdata.repository.DepartmentRepository;
+import com.nslindia.procurezone.repository.CompanyEmployeeRepository;
 import com.nslindia.procurezone.security.UserPrincipal;
 
 import jakarta.validation.Valid;
@@ -31,6 +39,17 @@ public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthService authService;
+
+    @Autowired
+    private EmployeeRepository employeeRepository;
+    @Autowired
+    private DepartmentRepository departmentRepository;
+    @Autowired
+    private CompanyEmployeeRepository companyEmployeeRepository;
+    @Autowired
+    private CompanyRepository companyRepository;
+    @Autowired
+    private LocationRepository locationRepository;
 
     public AuthController(AuthService authService) {
         this.authService = authService;
@@ -88,6 +107,28 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
         }
         log.debug("Returning current user info for: {}", principal.username());
+        String deptName = null;
+        String companyName = null;
+        String locName = null;
+        try {
+            if (principal.employeeNumber() != null) {
+                var emp = employeeRepository.findByEmployeeNumber(principal.employeeNumber()).orElse(null);
+                if (emp != null) {
+                    if (emp.getDepartmentId() != null)
+                        deptName = departmentRepository.findById(emp.getDepartmentId())
+                                .map(d -> d.getName()).orElse(null);
+                    if (emp.getLocationId() != null)
+                        locName = locationRepository.findById(emp.getLocationId())
+                                .map(l -> l.getName()).orElse(null);
+                    List<Integer> cids = companyEmployeeRepository.findCompanyIdsByEmpNumber(principal.employeeNumber());
+                    if (!cids.isEmpty())
+                        companyName = companyRepository.findById(cids.get(0))
+                                .map(c -> c.getName()).orElse(null);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Could not enrich /auth/me with dept/company/location: {}", ex.getMessage());
+        }
         return new AuthenticatedUser(
                 principal.userId(),
                 principal.employeeNumber(),
@@ -98,6 +139,9 @@ public class AuthController {
                 principal.canView(),
                 principal.canAdd(),
                 principal.canEdit(),
-                principal.canDelete());
+                principal.canDelete(),
+                deptName,
+                companyName,
+                locName);
     }
 }

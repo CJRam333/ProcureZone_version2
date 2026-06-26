@@ -1,4 +1,10 @@
 /* Base reset - main styles are in main.scss */
+
+/* Suppress browser-native password reveal so only the React toggle shows */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
 * {
   margin: 0;
   padding: 0;

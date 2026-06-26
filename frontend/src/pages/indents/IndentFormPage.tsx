@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Form,
@@ -60,8 +59,6 @@ const IndentFormPage: React.FC = () => {
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
-  const [dropdownAnchorRect, setDropdownAnchorRect] = useState<DOMRect | null>(null);
-  const dropdownAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
   // index → material company/stock info from the dropdown selection
   type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
   const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
@@ -107,10 +104,11 @@ const IndentFormPage: React.FC = () => {
     enabled: isEdit,
   });
 
-  // Fetch materials for dropdown — returns items with company, plant, stock info
+  // Fetch materials for dropdown — fires only when user types ≥2 chars
   const { data: dropdownMaterials } = useQuery<MaterialDropdownItem[]>({
     queryKey: ['materials-dropdown', materialSearch],
-    queryFn: () => materialsApi.dropdown(materialSearch || undefined),
+    queryFn: () => materialsApi.dropdown(materialSearch),
+    enabled: materialSearch.length >= 2,
     staleTime: 30000,
   });
 
@@ -194,14 +192,6 @@ const IndentFormPage: React.FC = () => {
       });
     }
   }, [existingIndent, reset, companiesData]);
-
-  // Close material dropdown when user scrolls (portal position would be stale)
-  useEffect(() => {
-    if (!showMaterialSearch) return;
-    const close = () => setShowMaterialSearch(false);
-    window.addEventListener('scroll', close, true);
-    return () => window.removeEventListener('scroll', close, true);
-  }, [showMaterialSearch]);
 
   // Re-fetch stock whenever the plant selection changes
   useEffect(() => {
@@ -515,7 +505,7 @@ const IndentFormPage: React.FC = () => {
             </Button>
           </Card.Header>
           <Card.Body className="p-0">
-            <div className="table-responsive">
+            <div style={{ overflowX: 'auto', overflowY: 'visible' }}>
               <Table className="mb-0 align-middle" hover>
                 <thead className="table-primary">
                   <tr>
@@ -533,10 +523,7 @@ const IndentFormPage: React.FC = () => {
                     <tr key={field.id}>
                       <td className="text-center fw-medium">{index + 1}</td>
                       <td style={{ minWidth: '280px' }}>
-                        <div
-                          className="position-relative"
-                          ref={(el) => { dropdownAnchorRefs.current[index] = el; }}
-                        >
+                        <div className="position-relative">
                           {watchItems[index]?.materialCode ? (
                             <div className="d-flex align-items-center gap-2 p-2 bg-light rounded border">
                               <div className="flex-grow-1">
@@ -589,14 +576,10 @@ const IndentFormPage: React.FC = () => {
                                   setMaterialSearch(e.target.value);
                                   setSelectedItemIndex(index);
                                   setShowMaterialSearch(true);
-                                  const el = dropdownAnchorRefs.current[index];
-                                  if (el) setDropdownAnchorRect(el.getBoundingClientRect());
                                 }}
                                 onFocus={() => {
                                   setSelectedItemIndex(index);
                                   setShowMaterialSearch(true);
-                                  const el = dropdownAnchorRefs.current[index];
-                                  if (el) setDropdownAnchorRect(el.getBoundingClientRect());
                                 }}
                                 onBlur={() => {
                                   // Delay to allow click on dropdown items
@@ -613,7 +596,43 @@ const IndentFormPage: React.FC = () => {
                             </InputGroup>
                           )}
                           
-                          {/* Dropdown renders via portal — see createPortal below */}
+                          {/* Inline material search dropdown — position:absolute relative to this container */}
+                          {showMaterialSearch && selectedItemIndex === index && (
+                            <div
+                              className="position-absolute bg-white border rounded shadow-lg"
+                              style={{ zIndex: 9999, maxHeight: '250px', overflowY: 'auto', top: '100%', left: 0, minWidth: '400px' }}
+                            >
+                              {dropdownMaterials && dropdownMaterials.length > 0 ? (
+                                dropdownMaterials.map((item, idx) => {
+                                  const desc = item.materialDescription ? ` (${item.materialDescription})` : '';
+                                  const stock = item.stockQuantity !== null ? item.stockQuantity : 0;
+                                  return (
+                                    <div
+                                      key={`${item.materialId}-${item.companyId}-${idx}`}
+                                      className="p-2 border-bottom"
+                                      style={{ cursor: 'pointer' }}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        selectMaterial(item, index);
+                                      }}
+                                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e9ecef'; }}
+                                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
+                                    >
+                                      <div className="fw-semibold text-primary">[{item.materialCode}] {item.materialName}{desc}</div>
+                                      <small className="text-muted d-block">
+                                        Company: <strong>{item.companyName}</strong> | Plant: {item.plantName} | Stock: <span className={Number(stock) > 0 ? 'text-success fw-medium' : 'text-danger fw-medium'}>{stock}</span>
+                                      </small>
+                                    </div>
+                                  );
+                                })
+                              ) : materialSearch.length >= 2 ? (
+                                <div className="p-3 text-muted text-center small">No materials found for &ldquo;{materialSearch}&rdquo;</div>
+                              ) : (
+                                <div className="p-3 text-muted text-center small">Type at least 2 characters to search</div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         {errors.items?.[index]?.materialId && (
                           <div className="text-danger small mt-1">
@@ -732,51 +751,6 @@ const IndentFormPage: React.FC = () => {
         </Card>
       </Form>
 
-      {/* Material search dropdown portal — escapes .table-responsive overflow clipping */}
-      {showMaterialSearch && dropdownAnchorRect && dropdownMaterials && dropdownMaterials.length > 0 &&
-        createPortal(
-          <div
-            style={{
-              position: 'fixed',
-              top: dropdownAnchorRect.bottom,
-              left: dropdownAnchorRect.left,
-              width: Math.max(dropdownAnchorRect.width, 420),
-              zIndex: 9999,
-              maxHeight: '280px',
-              overflowY: 'auto',
-              backgroundColor: 'white',
-              border: '1px solid #dee2e6',
-              borderRadius: '0.375rem',
-              boxShadow: '0 0.5rem 1rem rgba(0, 0, 0, 0.15)',
-            }}
-          >
-            {dropdownMaterials.map((item, idx) => {
-              const desc = item.materialDescription ? ` (${item.materialDescription})` : '';
-              const stock = item.stockQuantity !== null ? item.stockQuantity : 0;
-              return (
-                <div
-                  key={`${item.materialId}-${item.companyId}-${idx}`}
-                  className="p-2 border-bottom"
-                  style={{ cursor: 'pointer', transition: 'background-color 0.15s ease' }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (selectedItemIndex !== null) selectMaterial(item, selectedItemIndex);
-                  }}
-                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e9ecef'; }}
-                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
-                >
-                  <div className="fw-semibold text-primary">[{item.materialCode}] {item.materialName}{desc}</div>
-                  <small className="text-muted d-block">
-                    Company: <strong>{item.companyName}</strong> | Plant: {item.plantName} | Stock: <span className={Number(stock) > 0 ? 'text-success fw-medium' : 'text-danger fw-medium'}>{stock}</span>
-                  </small>
-                </div>
-              );
-            })}
-          </div>,
-          document.body
-        )
-      }
     </div>
   );
 };

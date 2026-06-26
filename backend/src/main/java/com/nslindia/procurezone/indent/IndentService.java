@@ -237,6 +237,9 @@ public class IndentService {
         /**
          * Get indent by ID
          */
+        // TODO(security): add caller-supplied UserPrincipal and check that the requesting
+        // user's department matches indent.departmentId, or that the role is ADMIN/SUPERADMIN.
+        // Currently any authenticated user can fetch any indent by ID (horizontal privilege gap).
         @Transactional(readOnly = true)
         public IndentResponse getIndentById(Integer id) {
                 logger.info("Fetching indent with ID: {}", id);
