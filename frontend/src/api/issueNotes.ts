@@ -117,7 +117,9 @@ export interface IssueNoteLineItemCreateRequest {
 
 export interface IssueNoteSearchParams extends PageRequest {
     search?: string;
-    status?: IssueNoteStatus;
+    status?: number;          // legacy — use approvedStatus+storesByStatus for list page
+    approvedStatus?: number;
+    storesByStatus?: number;
     departmentId?: number;
     plantId?: number;
     fromDate?: string;

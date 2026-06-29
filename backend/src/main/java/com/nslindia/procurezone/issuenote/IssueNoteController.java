@@ -85,27 +85,22 @@ public class IssueNoteController {
         }
 
         /**
-         * Get all issue notes with pagination and filters
+         * Get all issue notes with pagination and filters.
+         * approvedStatus + storesByStatus match the two-column workflow (issue_note_approved_status,
+         * issue_note_storesby_status). Returns a standard Spring Page so totalElements serialises correctly.
          */
         @GetMapping
         @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
-        public ResponseEntity<Map<String, Object>> getAllIssueNotes(
+        public ResponseEntity<Page<IssueNoteSummaryResponse>> getAllIssueNotes(
                         @RequestParam(defaultValue = "0") int page,
-                        @RequestParam(defaultValue = "10") int size,
-                        @RequestParam(required = false) Integer status,
-                        @RequestParam(required = false) Integer companyId,
+                        @RequestParam(defaultValue = "20") int size,
+                        @RequestParam(required = false) String search,
+                        @RequestParam(required = false) Integer approvedStatus,
+                        @RequestParam(required = false) Integer storesByStatus,
                         @RequestParam(required = false) Integer departmentId) {
 
-                Page<IssueNoteSummaryResponse> issueNotePage = issueNoteService.getAll(
-                                page, size, status, companyId, departmentId);
-
-                Map<String, Object> response = new HashMap<>();
-                response.put("content", issueNotePage.getContent());
-                response.put("currentPage", issueNotePage.getNumber());
-                response.put("totalItems", issueNotePage.getTotalElements());
-                response.put("totalPages", issueNotePage.getTotalPages());
-
-                return ResponseEntity.ok(response);
+                return ResponseEntity.ok(issueNoteService.getAll(
+                                page, size, search, approvedStatus, storesByStatus, departmentId));
         }
 
         /**

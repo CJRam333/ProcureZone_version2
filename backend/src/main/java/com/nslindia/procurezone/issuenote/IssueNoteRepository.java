@@ -129,4 +129,22 @@ public interface IssueNoteRepository extends JpaRepository<IssueNote, Integer> {
          */
         @Query("SELECT COUNT(i) FROM IssueNote i WHERE i.issueDate BETWEEN :startDate AND :endDate")
         Long countByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
+        /**
+         * Combined filter: all params optional — null disables that filter.
+         * Filters by approvedStatus + storesByStatus (two-column workflow model).
+         */
+        @Query("""
+                SELECT i FROM IssueNote i WHERE
+                    (:search IS NULL OR LOWER(i.issueNoteNumber) LIKE LOWER(CONCAT('%', :search, '%')))
+                    AND (:approvedStatus IS NULL OR i.approvedStatus = :approvedStatus)
+                    AND (:storesByStatus IS NULL OR i.storesByStatus = :storesByStatus)
+                    AND (:departmentId   IS NULL OR i.departmentId   = :departmentId)
+                """)
+        Page<IssueNote> filterIssueNotes(
+                @Param("search")         String  search,
+                @Param("approvedStatus") Integer approvedStatus,
+                @Param("storesByStatus") Integer storesByStatus,
+                @Param("departmentId")   Integer departmentId,
+                Pageable pageable);
 }

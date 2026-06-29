@@ -507,30 +507,21 @@ public class IssueNoteService {
     }
 
     /**
-     * Get all issue notes with pagination and filters
+     * Get all issue notes with pagination and combined filters.
+     * approvedStatus + storesByStatus drive the two-column workflow filter.
      */
     @Transactional(readOnly = true)
-    public Page<IssueNoteSummaryResponse> getAll(int page, int size, Integer status,
-            Integer companyId, Integer departmentId) {
+    public Page<IssueNoteSummaryResponse> getAll(int page, int size,
+            String search, Integer approvedStatus, Integer storesByStatus, Integer departmentId) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "issueDate"));
-
-        Page<IssueNote> issueNotesPage;
-
-        if (status != null && companyId != null) {
-            issueNotesPage = issueNoteRepository.findByCompanyIdAndStatus(companyId, status, pageable);
-        } else if (status != null && departmentId != null) {
-            issueNotesPage = issueNoteRepository.findByDepartmentIdAndStatus(departmentId, status, pageable);
-        } else if (status != null) {
-            issueNotesPage = issueNoteRepository.findByStatus(status, pageable);
-        } else if (companyId != null) {
-            issueNotesPage = issueNoteRepository.findByCompanyId(companyId, pageable);
-        } else if (departmentId != null) {
-            issueNotesPage = issueNoteRepository.findByDepartmentId(departmentId, pageable);
-        } else {
-            issueNotesPage = issueNoteRepository.findAll(pageable);
-        }
-
-        return issueNotesPage.map(this::mapToSummaryResponse);
+        return issueNoteRepository
+                .filterIssueNotes(
+                        (search != null && !search.isBlank()) ? search.trim() : null,
+                        approvedStatus,
+                        storesByStatus,
+                        departmentId,
+                        pageable)
+                .map(this::mapToSummaryResponse);
     }
 
     /**

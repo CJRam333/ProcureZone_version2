@@ -54,11 +54,7 @@ public class CompanyPlantMaterial {
     @Column(name = "map_material", nullable = false)
     private Integer materialId;
 
-    /**
-     * Current quantity in stores at the plant
-     * Note: Using map_quantity column from legacy database
-     */
-    @Column(name = "map_quantity", precision = 20, scale = 2)
+    @Column(name = "map_quantity_stores", precision = 20, scale = 2)
     private BigDecimal quantityStores;
 
     /**
