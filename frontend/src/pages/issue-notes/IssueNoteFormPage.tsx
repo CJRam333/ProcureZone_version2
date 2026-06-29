@@ -18,7 +18,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, materialsApi, companiesApi, departmentsApi, plantsApi, sectionsApi, uomApi, getErrorMessage } from '../../api';
-import { inventoryApi } from '../../api/inventory';
 import type { MaterialDropdownItem } from '../../api/materials';
 import type { IssueNoteFormMeta } from '../../api/issueNotes';
 import { useAuth } from '../../contexts/AuthContext';
@@ -134,11 +133,11 @@ const IssueNoteFormPage: React.FC = () => {
     enabled: isEdit,
   });
 
-  // Fetch materials for dropdown — fires only when user types ≥2 chars
+  // Fetch materials for dropdown — fires whenever the search popup is open
   const { data: dropdownMaterials } = useQuery<MaterialDropdownItem[]>({
     queryKey: ['materials-dropdown', materialSearch],
     queryFn: () => materialsApi.dropdown(materialSearch),
-    enabled: materialSearch.length >= 2,
+    enabled: showMaterialSearch,
     staleTime: 30000,
   });
 
@@ -183,20 +182,6 @@ const IssueNoteFormPage: React.FC = () => {
     }
   }, [isEdit, metaData, setValue]);
 
-  // Re-fetch stock whenever the plant selection changes
-  useEffect(() => {
-    if (!watchPlantId || watchPlantId <= 0) return;
-    const currentItems = getValues('lineItems');
-    currentItems.forEach((item, index) => {
-      if (item.materialId > 0) {
-        inventoryApi
-          .getStockByMaterialAndPlant(item.materialId, watchPlantId)
-          .then((r) => setStockByIndex((prev) => ({ ...prev, [index]: r.availableStock })))
-          .catch(() => setStockByIndex((prev) => ({ ...prev, [index]: null })));
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchPlantId]);
 
   // Create/Update mutations
   const createMutation = useMutation({
@@ -622,10 +607,10 @@ const IssueNoteFormPage: React.FC = () => {
                                     </small>
                                   </div>
                                 ))
-                              ) : materialSearch.length >= 2 ? (
-                                <div className="p-3 text-muted text-center small">No materials found for &ldquo;{materialSearch}&rdquo;</div>
                               ) : (
-                                <div className="p-3 text-muted text-center small">Type at least 2 characters to search</div>
+                                <div className="p-3 text-muted text-center small">
+                                  {materialSearch ? `No materials found for "${materialSearch}"` : 'No materials found'}
+                                </div>
                               )}
                             </div>
                           )}

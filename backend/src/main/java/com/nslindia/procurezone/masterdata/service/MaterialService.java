@@ -16,6 +16,7 @@ import com.nslindia.procurezone.common.exception.DuplicateResourceException;
 import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
 import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
+import com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository;
 import com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository;
 import com.nslindia.procurezone.masterdata.Material;
 import com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse;
@@ -39,13 +40,16 @@ public class MaterialService {
     private final EmployeeRepository employeeRepository;
     private final AuditService auditService;
     private final CompanyPlantMaterialRepository companyPlantMaterialRepository;
+    private final CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository;
 
     public MaterialService(MaterialRepository materialRepository, EmployeeRepository employeeRepository,
-            AuditService auditService, CompanyPlantMaterialRepository companyPlantMaterialRepository) {
+            AuditService auditService, CompanyPlantMaterialRepository companyPlantMaterialRepository,
+            CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository) {
         this.materialRepository = materialRepository;
         this.employeeRepository = employeeRepository;
         this.auditService = auditService;
         this.companyPlantMaterialRepository = companyPlantMaterialRepository;
+        this.companyPlantMaterialMapRepository = companyPlantMaterialMapRepository;
     }
 
     /**
@@ -98,7 +102,7 @@ public class MaterialService {
     }
 
     private MaterialResponse toResponse(Material m) {
-        BigDecimal stock = companyPlantMaterialRepository
+        BigDecimal stock = companyPlantMaterialMapRepository
                 .sumQuantityByMaterial(m.getId())
                 .orElse(BigDecimal.ZERO);
         return new MaterialResponse(
@@ -136,9 +140,9 @@ public class MaterialService {
             String search, boolean adminView, java.util.List<Integer> companyIds) {
         String term = (search == null) ? "" : search.trim();
         if (adminView || companyIds == null || companyIds.isEmpty()) {
-            return companyPlantMaterialRepository.searchForDropdownAllCompanies(term);
+            return companyPlantMaterialMapRepository.searchForDropdownAllCompanies(term);
         }
-        return companyPlantMaterialRepository.searchForDropdownByCompanies(term, companyIds);
+        return companyPlantMaterialMapRepository.searchForDropdownByCompanies(term, companyIds);
     }
 
     /**

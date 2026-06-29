@@ -98,3 +98,54 @@ Added `sumQuantityByMaterial(@materialId)` to `CompanyPlantMaterialRepository` �
 **File changed:** `frontend/src/pages/materials/MaterialDetailPage.tsx`
 
 ---
+
+### Material Stock Source + Dropdown Load-All + Remove Phantom Columns + Form Auto-fill Investigation
+
+**Commit:** `fix: material stock from legacy table | fix: dropdown load-all on focus | fix: materials list name column | fix: remove broken inventory re-fetch`
+
+#### FIX 1 — Switch stock source to tbl_map_company_plant_material (legacy, 669 rows)
+
+**Root cause:** `MaterialService` and the dropdown queries read from `tbl_pz_map_company_plant_material` (entity: `CompanyPlantMaterial`, 10 rows). The legacy table `tbl_map_company_plant_material` (entity: `CompanyPlantMaterialMap`, 669 rows, 221 with real stock) already existed in the codebase but was not used for material stock display.
+
+**Fix:** Added `sumQuantityByMaterial`, `searchForDropdownAllCompanies`, `searchForDropdownByCompanies` to `CompanyPlantMaterialMapRepository`. Updated `MaterialService` constructor to inject `CompanyPlantMaterialMapRepository`; switched `toResponse()` and `searchMaterialsForDropdown()` to call the new repository.
+
+JPQL dropdown queries use `LEFT JOIN CompanyPlantMaterialMap s ON s.material = m AND s.status IN (0, 1)` with `LEFT JOIN s.company co / LEFT JOIN s.plant pl` — all materials appear; unmapped ones return null company/plant and 0 stock via `COALESCE(SUM(s.quantity), 0)`.
+
+**Verified:** `sumQuantityByMaterial(1)` → 0.00 from `tbl_map_company_plant_material` (material BCH-1-2-DI-C-500ML has 0 legacy stock, which is correct).
+
+**Files changed:** `CompanyPlantMaterialMapRepository.java`, `MaterialService.java`
+
+#### FIX 2 — Material dropdown loads on focus (no minimum typing required)
+
+**Root cause:** Both form pages had `enabled: materialSearch.length >= 2` in the React Query config. Clicking the material search field showed nothing. Users had to type 2+ characters before any results appeared.
+
+**Fix:** Changed to `enabled: showMaterialSearch` in both pages. Dropdown results load immediately on focus (empty search returns all 647 active materials from backend). Removed "Type at least 2 characters" placeholder.
+
+Also removed `inventoryApi.getStockByMaterialAndPlant()` plant-change `useEffect` from both pages — this call read `tbl_inventory_balance` which has 0 rows, silently wiping all displayed stock quantities whenever plant changed. Stock now comes exclusively from `MaterialDropdownItem.stockQuantity` at selection time.
+
+**Files changed:** `IndentFormPage.tsx`, `IssueNoteFormPage.tsx`
+
+#### FIX 3 — Material list page: add Name column
+
+**Root cause:** "Description" column was rendering `row.materialName || row.description` — it displayed material name but was labelled "Description". The actual `description` field was never shown.
+
+**Fix:** Split into two columns: "Name" (`row.materialName`) and "Description" (`row.description`).
+
+**File changed:** `frontend/src/pages/materials/MaterialsListPage.tsx`
+
+#### Investigation: FIX 5 — Plant auto-fill and legacy Issue Note form fields
+
+**FIX 5a-5b (SKIPPED — employees have no plant FK):**
+`tbl_emp_master.emp_location` is a FK to `tbl_location_master` (locations like "Icon", "NSL", "Lab Biotech Main") — NOT to `tbl_plant_master`. `emp_plant` is a VARCHAR text field (e.g., '1002'), not a plant ID. No meta endpoint change made — adding `plantId = getLocationId()` would silently set plant to a location ID (e.g., 13 = "Icon") which doesn't exist as a plant. Plant selection stays manual.
+
+**FIX 5d — Legacy Issue Note fields (report only, no changes):**
+Legacy `seeds_issue_note_request.jsp` had: Year, Emp ID, Issue Note No., Emp Name (all read-only), Company, Plant, Department, Section (manual dropdowns), per-item: Material Description dropdown + Requested Qty + Balance Qty (read-only from `getQuantity.action`), header-level Remarks textarea.
+
+Fields added in the new rewrite vs legacy:
+- UOM per item — not in legacy
+- Purpose per item — not in legacy
+- "Issued To" field (required) — not in legacy (is the recipient of materials, not the requester — intentionally added for the new approval workflow, kept)
+
+No fields removed. No changes made to IssueNoteFormPage.
+
+---

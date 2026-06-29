@@ -64,9 +64,16 @@ const MaterialsListPage: React.FC = () => {
     },
     {
       key: 'materialName',
+      label: 'Name',
+      render: (row: any) => (
+        <div className="fw-medium">{row.materialName || '-'}</div>
+      ),
+    },
+    {
+      key: 'description',
       label: 'Description',
       render: (row: any) => (
-        <div className="fw-medium">{row.materialName || row.description || '-'}</div>
+        <div className="text-muted small">{row.description || '-'}</div>
       ),
     },
     {

@@ -19,7 +19,6 @@ import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch, FaEdit, F
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { indentsApi, materialsApi, uomApi, companiesApi, departmentsApi, plantsApi, sectionsApi, getErrorMessage } from '../../api';
 import type { IndentFormMeta } from '../../api/indents';
-import { inventoryApi } from '../../api/inventory';
 import type { MaterialDropdownItem } from '../../api/materials';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -105,11 +104,11 @@ const IndentFormPage: React.FC = () => {
     enabled: isEdit,
   });
 
-  // Fetch materials for dropdown — fires only when user types ≥2 chars
+  // Fetch materials for dropdown — fires whenever the search popup is open
   const { data: dropdownMaterials } = useQuery<MaterialDropdownItem[]>({
     queryKey: ['materials-dropdown', materialSearch],
     queryFn: () => materialsApi.dropdown(materialSearch),
-    enabled: materialSearch.length >= 2,
+    enabled: showMaterialSearch,
     staleTime: 30000,
   });
 
@@ -194,20 +193,6 @@ const IndentFormPage: React.FC = () => {
     }
   }, [existingIndent, reset, companiesData]);
 
-  // Re-fetch stock whenever the plant selection changes
-  useEffect(() => {
-    if (!watchPlantId || watchPlantId <= 0) return;
-    const currentItems = getValues('items');
-    currentItems.forEach((item, index) => {
-      if (item.materialId > 0) {
-        inventoryApi
-          .getStockByMaterialAndPlant(item.materialId, watchPlantId)
-          .then((r) => setStockByIndex((prev) => ({ ...prev, [index]: r.availableStock })))
-          .catch(() => setStockByIndex((prev) => ({ ...prev, [index]: null })));
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchPlantId]);
 
   // Helper function to transform form data to API format
   const transformFormData = (data: IndentFormData) => {
@@ -631,10 +616,10 @@ const IndentFormPage: React.FC = () => {
                                     </div>
                                   );
                                 })
-                              ) : materialSearch.length >= 2 ? (
-                                <div className="p-3 text-muted text-center small">No materials found for &ldquo;{materialSearch}&rdquo;</div>
                               ) : (
-                                <div className="p-3 text-muted text-center small">Type at least 2 characters to search</div>
+                                <div className="p-3 text-muted text-center small">
+                                  {materialSearch ? `No materials found for "${materialSearch}"` : 'No materials found'}
+                                </div>
                               )}
                             </div>
                           )}
