@@ -22,6 +22,7 @@ export const INDENT_STATUS_COLORS: Record<string, string> = {
   'Quotations Collected': 'info',
   'Negotiation Done':     'info',
   'PO Released':          'success',
+  'Stores Rejected':      'danger',
   'Hold':                 'secondary',
   'Cash Buy':             'secondary',
   'Goods Receipt':        'success',

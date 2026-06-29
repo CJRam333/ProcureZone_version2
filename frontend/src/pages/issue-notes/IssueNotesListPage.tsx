@@ -24,6 +24,7 @@ import {
 import { PageHeader, DataTable, StatusBadge } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 interface IssueNoteFilters {
   search: string;
@@ -146,7 +147,7 @@ const IssueNotesListPage: React.FC = () => {
       key: 'statusDescription',
       label: 'Status',
       render: (row: any) => (
-        <Badge bg={getStatusVariant(row.statusDescription || '')}>{row.statusDescription || 'Unknown'}</Badge>
+        <Badge bg={INDENT_STATUS_COLORS[row.statusDescription || ''] || 'secondary'}>{row.statusDescription || 'Unknown'}</Badge>
       ),
     },
     {

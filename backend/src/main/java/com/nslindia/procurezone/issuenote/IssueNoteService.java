@@ -53,13 +53,12 @@ public class IssueNoteService {
      * approvedStatus = RM approval (1=pending, 2=rejected, 3=approved)
      * storesByStatus = Stores action  (1=pending, 2=rejected, 11=issued)
      */
-    static String deriveIssueNoteDisplayStatus(Integer approvedStatusId, Integer storesByStatusId) {
-        if (approvedStatusId == null) return "Pending";
-        if (approvedStatusId == 1) return "Pending RM Approval";
-        if (approvedStatusId == 2) return "Rejected by RM";
+    private static String deriveIssueNoteDisplayStatus(Integer approvedStatusId, Integer storesByStatusId) {
+        if (approvedStatusId == null || approvedStatusId == 1) return "Pending";
+        if (approvedStatusId == 2) return "RM Rejected";
         if (approvedStatusId == 3) {
-            if (storesByStatusId == null || storesByStatusId == 1) return "Awaiting Stores Issue";
-            if (storesByStatusId == 2) return "Rejected by Stores";
+            if (storesByStatusId == null || storesByStatusId == 1) return "RM Approved";
+            if (storesByStatusId == 2)  return "Stores Rejected";
             if (storesByStatusId == 11) return "Goods Issued";
         }
         return "In Progress";
