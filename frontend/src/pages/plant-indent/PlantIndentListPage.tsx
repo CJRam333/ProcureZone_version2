@@ -6,28 +6,7 @@ import { FaPlus, FaEye, FaEdit, FaTrash, FaSearch, FaFilter, FaLeaf, FaIndustry 
 import { PageHeader, DataTable, LoadingSpinner, Column } from '../../components/common';
 import { plantIndentsApi, plantsApi, getErrorMessage } from '../../api';
 import type { PlantIndent } from '../../api/plantIndents';
-
-const statusColors: Record<number, string> = {
-  0: 'secondary',     // Draft
-  1: 'warning',       // Pending DEO/QM Review
-  2: 'info',          // Pending Manager Approval
-  3: 'success',       // Manager Approved
-  4: 'danger',        // Rejected by DEO/QM
-  5: 'danger',        // Rejected by Manager
-  6: 'primary',       // Processing
-  7: 'dark',          // Completed
-};
-
-const statusNames: Record<number, string> = {
-  0: 'Draft',
-  1: 'Pending DEO/QM',
-  2: 'Pending Manager',
-  3: 'Approved',
-  4: 'Rejected (DEO)',
-  5: 'Rejected (Mgr)',
-  6: 'Processing',
-  7: 'Completed',
-};
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 const PlantIndentListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -122,8 +101,8 @@ const PlantIndentListPage: React.FC = () => {
       key: 'status',
       label: 'Status',
       render: (row: PlantIndent) => (
-        <Badge bg={statusColors[row.status ?? 0] || 'secondary'}>
-          {row.statusDescription || statusNames[row.status ?? 0] || 'Unknown'}
+        <Badge bg={INDENT_STATUS_COLORS[row.statusDescription ?? ''] || 'secondary'}>
+          {row.statusDescription || 'Unknown'}
         </Badge>
       ),
     },
@@ -140,7 +119,7 @@ const PlantIndentListPage: React.FC = () => {
           >
             <FaEye />
           </Button>
-          {(row.status === 0 || row.status === 4 || row.status === 5) && (
+          {(row.status === 1 || row.status === 2) && (
             <Button
               variant="outline-warning"
               size="sm"
@@ -150,7 +129,7 @@ const PlantIndentListPage: React.FC = () => {
               <FaEdit />
             </Button>
           )}
-          {row.status === 0 && (
+          {row.status === 1 && (
             <Button
               variant="outline-danger"
               size="sm"
@@ -229,14 +208,18 @@ const PlantIndentListPage: React.FC = () => {
                 onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(0); }}
               >
                 <option value="">All Status</option>
-                <option value="0">Draft</option>
-                <option value="1">Pending DEO/QM</option>
-                <option value="2">Pending Manager</option>
-                <option value="3">Approved</option>
-                <option value="4">Rejected (DEO/QM)</option>
-                <option value="5">Rejected (Manager)</option>
-                <option value="6">Processing</option>
-                <option value="7">Completed</option>
+                <option value="1">Pending</option>
+                <option value="2">Rejected</option>
+                <option value="3">DEO Approved</option>
+                <option value="4">Final Approved</option>
+                <option value="5">Quotations Collected</option>
+                <option value="6">Negotiation Done</option>
+                <option value="7">PO Released</option>
+                <option value="8">On Hold</option>
+                <option value="9">Cash Buy</option>
+                <option value="10">Goods Receipt</option>
+                <option value="11">Goods Issued</option>
+                <option value="20">Completed</option>
               </Form.Select>
             </Col>
           </Row>

@@ -23,41 +23,28 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.PageRequest;
 
 /**
- * Derives a user-visible operational status from the three workflow columns.
- * Mirrors IndentService.deriveDisplayStatus() — same matrix, same logic.
+ * Maps indent_approved_status (tbl_indent_status IDs) to a user-visible label.
+ * Plant indents use indent_approved_status as the single workflow column.
+ * indent_final_status and indent_procurement_status are not meaningful here.
  */
 class PlantIndentStatusHelper {
-    static String derive(Integer approvedId, Integer finalId, Integer procurementId) {
-        if (approvedId == null || finalId == null || procurementId == null) return "Pending";
-        if (approvedId == 1 && finalId == 1 && procurementId == 1) return "Pending";
-        if (approvedId == 2 && finalId == 1 && procurementId == 1) return "RM Rejected";
-        if (approvedId == 3 && finalId == 1 && procurementId == 1) return "RM Approved";
-        if (approvedId == 3 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
-        if (approvedId == 2 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
-        if (approvedId == 3 && finalId == 4 && procurementId == 4) return "Dept. Head Approved";
-        if (approvedId == 3 && finalId == 4 && procurementId == 5) return "Quotations Collected";
-        if (approvedId == 3 && finalId == 4 && procurementId == 6) return "Negotiation Done";
-        if (approvedId == 3 && finalId == 4 && procurementId == 7) return "PO Released";
-        if (approvedId == 3 && finalId == 4 && procurementId == 8) return "Hold";
-        if (approvedId == 3 && finalId == 4 && procurementId == 9) return "Cash Buy";
-        if (approvedId == 3 && finalId == 4 && procurementId == 10) return "Goods Receipt";
-        if (approvedId == 3 && finalId == 4 && procurementId == 11) return "Goods Issued";
-        return "In Progress";
-    }
-
-    /** Maps the 8-status workflow column directly to a display string. */
-    static String describeStatus(Integer status) {
-        if (status == null) return "Draft";
-        return switch (status) {
-            case 0 -> "Draft";
-            case 1 -> "Pending DEO/QM Review";
-            case 2 -> "Pending Manager Approval";
-            case 3 -> "Manager Approved";
-            case 4 -> "Rejected by DEO/QM";
-            case 5 -> "Rejected by Manager";
-            case 6 -> "Processing";
-            case 7 -> "Completed";
-            default -> "Unknown";
+    static String describeStatus(Integer approvedStatus) {
+        if (approvedStatus == null) return "Pending";
+        return switch (approvedStatus) {
+            case 0  -> "Inactive";
+            case 1  -> "Pending";
+            case 2  -> "Rejected";
+            case 3  -> "DEO Approved";
+            case 4  -> "Final Approved";
+            case 5  -> "Quotations Collected";
+            case 6  -> "Negotiation Done";
+            case 7  -> "PO Released";
+            case 8  -> "On Hold";
+            case 9  -> "Cash Buy";
+            case 10 -> "Goods Receipt";
+            case 11 -> "Goods Issued";
+            case 20 -> "Completed";
+            default -> "Unknown (" + approvedStatus + ")";
         };
     }
 }
@@ -422,8 +409,8 @@ public class PlantIndentService {
                 pi.getLineCode(),
                 pi.getLineDescription(),
                 pi.getExpectedQuantity() != null ? String.valueOf(pi.getExpectedQuantity()) : null,
-                pi.getStatus(),
-                PlantIndentStatusHelper.describeStatus(pi.getStatus()),
+                pi.getApprovedStatus(),
+                PlantIndentStatusHelper.describeStatus(pi.getApprovedStatus()),
                 pi.getCreatedDate(),
                 details.size(),
                 details);

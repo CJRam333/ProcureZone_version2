@@ -61,18 +61,19 @@ public interface PlantIndentRepository extends JpaRepository<PlantIndent, Intege
      */
     @Query("""
         SELECT pi FROM PlantIndent pi WHERE
-            (:search IS NULL OR
+            pi.status != 0
+            AND (:search IS NULL OR
                 LOWER(pi.indentNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR
                 LOWER(pi.remarks)      LIKE LOWER(CONCAT('%', :search, '%')) OR
                 LOWER(pi.cropName)     LIKE LOWER(CONCAT('%', :search, '%')))
-            AND (:plantId   IS NULL OR pi.plantId   = :plantId)
-            AND (:status    IS NULL OR pi.status    = :status)
+            AND (:plantId IS NULL OR pi.plantId        = :plantId)
+            AND (:status  IS NULL OR pi.approvedStatus = :status)
             AND (:empSearch IS NULL OR pi.employeeId IN (
                     SELECT e.employeeNumber FROM Employee e
                     WHERE LOWER(e.fullName)    LIKE LOWER(CONCAT('%', :empSearch, '%'))
                        OR LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :empSearch, '%'))))
-            AND (:fromDate  IS NULL OR pi.indentDate >= :fromDate)
-            AND (:toDate    IS NULL OR pi.indentDate <= :toDate)
+            AND (:fromDate IS NULL OR pi.indentDate >= :fromDate)
+            AND (:toDate   IS NULL OR pi.indentDate <= :toDate)
         """)
     Page<PlantIndent> searchWithFilters(
         @Param("search")    String  search,
