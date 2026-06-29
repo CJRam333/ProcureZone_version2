@@ -19,18 +19,24 @@ export interface PageResponse<T> {
     empty: boolean;
 }
 
-// Material response matching backend MaterialResponse (with optional enriched fields for UI)
+// Material response matching backend MaterialResponse
 export interface Material {
     id: number;
-    code: string;
-    name: string;
+    // Primary fields from aligned backend
+    materialCode: string;       // material_code
+    materialName: string;       // material_name
     description: string;
     status: number;
     statusText: string;
+    isActive: boolean;          // derived server-side: status === 1
+    stockQuantity: number;      // sum of map_quantity_stores across all plants
+    companyName?: string;       // from dropdown endpoint
+    plantName?: string;         // from dropdown endpoint
     lastModifiedDate?: string;
     lastModifiedBy?: number;
-    // Optional enriched fields for UI display/forms
-    materialCode?: string; // alias for code
+    // Legacy aliases — kept so other pages compile without changes
+    code: string;               // backward compat alias (runtime value may be undefined)
+    name: string;               // backward compat alias (runtime value may be undefined)
     uomId?: number;
     uomCode?: string;
     uomName?: string;
@@ -41,9 +47,8 @@ export interface Material {
     minStockLevel?: number;
     maxStockLevel?: number;
     reorderLevel?: number;
-    isActive?: boolean; // derived from status === 1
-    updatedAt?: string; // alias for lastModifiedDate
-    createdAt?: string; // creation timestamp
+    updatedAt?: string;
+    createdAt?: string;
 }
 
 // Extended Material for forms with additional frontend fields

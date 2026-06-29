@@ -1,5 +1,6 @@
 package com.nslindia.procurezone.masterdata.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import org.slf4j.Logger;
@@ -56,26 +57,24 @@ public class MaterialService {
     @Transactional(readOnly = true)
     public Page<MaterialResponse> getAllMaterials(Pageable pageable) {
         logger.info("Fetching materials with pagination: {}", pageable);
-        return materialRepository.findAll(pageable)
-                .map(MaterialResponse::from);
+        return materialRepository.findAll(pageable).map(this::toResponse);
     }
 
     /**
      * Get all active materials with pagination.
-     * 
+     *
      * @param pageable pagination information
      * @return page of active material responses
      */
     @Transactional(readOnly = true)
     public Page<MaterialResponse> getActiveMaterials(Pageable pageable) {
         logger.info("Fetching active materials with pagination: {}", pageable);
-        return materialRepository.findByStatus(1, pageable)
-                .map(MaterialResponse::from);
+        return materialRepository.findByStatus(1, pageable).map(this::toResponse);
     }
 
     /**
      * Search materials by code, name, or description.
-     * 
+     *
      * @param searchTerm the search term
      * @param activeOnly filter for active materials only
      * @param pageable   pagination information
@@ -95,7 +94,26 @@ public class MaterialService {
                 ? materialRepository.searchByCodeOrNameOrDescriptionAndStatus(searchTerm, 1, pageable)
                 : materialRepository.searchByCodeOrNameOrDescription(searchTerm, pageable);
 
-        return materials.map(MaterialResponse::from);
+        return materials.map(this::toResponse);
+    }
+
+    private MaterialResponse toResponse(Material m) {
+        BigDecimal stock = companyPlantMaterialRepository
+                .sumQuantityByMaterial(m.getId())
+                .orElse(BigDecimal.ZERO);
+        return new MaterialResponse(
+                m.getId(),
+                m.getCode(),
+                m.getName(),
+                m.getDescription(),
+                m.getStatus(),
+                Integer.valueOf(1).equals(m.getStatus()) ? "Active" : "Inactive",
+                Integer.valueOf(1).equals(m.getStatus()),
+                stock,
+                null,
+                null,
+                m.getLastModifiedDate(),
+                m.getLastModifiedBy());
     }
 
     /**
@@ -110,7 +128,7 @@ public class MaterialService {
         logger.info("Fetching material with id: {}", id);
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material not found with id: " + id));
-        return MaterialResponse.from(material);
+        return toResponse(material);
     }
 
     @Transactional(readOnly = true)
@@ -171,7 +189,7 @@ public class MaterialService {
                 username,
                 String.format("Created material: %s - %s", savedMaterial.getCode(), savedMaterial.getName()));
 
-        return MaterialResponse.from(savedMaterial);
+        return toResponse(savedMaterial);
     }
 
     /**
@@ -234,7 +252,7 @@ public class MaterialService {
                 username,
                 String.format("Updated material from [%s] to [%s]", oldDetails, newDetails));
 
-        return MaterialResponse.from(updatedMaterial);
+        return toResponse(updatedMaterial);
     }
 
     /**

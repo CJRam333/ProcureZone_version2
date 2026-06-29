@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -18,18 +18,15 @@ import {
   FaSyncAlt,
   FaToggleOn,
   FaToggleOff,
-  FaFileImport,
   FaFileExport,
 } from 'react-icons/fa';
 import { PageHeader, DataTable, StatusBadge } from '../../components/common';
 import { materialsApi, getErrorMessage } from '../../api';
-import { inventoryApi } from '../../api/inventory';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface MaterialFilters {
   search: string;
   status: string;
-  categoryId: string;
 }
 
 const MaterialsListPage: React.FC = () => {
@@ -37,14 +34,9 @@ const MaterialsListPage: React.FC = () => {
   const { hasAnyRole } = useAuth();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
-  const [pageSize] = useState(10);
-  const [filters, setFilters] = useState<MaterialFilters>({
-    search: '',
-    status: '',
-    categoryId: '',
-  });
+  const [pageSize] = useState(20);
+  const [filters, setFilters] = useState<MaterialFilters>({ search: '', status: '' });
 
-  // Fetch materials
   const { data, isLoading, refetch, error } = useQuery({
     queryKey: ['materials', page, pageSize, filters],
     queryFn: () =>
@@ -53,44 +45,15 @@ const MaterialsListPage: React.FC = () => {
         size: pageSize,
         search: filters.search || undefined,
         isActive: filters.status === 'active' ? true : filters.status === 'inactive' ? false : undefined,
-        categoryId: filters.categoryId ? Number(filters.categoryId) : undefined,
       }),
   });
 
-  // Fetch all inventory to build a material → available-stock map
-  const { data: inventoryData } = useQuery({
-    queryKey: ['inventory-all-for-materials'],
-    queryFn: () => inventoryApi.list({ size: 9999 }),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // materialId → sum of availableQuantity across all plants
-  const stockByMaterialId = useMemo(() => {
-    const map: Record<number, number> = {};
-    inventoryData?.content?.forEach((inv) => {
-      const qty = inv.availableQuantity ?? inv.quantity ?? 0;
-      map[inv.materialId] = (map[inv.materialId] ?? 0) + qty;
-    });
-    return map;
-  }, [inventoryData]);
-
-  // Toggle active mutation
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
       isActive ? materialsApi.deactivate(id) : materialsApi.activate(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['materials'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['materials'] }),
   });
 
-  // Status options
-  const statusOptions = [
-    { value: '', label: 'All Materials' },
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-  ];
-
-  // Table columns
   const columns = [
     {
       key: 'materialCode',
@@ -100,49 +63,19 @@ const MaterialsListPage: React.FC = () => {
       ),
     },
     {
-      key: 'description',
+      key: 'materialName',
       label: 'Description',
       render: (row: any) => (
-        <div>
-          <div className="fw-medium">{row.description}</div>
-          {row.specification && (
-            <small className="text-muted">{row.specification}</small>
-          )}
-        </div>
+        <div className="fw-medium">{row.materialName || row.description || '-'}</div>
       ),
     },
     {
-      key: 'category',
-      label: 'Category',
-      render: (row: any) => (
-        <Badge bg="info">{row.categoryName || '-'}</Badge>
-      ),
-    },
-    {
-      key: 'uom',
-      label: 'UOM',
-      render: (row: any) => (
-        <Badge bg="secondary">{row.uomCode}</Badge>
-      ),
-    },
-    {
-      key: 'hsnCode',
-      label: 'HSN Code',
-      render: (row: any) => row.hsnCode || '-',
-    },
-    {
-      key: 'reorderLevel',
-      label: 'Reorder Level',
-      render: (row: any) => row.reorderLevel || '-',
-    },
-    {
-      key: 'availableStock',
+      key: 'stockQuantity',
       label: 'Avail. Stock',
       render: (row: any) => {
-        const stock = stockByMaterialId[row.id];
-        if (stock === undefined) return <span className="text-muted small">-</span>;
+        const stock = row.stockQuantity ?? 0;
         return (
-          <span className={`fw-medium ${stock > 0 ? 'text-success' : 'text-danger'}`}>
+          <span className={`fw-medium ${stock > 0 ? 'text-success' : 'text-muted'}`}>
             {stock}
           </span>
         );
@@ -171,12 +104,12 @@ const MaterialsListPage: React.FC = () => {
           >
             <FaEye />
           </Button>
-          {hasAnyRole(['ADMIN', 'MASTER_DATA_ADMIN']) && (
+          {hasAnyRole(['ADMIN', 'SUPERADMIN']) && (
             <>
               <Button
                 variant="outline-secondary"
                 size="sm"
-                onClick={() => navigate(`/materials/${row.id}/edit`)}
+                onClick={() => navigate(`/masters/materials/${row.id}/edit`)}
                 title="Edit"
               >
                 <FaEdit />
@@ -197,13 +130,11 @@ const MaterialsListPage: React.FC = () => {
     },
   ];
 
-  // Reset filters
   const resetFilters = () => {
-    setFilters({ search: '', status: '', categoryId: '' });
+    setFilters({ search: '', status: '' });
     setPage(0);
   };
 
-  // Handle search
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(0);
@@ -220,25 +151,24 @@ const MaterialsListPage: React.FC = () => {
         ]}
         actions={
           <div className="d-flex gap-2">
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'MASTER_DATA_ADMIN']) && (
+            {hasAnyRole(['SUPERADMIN', 'ADMIN']) && (
               <>
-                <Button 
-                  variant="outline-secondary" 
+                <Button
+                  variant="outline-secondary"
                   onClick={() => {
-                    // Export materials to CSV
-                    materialsApi.list({ page: 0, size: 1000 }).then((data) => {
+                    materialsApi.list({ page: 0, size: 1000 }).then((d) => {
                       const csv = [
-                        ['Code', 'Description', 'HSN Code', 'UOM', 'Status', 'Created At'],
-                        ...(data.content || []).map((m: any) => [
-                          m.code || '',
+                        ['Code', 'Name', 'Description', 'Stock', 'Status'],
+                        ...(d.content || []).map((m: any) => [
+                          m.materialCode || '',
+                          m.materialName || '',
                           m.description || '',
-                          m.hsnCode || '',
-                          m.uomCode || '',
-                          m.status === 1 ? 'Active' : 'Inactive',
-                          m.createdAt || ''
-                        ])
-                      ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-                      
+                          m.stockQuantity ?? 0,
+                          m.isActive ? 'Active' : 'Inactive',
+                        ]),
+                      ]
+                        .map((r) => r.map((c) => `"${c}"`).join(','))
+                        .join('\n');
                       const blob = new Blob([csv], { type: 'text/csv' });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
@@ -251,16 +181,7 @@ const MaterialsListPage: React.FC = () => {
                 >
                   <FaFileExport className="me-2" /> Export
                 </Button>
-                <Button 
-                  variant="outline-secondary" 
-                  onClick={() => {
-                    alert('To import materials in bulk:\n\n1. Prepare a CSV file with columns:\n   - code, description, hsnCode, uomId, status\n\n2. Use the backend API endpoint:\n   POST /api/v1/materials/bulk-import\n\n(Full UI import will be added in next release)');
-                  }}
-                  title="Bulk import materials from CSV"
-                >
-                  <FaFileImport className="me-2" /> Import
-                </Button>
-                <Button variant="primary" onClick={() => navigate('/materials/new')}>
+                <Button variant="primary" onClick={() => navigate('/masters/materials/new')}>
                   <FaPlus className="me-2" /> Add Material
                 </Button>
               </>
@@ -269,7 +190,7 @@ const MaterialsListPage: React.FC = () => {
         }
       />
 
-      {/* Search & Filters */}
+      {/* Filters */}
       <Card className="mb-4">
         <Card.Body>
           <Form onSubmit={handleSearch}>
@@ -277,7 +198,7 @@ const MaterialsListPage: React.FC = () => {
               <Col lg={5} md={6}>
                 <InputGroup>
                   <Form.Control
-                    placeholder="Search material code, description, HSN..."
+                    placeholder="Search material code or name..."
                     value={filters.search}
                     onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                   />
@@ -289,16 +210,11 @@ const MaterialsListPage: React.FC = () => {
               <Col lg={3} md={4}>
                 <Form.Select
                   value={filters.status}
-                  onChange={(e) => {
-                    setFilters({ ...filters, status: e.target.value });
-                    setPage(0);
-                  }}
+                  onChange={(e) => { setFilters({ ...filters, status: e.target.value }); setPage(0); }}
                 >
-                  {statusOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
+                  <option value="">All Materials</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
                 </Form.Select>
               </Col>
               <Col lg="auto">
@@ -307,9 +223,7 @@ const MaterialsListPage: React.FC = () => {
                     <FaSyncAlt />
                   </Button>
                   {(filters.search || filters.status) && (
-                    <Button variant="outline-danger" onClick={resetFilters}>
-                      Clear
-                    </Button>
+                    <Button variant="outline-danger" onClick={resetFilters}>Clear</Button>
                   )}
                 </div>
               </Col>
@@ -318,7 +232,7 @@ const MaterialsListPage: React.FC = () => {
         </Card.Body>
       </Card>
 
-      {/* Stats Cards */}
+      {/* Stats */}
       <Row className="g-3 mb-4">
         <Col sm={6} lg={3}>
           <Card className="border-start border-4 border-primary h-100">
@@ -328,33 +242,9 @@ const MaterialsListPage: React.FC = () => {
             </Card.Body>
           </Card>
         </Col>
-        <Col sm={6} lg={3}>
-          <Card className="border-start border-4 border-success h-100">
-            <Card.Body>
-              <div className="text-muted small text-uppercase">Active Materials</div>
-              <div className="h3 mb-0 text-success">{(data as any)?.activeCount || 0}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col sm={6} lg={3}>
-          <Card className="border-start border-4 border-warning h-100">
-            <Card.Body>
-              <div className="text-muted small text-uppercase">Categories</div>
-              <div className="h3 mb-0">{(data as any)?.categoryCount || 0}</div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col sm={6} lg={3}>
-          <Card className="border-start border-4 border-danger h-100">
-            <Card.Body>
-              <div className="text-muted small text-uppercase">Low Stock</div>
-              <div className="h3 mb-0 text-danger">{(data as any)?.lowStockCount || 0}</div>
-            </Card.Body>
-          </Card>
-        </Col>
       </Row>
 
-      {/* Data Table */}
+      {/* Table */}
       <Card>
         <Card.Body className="p-0">
           {error ? (

@@ -219,29 +219,43 @@ public interface CompanyPlantMaterialRepository extends JpaRepository<CompanyPla
         List<CompanyPlantMaterial> findLowStockMappings(
                         @Param("threshold") Double threshold);
 
-        @Query("SELECT new com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse(" +
-                        "m.id, m.code, m.name, m.description, co.id, co.name, pl.id, pl.name, cpm.quantityStores) " +
-                        "FROM CompanyPlantMaterial cpm " +
-                        "JOIN Material m ON m.id = cpm.materialId " +
-                        "JOIN Company co ON co.id = cpm.companyId " +
-                        "JOIN Plant pl ON pl.id = cpm.plantId " +
-                        "WHERE m.status = 1 " +
-                        "AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                        "OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-                        "ORDER BY m.code, co.name, pl.name")
+        @Query("""
+                SELECT new com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse(
+                    m.id, m.code, m.name, m.description,
+                    co.id, co.name, pl.id, pl.name,
+                    COALESCE(cpm.quantityStores, 0))
+                FROM Material m
+                LEFT JOIN CompanyPlantMaterial cpm ON cpm.materialId = m.id
+                LEFT JOIN Company co ON co.id = cpm.companyId
+                LEFT JOIN Plant pl ON pl.id = cpm.plantId
+                WHERE m.status = 1
+                AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%'))
+                     OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                     OR LOWER(m.description) LIKE LOWER(CONCAT('%', :search, '%')))
+                ORDER BY m.code, co.name, pl.name
+                """)
         List<MaterialDropdownResponse> searchForDropdownAllCompanies(@Param("search") String search);
 
-        @Query("SELECT new com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse(" +
-                        "m.id, m.code, m.name, m.description, co.id, co.name, pl.id, pl.name, cpm.quantityStores) " +
-                        "FROM CompanyPlantMaterial cpm " +
-                        "JOIN Material m ON m.id = cpm.materialId " +
-                        "JOIN Company co ON co.id = cpm.companyId " +
-                        "JOIN Plant pl ON pl.id = cpm.plantId " +
-                        "WHERE m.status = 1 AND cpm.companyId IN :companyIds " +
-                        "AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                        "OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-                        "ORDER BY m.code, co.name, pl.name")
+        @Query("""
+                SELECT new com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse(
+                    m.id, m.code, m.name, m.description,
+                    co.id, co.name, pl.id, pl.name,
+                    COALESCE(cpm.quantityStores, 0))
+                FROM Material m
+                LEFT JOIN CompanyPlantMaterial cpm ON cpm.materialId = m.id
+                LEFT JOIN Company co ON co.id = cpm.companyId
+                LEFT JOIN Plant pl ON pl.id = cpm.plantId
+                WHERE m.status = 1
+                AND (cpm.companyId IS NULL OR cpm.companyId IN :companyIds)
+                AND (:search = '' OR LOWER(m.code) LIKE LOWER(CONCAT('%', :search, '%'))
+                     OR LOWER(m.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                     OR LOWER(m.description) LIKE LOWER(CONCAT('%', :search, '%')))
+                ORDER BY m.code, co.name, pl.name
+                """)
         List<MaterialDropdownResponse> searchForDropdownByCompanies(
                         @Param("search") String search,
                         @Param("companyIds") List<Integer> companyIds);
+
+        @Query("SELECT SUM(cpm.quantityStores) FROM CompanyPlantMaterial cpm WHERE cpm.materialId = :materialId")
+        java.util.Optional<java.math.BigDecimal> sumQuantityByMaterial(@Param("materialId") Integer materialId);
 }
