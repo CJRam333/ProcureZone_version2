@@ -275,3 +275,31 @@ No code change. Issue noted for tracking: label alignment in Issue Note line ite
 **Files changed:** `ApprovalController.java`, `IndentService.java`, `IndentDetailPage.tsx`, `router.tsx`
 
 ---
+
+### Supervisor Approval Permission Mismatch — Phase 2 Fix
+
+**Commit:** `fix: resolve Supervisor approval permission mismatch — GET /approvals/pending endpoints missing SUPERVISOR role`
+
+#### Root Cause
+
+The previous fix (Phase C) added `hasRole('SUPERVISOR')` to the POST `/indents/{id}/approve` endpoint, but not to the GET endpoints that load the approval queue. When a Supervisor navigates to `IndentApprovalPage`, it immediately calls `GET /api/v1/approvals/pending` (via `indentsApi.getPendingApproval()`). That endpoint's `@PreAuthorize` listed only `DEPTHEAD`, `PLANTMANAGER`, `ADMIN`, `SUPERADMIN` — no `SUPERVISOR`. Spring Security threw `AccessDeniedException`, caught by `RestExceptionHandler.handleAccessDenied()`, which returns the generic "You do not have permission to perform this action". The approve POST endpoint was already correct; the Supervisor could never reach it because the page load itself failed.
+
+**Role chain confirmed correct** (no mismatch):
+- `RoleNormalizer`: DB `"Supervisor"` → `"SUPERVISOR"`
+- JWT claim `"roles"`: `["SUPERVISOR"]`
+- `JwtAuthenticationFilter` → `UserPrincipal.authorities()`: prepends `"ROLE_"` → `ROLE_SUPERVISOR`
+- `hasRole('SUPERVISOR')` checks for `ROLE_SUPERVISOR` → match ✓
+
+The fix is purely an incomplete `@PreAuthorize` on the data-loading endpoints, not a role-string mismatch.
+
+#### Fix
+
+- `ApprovalController.java` — Added `or hasRole('SUPERVISOR')` to `@PreAuthorize` on both:
+  - `GET /api/v1/approvals/pending`
+  - `GET /api/v1/approvals/pending-for-me`
+
+No service-layer changes required. The `approveIndent()` hierarchy check (added in Phase C) continues to enforce that Supervisors can only approve indents from their direct reporting chain.
+
+**File changed:** `ApprovalController.java`
+
+---
