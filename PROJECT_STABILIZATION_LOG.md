@@ -208,3 +208,70 @@ No fields removed. No changes made to IssueNoteFormPage.
 **File changed:** `frontend/src/pages/plant-indent/PlantIndentFormPage.tsx`
 
 ---
+
+### Wave 1 Data-Capture Fixes: availableStock on Indent + quantityStores + Over-Request Guard on Issue Note
+
+**Commit:** `fix: capture availableStock on indent save | fix: capture quantityStores + over-request guard on issue note`
+
+#### FIX 1 — Capture availableStock per line on Indent save
+
+**Root cause:** `stockByIndex` state was already populated from the material dropdown selection (`MaterialDropdownItem.stockQuantity`) and displayed in the UI, but `transformFormData()` did not include it in the API payload. The backend (entity column `indent_details_stock_aval`, DTO field, service setter) was already fully wired.
+
+**Fix:** Changed `data.items.map((item) => ...)` to `data.items.map((item, index) => ...)` in `transformFormData()` and added `stockAvailable: stockByIndex[index] ?? undefined` to each detail object.
+
+**File changed:** `frontend/src/pages/indents/IndentFormPage.tsx`
+
+#### FIX 2 — Capture quantityStores per line on Issue Note save + over-request guard
+
+**Root cause:** `tbl_issue_note_details.issue_note_details_quantity_stores` column had no entity mapping. The create DTO had no field for it. The frontend did not include it in the submit payload. No server-side guard existed.
+
+**Fix:**
+- `IssueNoteDetails.java` — added `@Column(name = "issue_note_details_quantity_stores", precision = 20, scale = 2) private BigDecimal quantityStores`
+- `CreateIssueNoteRequest.IssueNoteLineItem` — added `BigDecimal quantityStores` to the nested record
+- `IssueNoteService.createIssueNote()` — server-side guard: `if (quantityStores != null && quantity > quantityStores) throw new IllegalArgumentException(...)`. Passes `quantityStores` into the entity builder.
+- `issueNotes.ts` — added `quantityStores?: number` to `IssueNoteLineItemCreateRequest`
+- `IssueNoteFormPage.tsx`:
+  - Both `onSubmit` and `handleSaveAndSubmit` payloads now include `quantityStores: stockByIndex[index] ?? undefined`
+  - `hasStockViolation` computed from `watchLineItems.some(...)` — true if any line's quantity exceeds its captured stock
+  - Inline per-line error "Exceeds available stock (N)" rendered below the Quantity field
+  - "Save & Submit for Approval" button disabled when `hasStockViolation`
+
+**Files changed:** `IssueNoteDetails.java`, `CreateIssueNoteRequest.java`, `IssueNoteService.java`, `issueNotes.ts`, `IssueNoteFormPage.tsx`
+
+#### FIX 3 — Label alignment (flag only, no change)
+
+No code change. Issue noted for tracking: label alignment in Issue Note line items is cosmetically different from legacy but not a functional gap.
+
+---
+
+### Approval Workflow Bugs: Supervisor Role + BUG 1 Root Cause
+
+**Commit:** `fix: Supervisor role wired into approval permissions | fix: indent approved_status incorrectly set to 3 at creation`
+
+#### BUG 1 — indent_approved_status = 3 at creation (root cause investigation, no code change)
+
+**Symptom:** Indent 700 has `indent_status = 1` (DRAFT) with `indent_approved_status = 3` (Dept Head Approved). Created 2025-07-16.
+
+**Root cause:** Pre-refactoring `createIndent()` contained a DEPTHEAD bypass that auto-approved the indent at creation time. That bypass was removed in a prior refactor. Current `createIndent()` correctly initializes all three status columns to 1.
+
+**Additional finding — `hasRoleByCode()` bug (non-functional bypass):**
+`hasRoleByCode()` (`IndentService.java:1865`) compares the passed string against the raw DB `role_code` column using `equalsIgnoreCase`. The caller in `submitIndent()` passes normalized string `"DEPTHEAD"`, but the DB stores `"Department"`. `"Department".equalsIgnoreCase("DEPTHEAD")` = false. The DEPTHEAD auto-submit bypass in `submitIndent()` is completely non-functional and has never fired since the normalization was introduced.
+
+**No fix applied** — the old data is a legacy artifact; the code path no longer exists. The `hasRoleByCode` bug does not affect any live workflow (the bypass is dead code).
+
+#### BUG 2 — Supervisor role not wired into approval permissions
+
+**Root cause:** `ApprovalController.approveIndent()` `@PreAuthorize` listed only `DEPTHEAD`, `PLANTMANAGER`, `PROCUREMENT`, `ADMIN`, `SUPERADMIN`. `RoleNormalizer` maps DB `"Supervisor"` → `"SUPERVISOR"` → JWT `ROLE_SUPERVISOR`, but `SUPERVISOR` was absent from the allow-list. 10 Supervisor employees could not approve any indent.
+
+**Additional gap:** `approveIndent()` in `IndentService` had no hierarchy check — any DEPTHEAD (or now SUPERVISOR) could approve any indent in the plant, not just those created by subordinates.
+
+**Fix:**
+
+- `ApprovalController.java` — Added `or hasRole('SUPERVISOR')` to `@PreAuthorize` on the `/indents/{id}/approve` endpoint.
+- `IndentService.java` — Added hierarchy check inside `approveIndent()`: users without dept-level authority (`"Department"`, `"Plant Manager"`, `"Admin"`, `"Super Admin"` raw DB values) must pass `reportingHierarchyService.canApproveFor(creatorEmpNumber, approverEmpNumber)`. Throws `IllegalStateException` if not in the reporting chain.
+- `IndentDetailPage.tsx` — `canApprove` now includes `'SUPERVISOR'` for `status=2` (Submitted). Approve button label changed from `'Approve (Dept Head)'` to `'Approve (RM Review)'`.
+- `router.tsx` — `IndentApprovalPage` and `IndentDetailPage` `ProtectedRoute` both include `'SUPERVISOR'`.
+
+**Files changed:** `ApprovalController.java`, `IndentService.java`, `IndentDetailPage.tsx`, `router.tsx`
+
+---
