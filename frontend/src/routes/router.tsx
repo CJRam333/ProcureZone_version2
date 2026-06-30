@@ -140,7 +140,7 @@ const router = createBrowserRouter([
           {
             path: 'approvals',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR']}>
                 <IndentApprovalPage />
               </ProtectedRoute>
             ),
@@ -156,7 +156,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PROCUREMENT']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PROCUREMENT', 'SUPERVISOR']}>
                 <IndentDetailPage />
               </ProtectedRoute>
             ),

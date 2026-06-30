@@ -173,12 +173,12 @@ const IndentDetailPage: React.FC = () => {
   // Status 3 (Dept Head Approved) → Plant Manager, Admin, SuperAdmin
   // Status 5 (Proc. In Progress)  → Procurement, Admin, SuperAdmin
   const canApprove =
-    (statusId === STATUS_SUBMITTED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER'])) ||
+    (statusId === STATUS_SUBMITTED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR'])) ||
     (statusId === STATUS_DEPT_HEAD_APPROVED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER'])) ||
     (statusId === STATUS_PROCUREMENT_APPROVED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']));
 
-  // Dynamic approve button label
-  const approveLabel = statusId === STATUS_SUBMITTED ? 'Approve (Dept Head)'
+  // Dynamic approve button label — describes the workflow stage, not the approver's title
+  const approveLabel = statusId === STATUS_SUBMITTED ? 'Approve (RM Review)'
     : statusId === STATUS_DEPT_HEAD_APPROVED ? 'Final Approve'
     : statusId === STATUS_PROCUREMENT_APPROVED ? 'Procurement Approve'
     : 'Approve';

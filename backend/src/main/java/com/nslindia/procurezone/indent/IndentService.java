@@ -676,6 +676,25 @@ public class IndentService {
                 Employee currentUser = employeeRepository.findByEmail(username)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
 
+                // Hierarchy check: Supervisors (RMs) must be in the creator's reporting chain.
+                // Dept Heads and above have department-level authority and skip the check.
+                boolean hasDeptLevelAuth = hasRoleByCode(currentUser.getEmpNumber(), "Department")
+                                || hasRoleByCode(currentUser.getEmpNumber(), "Plant Manager")
+                                || hasRoleByCode(currentUser.getEmpNumber(), "Admin")
+                                || hasRoleByCode(currentUser.getEmpNumber(), "Super Admin");
+                if (!hasDeptLevelAuth) {
+                        Employee indentCreator = indent.getEmployee();
+                        if (indentCreator != null && indentCreator.getEmpNumber() != null) {
+                                boolean canApprove = reportingHierarchyService.canApproveFor(
+                                                indentCreator.getEmpNumber(), currentUser.getEmpNumber());
+                                if (!canApprove) {
+                                        throw new IllegalStateException(
+                                                        "You are not authorized to approve this indent. " +
+                                                        "You must be in the reporting chain of the indent creator.");
+                                }
+                        }
+                }
+
                 // Update approval fields
                 indent.setApprovedBy(currentUser);
                 indent.setApprovedByDate(LocalDateTime.now());

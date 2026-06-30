@@ -100,7 +100,7 @@ public class ApprovalController {
      * - Status 5 (Proc. In Progress)  → L3 Procurement Approval  (→ status 6)
      */
     @PostMapping("/indents/{id}/approve")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
     public ResponseEntity<?> approveIndent(
             @PathVariable Integer id,
             @RequestParam(required = false) String remarks,
