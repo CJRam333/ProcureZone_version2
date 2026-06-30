@@ -148,16 +148,19 @@ public class ModuleAccessService {
             return false;
         }
         String defaultRoles = m.getDefaultRoles();
-        if ("ALL".equals(defaultRoles)) {
-            return true;
-        }
-        if (defaultRoles == null || defaultRoles.isBlank()) {
-            return false;
-        }
+        if (defaultRoles == null || defaultRoles.isBlank()) return false;
+
         Set<String> allowed = Arrays.stream(defaultRoles.split(","))
                 .map(String::trim)
+                .map(String::toUpperCase)
                 .collect(Collectors.toSet());
-        return roles.stream().anyMatch(allowed::contains);
+
+        // "ALL" anywhere in the list means every authenticated user gets this module
+        if (allowed.contains("ALL")) return true;
+
+        return roles.stream()
+                .map(String::toUpperCase)
+                .anyMatch(allowed::contains);
     }
 
     private UserPrincipal currentUser() {

@@ -132,7 +132,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PROCUREMENT']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PROCUREMENT', 'SUPERVISOR']}>
                 <IndentsListPage />
               </ProtectedRoute>
             ),
@@ -267,7 +267,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'DEPTHEAD', 'SUPERVISOR']}>
                 <IssueNotesListPage />
               </ProtectedRoute>
             ),
@@ -275,7 +275,7 @@ const router = createBrowserRouter([
           {
             path: 'approvals',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'ISSUECONFIRM']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'ISSUECONFIRM', 'SUPERVISOR']}>
                 <IssueNoteApprovalPage />
               </ProtectedRoute>
             ),
@@ -291,7 +291,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'DEPTHEAD', 'SUPERVISOR']}>
                 <IssueNoteDetailPage />
               </ProtectedRoute>
             ),
@@ -418,7 +418,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'SUPERVISOR']}>
                 <PlantIndentListPage />
               </ProtectedRoute>
             ),
@@ -434,7 +434,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'SUPERVISOR']}>
                 <PlantIndentDetailPage />
               </ProtectedRoute>
             ),
@@ -503,7 +503,7 @@ const router = createBrowserRouter([
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR']}>
                 <ReportsPage />
               </ProtectedRoute>
             ),
@@ -511,7 +511,7 @@ const router = createBrowserRouter([
           {
             path: 'indents',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR']}>
                 <IndentReportPage />
               </ProtectedRoute>
             ),
@@ -519,7 +519,7 @@ const router = createBrowserRouter([
           {
             path: 'issue-notes',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR']}>
                 <IssueNoteReportPage />
               </ProtectedRoute>
             ),

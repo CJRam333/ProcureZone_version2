@@ -186,9 +186,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const hasModuleAccess = useCallback(
     (moduleCode: string): boolean => {
       if (!user) return false;
-      // SUPERADMIN always has access to all modules
       if (user.roles.includes('SUPERADMIN')) return true;
-      if (!user.allowedModules) return true; // no data yet — default open
+      if (!user.allowedModules || user.allowedModules.length === 0) {
+        // Safety fallback: empty list means module API returned nothing (misconfiguration or
+        // new role not yet mapped). Grant the 5 base modules every employee needs.
+        const baseModules = ['INDENTS', 'PLANT_INDENTS', 'ISSUE_NOTES', 'REPORTS', 'CONFIRMATIONS'];
+        return baseModules.includes(moduleCode);
+      }
       return user.allowedModules.includes(moduleCode);
     },
     [user]
