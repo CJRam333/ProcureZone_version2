@@ -149,3 +149,62 @@ Fields added in the new rewrite vs legacy:
 No fields removed. No changes made to IssueNoteFormPage.
 
 ---
+
+## 2026-06-30
+
+### Form Auto-fill + Field Cleanup + Card Restructure
+
+**Commit:** `fix: form auto-fill company/dept/section/issued-to | fix: hide plant if none, auto-select if single | fix: remove delivery date from indent form | fix: isolate comments+purpose into Additional Information card | fix: plant indent form meta-based auto-fill`
+
+#### FIX 1 — IssueNoteFormPage: complete auto-fill from meta
+
+**Root cause:** Meta useEffect only set `departmentId` and `companyId`. `issuedTo`, `sectionId`, and plant auto-fill were missing.
+
+**Fix:**
+- Added `setValue('issuedTo', metaData.empName)` inside the meta useEffect — pre-fills the recipient field with the logged-in employee's name.
+- Added section useEffect: when `sectionsData` loads, auto-selects first section (`sectionsData.content[0].id`). Matches the pattern already in IndentFormPage.
+- Added plant useEffect: if `plantsData.content` has exactly 1 plant, auto-selects it; if 0 plants, sets `showPlant = false` to hide the field.
+- Added `showPlant` state (defaults `true`); Plant `<Col>` wrapped in `{showPlant && (...)}`.
+
+**File changed:** `frontend/src/pages/issue-notes/IssueNoteFormPage.tsx`
+
+#### FIX 2 — IndentFormPage: plant auto-fill + showPlant
+
+**Root cause:** Meta useEffect already set `companyId`, `departmentId`, `sectionId` (via separate useEffect). Plant auto-fill was missing.
+
+**Fix:** Added `showPlant` state and plant useEffect (same logic as FIX 1). Plant `<Col>` wrapped in `{showPlant && (...)}`.
+
+**File changed:** `frontend/src/pages/indents/IndentFormPage.tsx`
+
+#### FIX 4 — IndentFormPage: remove Delivery Date field
+
+**Root cause:** Delivery Date field was present on indent creation form but does not exist in the legacy system. Field remains in the schema and backend for DB compatibility.
+
+**Fix:** Removed `<Col>` containing the Delivery Date `<Form.Control type="date">` from the Basic Information card JSX. No backend or schema changes.
+
+**File changed:** `frontend/src/pages/indents/IndentFormPage.tsx`
+
+#### FIX 5 — Isolate Comments + Purpose into separate "Additional Information" card
+
+**Root cause:** Comments (IndentFormPage) and Purpose+Comments (IssueNoteFormPage) were inline inside the header information card, making the card visually cluttered and hard to scan.
+
+**Fix:** Removed Purpose and Comments from the header card in each form. Added a new "Additional Information" card placed below the line-items table and above the action buttons.
+
+- IndentFormPage: new card has `Comments` textarea only.
+- IssueNoteFormPage: new card has `Purpose` text input + `Comments` textarea.
+- PlantIndentFormPage: existing "Additional Details" card (Comments) moved from above line items to below line items; header renamed to "Additional Information".
+
+**Files changed:** `IndentFormPage.tsx`, `IssueNoteFormPage.tsx`, `PlantIndentFormPage.tsx`
+
+#### FIX 6 — PlantIndentFormPage: meta-based auto-fill
+
+**Root cause:** PlantIndentFormPage did not call any meta endpoint. It used `user.departmentId` and `user.plantId` from the auth context — `user.plantId` is a legacy `VARCHAR` text field (e.g., `'1002'`), not an FK, so it never resolved to a valid plant.
+
+**Fix:**
+- Added `indentsApi` import; added meta query (`GET /api/v1/indents/meta`, `enabled: !isEdit`).
+- Replaced the user-context useEffect with a meta useEffect that sets `companyId = metaData.defaultCompanyId` and `departmentId = metaData.departmentId`.
+- Added plant useEffect (same `showPlant` pattern as other forms).
+
+**File changed:** `frontend/src/pages/plant-indent/PlantIndentFormPage.tsx`
+
+---
