@@ -303,3 +303,53 @@ No service-layer changes required. The `approveIndent()` hierarchy check (added 
 **File changed:** `ApprovalController.java`
 
 ---
+
+### Module Access "ALL" Wildcard + Route Guard + Safety Fallback
+
+**Commit:** `fix: ALL wildcard not recognized in module role matching | fix: SUPERVISOR missing from indents route guard | fix: empty allowedModules safety fallback`
+
+#### Root Cause
+
+`tbl_module_master.module_default_roles` stores the literal string `"ALL"` for 5 base modules (INDENTS, ISSUE_NOTES, PLANT_INDENTS, REPORTS, CONFIRMATIONS) — meaning every authenticated user should have access. `ModuleAccessService.isAllowedByRole()` was checking `"ALL".equals(defaultRoles)` as a whole-string exact match BEFORE splitting, which fails if the value has trailing whitespace, is lowercase, or appears alongside other roles (e.g. `"ALL,SUPERVISOR"`). Additionally, the role comparison after splitting was not normalizing case, so `defaultRoles` tokens like `"Supervisor"` would never match the normalized JWT role `"SUPERVISOR"`.
+
+Effect on system: every role that isn't SUPERADMIN received `allowedModules: []` at login because none of the modules matched. `hasModuleAccess()` then returned `false` for every module code, collapsing the entire sidebar to empty. Users (notably Venki after role change to Supervisor) saw a blank sidebar and effectively no navigation.
+
+#### FIX 1 — isAllowedByRole() case-normalization + in-set ALL wildcard
+
+`ModuleAccessService.isAllowedByRole()` rewritten to:
+1. Split `defaultRoles` on commas and `.toUpperCase()` every token
+2. Check `allowed.contains("ALL")` AFTER splitting — handles `"ALL"`, `"all"`, `"ALL,SUPERVISOR"`, `" ALL "` all correctly
+3. Normalize `userRoles` stream to uppercase before matching — handles mixed-case DB role codes vs normalized JWT roles
+
+This single change fixes module access for ALL roles in the system, not just Supervisor. Any future role is automatically granted access to modules marked "ALL" without a DB update.
+
+**File changed:** `ModuleAccessService.java`
+
+#### FIX 2 — SUPERVISOR added to route guards
+
+Every `ProtectedRoute` in `router.tsx` was audited. SUPERVISOR added to routes that logically include reporting managers:
+
+| Route | Before | SUPERVISOR added? |
+|---|---|---|
+| `/indents` list | `USER, DEPTHEAD, PROCUREMENT` | ✅ Yes |
+| `/indents/approvals` | already had SUPERVISOR | — already done |
+| `/indents/:id` | already had SUPERVISOR | — already done |
+| `/issue-notes` list | `USER, ISSUECONFIRM, DEPTHEAD` | ✅ Yes |
+| `/issue-notes/approvals` | `DEPTHEAD, ISSUECONFIRM` | ✅ Yes |
+| `/issue-notes/:id` | `USER, ISSUECONFIRM, DEPTHEAD` | ✅ Yes |
+| `/plant-indent` list | `PLANTMANAGER, FLOORINCHARGE` | ✅ Yes |
+| `/plant-indent/:id` | `PLANTMANAGER, FLOORINCHARGE` | ✅ Yes |
+| `/reports` (all 3 sub-routes) | `ADMIN, DEPTHEAD` | ✅ Yes |
+| `/plant-indent/new`, `:id/edit` | `PLANTMANAGER` only | ✗ Supervisor shouldn't create/edit |
+| `/issue-notes/new`, `:id/edit` | `USER` only | ✗ Supervisor shouldn't create/edit |
+| All other routes (PO, GRN, masters, admin) | role-specific lists | ✗ Not relevant to Supervisor |
+
+**File changed:** `router.tsx`
+
+#### FIX 3 — Safety fallback for empty allowedModules
+
+`AuthContext.hasModuleAccess()` updated: if `allowedModules` is empty (zero-length array, not null), grant the 5 base modules (`INDENTS`, `PLANT_INDENTS`, `ISSUE_NOTES`, `REPORTS`, `CONFIRMATIONS`) as a fallback. This prevents any future module misconfiguration from completely locking out a logged-in user. Fix 1 resolves the actual root cause; this remains as defense-in-depth.
+
+**File changed:** `AuthContext.tsx`
+
+---
