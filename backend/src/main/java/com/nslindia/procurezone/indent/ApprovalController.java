@@ -52,7 +52,7 @@ public class ApprovalController {
      * Alias for pending-for-me without requiring departmentId parameter
      */
     @GetMapping("/pending")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
     public ResponseEntity<List<PendingApprovalResponse>> getPendingApprovalsSimple(
             Authentication authentication) {
 
@@ -74,7 +74,7 @@ public class ApprovalController {
      * user has access to.
      */
     @GetMapping("/pending-for-me")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
     public ResponseEntity<List<PendingApprovalResponse>> getPendingApprovals(
             @RequestParam(required = false) Integer departmentId,
             Authentication authentication) {
