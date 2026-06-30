@@ -26,7 +26,7 @@ import {
   FaIndustry,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
-import { plantIndentsApi, materialsApi, plantsApi, companiesApi, departmentsApi, getErrorMessage } from '../../api';
+import { plantIndentsApi, indentsApi, materialsApi, plantsApi, companiesApi, departmentsApi, getErrorMessage } from '../../api';
 import type { Material } from '../../api/materials';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -76,6 +76,7 @@ const PlantIndentFormPage: React.FC = () => {
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [showPlant, setShowPlant] = useState(true);
 
   // Form setup
   const {
@@ -125,20 +126,32 @@ const PlantIndentFormPage: React.FC = () => {
     queryFn: () => plantsApi.getActive(0, 100),
   });
 
-  // Set default values from user when data is loaded
+  // Fetch form meta (employee info, company, department)
+  const { data: metaData } = useQuery({
+    queryKey: ['indent-form-meta'],
+    queryFn: indentsApi.getMeta,
+    enabled: !isEdit,
+    staleTime: 60000,
+  });
+
+  // Auto-fill company and department from meta on create mode
   useEffect(() => {
-    if (!isEdit && user) {
-      if (user.departmentId && departmentsData?.content) {
-        setValue('departmentId', user.departmentId);
-      }
-      if (user.plantId && plantsData?.content) {
-        setValue('plantId', user.plantId);
-      }
-      if (companiesData?.content?.length === 1) {
-        setValue('companyId', companiesData.content[0].id);
-      }
+    if (!isEdit && metaData) {
+      if (metaData.defaultCompanyId) setValue('companyId', metaData.defaultCompanyId);
+      if (metaData.departmentId) setValue('departmentId', metaData.departmentId);
     }
-  }, [isEdit, user, departmentsData, plantsData, companiesData, setValue]);
+  }, [isEdit, metaData, setValue]);
+
+  // Auto-select plant if only one available; hide field if none
+  useEffect(() => {
+    if (isEdit || !plantsData?.content) return;
+    const plants = plantsData.content;
+    if (plants.length === 0) {
+      setShowPlant(false);
+    } else if (plants.length === 1) {
+      setValue('plantId', plants[0].id);
+    }
+  }, [isEdit, plantsData, setValue]);
 
   // Fetch materials for search
   const { data: materialsData } = useQuery({
@@ -379,26 +392,6 @@ const PlantIndentFormPage: React.FC = () => {
           </Card.Body>
         </Card>
 
-        {/* Basic Details */}
-        <Card className="mb-3 shadow-sm">
-          <Card.Header>Additional Details</Card.Header>
-          <Card.Body>
-            <Row className="g-3">
-              <Col md={12}>
-                <Form.Group>
-                  <Form.Label>Comments</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    {...register('comments')}
-                    placeholder="Any additional comments..."
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
-
         {/* Line Items */}
         <Card className="mb-3 shadow-sm">
           <Card.Header className="d-flex justify-content-between align-items-center">
@@ -543,6 +536,26 @@ const PlantIndentFormPage: React.FC = () => {
                 </tr>
               </tfoot>
             </Table>
+          </Card.Body>
+        </Card>
+
+        {/* Additional Information */}
+        <Card className="mb-3 shadow-sm">
+          <Card.Header>Additional Information</Card.Header>
+          <Card.Body>
+            <Row className="g-3">
+              <Col md={12}>
+                <Form.Group>
+                  <Form.Label>Comments</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    {...register('comments')}
+                    placeholder="Any additional comments..."
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
           </Card.Body>
         </Card>
 

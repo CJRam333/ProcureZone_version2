@@ -62,6 +62,7 @@ const IssueNoteFormPage: React.FC = () => {
   type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
   const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
   const [formMeta, setFormMeta] = useState<IssueNoteFormMeta | null>(null);
+  const [showPlant, setShowPlant] = useState(true);
 
   // Form setup - updated for new schema
   const {
@@ -179,9 +180,27 @@ const IssueNoteFormPage: React.FC = () => {
       setFormMeta(metaData);
       if (metaData.departmentId) setValue('departmentId', metaData.departmentId);
       if (metaData.defaultCompanyId) setValue('companyId', metaData.defaultCompanyId);
+      if (metaData.empName) setValue('issuedTo', metaData.empName);
     }
   }, [isEdit, metaData, setValue]);
 
+  // Auto-fill first section when sections load
+  useEffect(() => {
+    if (!isEdit && sectionsData?.content?.length) {
+      setValue('sectionId', sectionsData.content[0].id);
+    }
+  }, [isEdit, sectionsData, setValue]);
+
+  // Auto-select plant if only one available; hide field if none
+  useEffect(() => {
+    if (isEdit || !plantsData?.content) return;
+    const plants = plantsData.content;
+    if (plants.length === 0) {
+      setShowPlant(false);
+    } else if (plants.length === 1) {
+      setValue('plantId', plants[0].id);
+    }
+  }, [isEdit, plantsData, setValue]);
 
   // Create/Update mutations
   const createMutation = useMutation({
@@ -376,6 +395,7 @@ const IssueNoteFormPage: React.FC = () => {
               </Col>
 
               {/* Plant */}
+              {showPlant && (
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Plant <span className="text-danger">*</span></Form.Label>
@@ -396,6 +416,7 @@ const IssueNoteFormPage: React.FC = () => {
                   </Form.Control.Feedback>
                 </Form.Group>
               </Col>
+              )}
 
               {/* Department */}
               <Col md={6}>
@@ -453,30 +474,6 @@ const IssueNoteFormPage: React.FC = () => {
                 </Form.Group>
               </Col>
 
-              {/* Purpose */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Purpose</Form.Label>
-                  <Form.Control
-                    type="text"
-                    {...register('purpose')}
-                    placeholder="Purpose of issue..."
-                  />
-                </Form.Group>
-              </Col>
-
-              {/* Comments */}
-              <Col md={12}>
-                <Form.Group>
-                  <Form.Label>Comments</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    {...register('comments')}
-                    placeholder="Any additional comments..."
-                  />
-                </Form.Group>
-              </Col>
             </Row>
           </Card.Body>
         </Card>
@@ -696,6 +693,38 @@ const IssueNoteFormPage: React.FC = () => {
             {errors.lineItems?.message && (
               <div className="text-danger p-3">{errors.lineItems.message}</div>
             )}
+          </Card.Body>
+        </Card>
+
+        {/* Additional Information */}
+        <Card className="mb-4">
+          <Card.Header>
+            <h5 className="mb-0">Additional Information</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row className="g-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Purpose</Form.Label>
+                  <Form.Control
+                    type="text"
+                    {...register('purpose')}
+                    placeholder="Purpose of issue..."
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={12}>
+                <Form.Group>
+                  <Form.Label>Comments</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    {...register('comments')}
+                    placeholder="Any additional comments..."
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
           </Card.Body>
         </Card>
 

@@ -65,6 +65,7 @@ const IndentFormPage: React.FC = () => {
   // legacy stock state kept for plant-change re-fetch compatibility
   const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
   const [formMeta, setFormMeta] = useState<IndentFormMeta | null>(null);
+  const [showPlant, setShowPlant] = useState(true);
 
   // Form setup
   const {
@@ -165,6 +166,17 @@ const IndentFormPage: React.FC = () => {
       setValue('sectionId', sectionsData.content[0].id);
     }
   }, [isEdit, sectionsData, setValue]);
+
+  // Auto-select plant if only one available; hide field if none
+  useEffect(() => {
+    if (isEdit || !plantsData?.content) return;
+    const plants = plantsData.content;
+    if (plants.length === 0) {
+      setShowPlant(false);
+    } else if (plants.length === 1) {
+      setValue('plantId', plants[0].id);
+    }
+  }, [isEdit, plantsData, setValue]);
 
   // Load existing data in edit mode
   useEffect(() => {
@@ -410,11 +422,12 @@ const IndentFormPage: React.FC = () => {
                   </Form.Control.Feedback>
                 </Form.Group>
               </Col>
+              {showPlant && (
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Plant <span className="text-danger">*</span></Form.Label>
-                  <Form.Select 
-                    {...register('plantId', { valueAsNumber: true })} 
+                  <Form.Select
+                    {...register('plantId', { valueAsNumber: true })}
                     isInvalid={!!errors.plantId}
                   >
                     <option value={0}>Select Plant...</option>
@@ -429,6 +442,7 @@ const IndentFormPage: React.FC = () => {
                   </Form.Control.Feedback>
                 </Form.Group>
               </Col>
+              )}
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Section <span className="text-danger">*</span></Form.Label>
@@ -446,27 +460,6 @@ const IndentFormPage: React.FC = () => {
                   <Form.Control.Feedback type="invalid">
                     {errors.sectionId?.message}
                   </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Delivery Date</Form.Label>
-                  <Form.Control
-                    type="date"
-                    {...register('deliveryDate')}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Comments</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    {...register('comments')}
-                    placeholder="Any additional comments..."
-                  />
                 </Form.Group>
               </Col>
             </Row>
@@ -701,6 +694,28 @@ const IndentFormPage: React.FC = () => {
             {errors.items?.message && (
               <div className="text-danger p-3 bg-danger bg-opacity-10">{errors.items.message}</div>
             )}
+          </Card.Body>
+        </Card>
+
+        {/* Additional Information */}
+        <Card className="mb-4 shadow-sm">
+          <Card.Header className="bg-light">
+            <h5 className="mb-0">Additional Information</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row className="g-3">
+              <Col md={12}>
+                <Form.Group>
+                  <Form.Label>Comments</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    {...register('comments')}
+                    placeholder="Any additional comments..."
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
           </Card.Body>
         </Card>
 
