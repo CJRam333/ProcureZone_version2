@@ -94,6 +94,12 @@ const IssueNoteFormPage: React.FC = () => {
   });
 
   const watchLineItems = watch('lineItems');
+
+  const hasStockViolation = watchLineItems.some((item, index) => {
+    const stock = stockByIndex[index];
+    return stock !== null && stock !== undefined && item.quantity > stock;
+  });
+
   const watchCompanyId = watch('companyId');
   const watchDepartmentId = watch('departmentId');
   const watchPlantId = watch('plantId');
@@ -243,11 +249,12 @@ const IssueNoteFormPage: React.FC = () => {
       issuedTo: data.issuedTo,
       purpose: data.purpose,
       comments: data.comments,
-      lineItems: data.lineItems.map((item) => ({
+      lineItems: data.lineItems.map((item, index) => ({
         materialId: item.materialId,
         unitOfMeasureId: item.unitOfMeasureId,
         quantity: item.quantity,
         purpose: item.purpose,
+        quantityStores: stockByIndex[index] ?? undefined,
       })),
     };
 
@@ -272,11 +279,12 @@ const IssueNoteFormPage: React.FC = () => {
         issuedTo: data.issuedTo,
         purpose: data.purpose,
         comments: data.comments,
-        lineItems: data.lineItems.map((item) => ({
+        lineItems: data.lineItems.map((item, index) => ({
           materialId: item.materialId,
           unitOfMeasureId: item.unitOfMeasureId,
           quantity: item.quantity,
           purpose: item.purpose,
+          quantityStores: stockByIndex[index] ?? undefined,
         })),
       };
 
@@ -654,6 +662,12 @@ const IssueNoteFormPage: React.FC = () => {
                             {errors.lineItems[index].quantity?.message}
                           </div>
                         )}
+                        {stockByIndex[index] !== undefined && stockByIndex[index] !== null &&
+                          (watchLineItems[index]?.quantity ?? 0) > (stockByIndex[index] ?? 0) && (
+                          <div className="text-danger small mt-1">
+                            Exceeds available stock ({stockByIndex[index]})
+                          </div>
+                        )}
                       </td>
                       <td>
                         <Form.Control
@@ -753,7 +767,7 @@ const IssueNoteFormPage: React.FC = () => {
                 type="button"
                 variant="primary"
                 onClick={handleSubmit(handleSaveAndSubmit)}
-                disabled={isSubmitting || createMutation.isPending || updateMutation.isPending || submitMutation.isPending}
+                disabled={isSubmitting || createMutation.isPending || updateMutation.isPending || submitMutation.isPending || hasStockViolation}
               >
                 {submitMutation.isPending && (
                   <Spinner as="span" animation="border" size="sm" className="me-2" />

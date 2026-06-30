@@ -46,6 +46,9 @@ public class IssueNoteDetails {
     @Column(name = "issue_note_details_amount", precision = 20, scale = 2)
     private BigDecimal amount;
 
+    @Column(name = "issue_note_details_quantity_stores", precision = 20, scale = 2)
+    private BigDecimal quantityStores;
+
     @Column(name = "issue_note_details_purpose", columnDefinition = "TEXT")
     private String purpose;
 

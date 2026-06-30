@@ -219,13 +219,14 @@ const IndentFormPage: React.FC = () => {
       employeeId: employeeId,
       comments: data.comments || '',
       deliveryDate: data.deliveryDate || null,
-      details: data.items.map((item) => ({
+      details: data.items.map((item, index) => ({
         materialId: item.materialId,
         unitOfMeasureId: item.uomId,
         quantity: item.requestedQuantity,
         pricing: item.estimatedRate || 0,
         purpose: item.remarks || '',
         vendor: item.vendor || '',
+        stockAvailable: stockByIndex[index] ?? undefined,
       })),
     };
   };

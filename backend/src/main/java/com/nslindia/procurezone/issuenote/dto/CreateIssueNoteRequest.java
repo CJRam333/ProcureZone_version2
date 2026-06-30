@@ -43,6 +43,8 @@ public record CreateIssueNoteRequest(
 
             BigDecimal rate,
 
-            String purpose) {
+            String purpose,
+
+            BigDecimal quantityStores) {
     }
 }

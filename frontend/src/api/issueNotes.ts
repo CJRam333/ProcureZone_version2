@@ -113,6 +113,7 @@ export interface IssueNoteLineItemCreateRequest {
     quantity: number;
     rate?: number;
     purpose?: string;
+    quantityStores?: number;
 }
 
 export interface IssueNoteSearchParams extends PageRequest {

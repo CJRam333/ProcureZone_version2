@@ -101,11 +101,19 @@ public class IssueNoteService {
 
         // Create line items
         for (var lineItem : request.lineItems()) {
+            if (lineItem.quantityStores() != null
+                    && lineItem.quantity().compareTo(lineItem.quantityStores()) > 0) {
+                throw new IllegalArgumentException(
+                        "Requested quantity for material ID " + lineItem.materialId()
+                        + " exceeds available stock ("
+                        + lineItem.quantity() + " > " + lineItem.quantityStores() + ")");
+            }
             IssueNoteDetails detail = IssueNoteDetails.builder()
                     .issueNote(issueNote)
                     .materialId(lineItem.materialId())
                     .unitOfMeasureId(lineItem.unitOfMeasureId())
                     .quantity(lineItem.quantity())
+                    .quantityStores(lineItem.quantityStores())
                     .rate(lineItem.rate())
                     .amount(lineItem.rate() != null ? lineItem.rate().multiply(lineItem.quantity()) : null)
                     .purpose(lineItem.purpose())
