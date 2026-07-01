@@ -39,7 +39,7 @@
 - `frontend/src/components/layout/Sidebar.tsx` — Issue Notes, Confirmations, Reports + SUPERVISOR
 - `docs/supervisor-role-verification.md` — new: full checklist with SQL verification queries
 
-**Commit:** TBD (see git log)
+**Commit:** `1add319`
 
 **Layers confirmed clean (no gaps):**
 - RoleNormalizer: `"Supervisor"` → `"SUPERVISOR"` ✓
