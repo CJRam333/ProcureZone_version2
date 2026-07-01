@@ -48,6 +48,14 @@ const IndentsListPage: React.FC = () => {
   const navigate = useNavigate();
   const { hasAnyRole } = useAuth();
 
+  const pageTitle = hasAnyRole(['ADMIN', 'SUPERADMIN', 'PROCUREMENT'])
+    ? 'All Indents'
+    : hasAnyRole(['DEPTHEAD', 'PLANTMANAGER'])
+    ? 'Department Indents'
+    : hasAnyRole(['SUPERVISOR'])
+    ? 'My Team Indents'
+    : 'My Indents';
+
   const [searchParams, setSearchParams] = useState<IndentSearchParams>({
     page: 0,
     size: 10,
@@ -191,7 +199,7 @@ const IndentsListPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Indents"
+        title={pageTitle}
         subtitle="Manage purchase indent requests"
         breadcrumbs={[
           { label: 'Dashboard', path: '/dashboard' },

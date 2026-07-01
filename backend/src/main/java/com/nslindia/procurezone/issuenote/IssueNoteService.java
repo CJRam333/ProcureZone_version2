@@ -8,6 +8,7 @@ import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.inventory.InventoryService;
 import com.nslindia.procurezone.issuenote.dto.*;
 import com.nslindia.procurezone.notification.service.EmailService;
+import com.nslindia.procurezone.repository.EmployeeReportingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,7 @@ public class IssueNoteService {
     private final InventoryService inventoryService;
     private final EmailService emailService;
     private final EmployeeRepository employeeRepository;
+    private final EmployeeReportingRepository employeeReportingRepository;
 
     private static final String ENTITY_TYPE = "Issue Note";
     private static final String ERROR_NOT_FOUND = "Issue Note not found with ID: ";
@@ -517,18 +519,51 @@ public class IssueNoteService {
     /**
      * Get all issue notes with pagination and combined filters.
      * approvedStatus + storesByStatus drive the two-column workflow filter.
+     * Visibility is role-scoped:
+     *   USER             → own issue notes only
+     *   SUPERVISOR       → own + direct subordinates'
+     *   DEPTHEAD / PLANTMANAGER → their department
+     *   PROCUREMENT / ISSUECONFIRM / ADMIN / SUPERADMIN → global
      */
     @Transactional(readOnly = true)
     public Page<IssueNoteSummaryResponse> getAll(int page, int size,
             String search, Integer approvedStatus, Integer storesByStatus, Integer departmentId) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "issueDate"));
+        String normalizedSearch = (search != null && !search.isBlank()) ? search.trim() : null;
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal cu) {
+            java.util.Set<String> roles = cu.roles();
+            boolean isGlobal = roles.stream().anyMatch(r ->
+                    "SUPERADMIN".equals(r) || "ADMIN".equals(r) ||
+                    "PROCUREMENT".equals(r) || "ISSUECONFIRM".equals(r));
+            boolean isDeptScoped = !isGlobal && roles.stream().anyMatch(r ->
+                    "DEPTHEAD".equals(r) || "PLANTMANAGER".equals(r));
+            boolean isSupervisor = !isGlobal && !isDeptScoped && roles.contains("SUPERVISOR");
+            boolean isUserOnly   = !isGlobal && !isDeptScoped && !isSupervisor;
+
+            if (isDeptScoped && cu.deptId() != null) {
+                return issueNoteRepository
+                        .filterIssueNotes(normalizedSearch, approvedStatus, storesByStatus, cu.deptId(), pageable)
+                        .map(this::mapToSummaryResponse);
+            } else if (isSupervisor && cu.employeeNumber() != null) {
+                java.util.List<Integer> empNumbers = new java.util.ArrayList<>();
+                empNumbers.add(cu.employeeNumber());
+                empNumbers.addAll(employeeReportingRepository.findSubordinateNumbers(cu.employeeNumber()));
+                return issueNoteRepository
+                        .filterIssueNotesForCreators(empNumbers, normalizedSearch, approvedStatus, storesByStatus, pageable)
+                        .map(this::mapToSummaryResponse);
+            } else if (isUserOnly && cu.employeeNumber() != null) {
+                java.util.List<Integer> empNumbers = java.util.List.of(cu.employeeNumber());
+                return issueNoteRepository
+                        .filterIssueNotesForCreators(empNumbers, normalizedSearch, approvedStatus, storesByStatus, pageable)
+                        .map(this::mapToSummaryResponse);
+            }
+            // isGlobal or edge case: fall through to unscoped query.
+        }
+
         return issueNoteRepository
-                .filterIssueNotes(
-                        (search != null && !search.isBlank()) ? search.trim() : null,
-                        approvedStatus,
-                        storesByStatus,
-                        departmentId,
-                        pageable)
+                .filterIssueNotes(normalizedSearch, approvedStatus, storesByStatus, departmentId, pageable)
                 .map(this::mapToSummaryResponse);
     }
 

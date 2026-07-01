@@ -44,6 +44,15 @@ function decodeStatusFilter(key: string): { approvedStatus?: number; storesBySta
 const IssueNotesListPage: React.FC = () => {
   const navigate = useNavigate();
   const { hasAnyRole } = useAuth();
+
+  const pageTitle = hasAnyRole(['ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'ISSUECONFIRM'])
+    ? 'All Issue Notes'
+    : hasAnyRole(['DEPTHEAD', 'PLANTMANAGER'])
+    ? 'Department Issue Notes'
+    : hasAnyRole(['SUPERVISOR'])
+    ? 'My Team Issue Notes'
+    : 'My Issue Notes';
+
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
   const [filters, setFilters] = useState<IssueNoteFilters>({
@@ -161,7 +170,7 @@ const IssueNotesListPage: React.FC = () => {
   return (
     <div>
       <PageHeader
-        title="Issue Notes"
+        title={pageTitle}
         subtitle="Manage material issues and returns"
         breadcrumbs={[
           { label: 'Dashboard', path: '/dashboard' },

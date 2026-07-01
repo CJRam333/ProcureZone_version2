@@ -245,4 +245,35 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
                         @Param("finalStatusId") Integer finalStatusId,
                         @Param("procurementStatusId") Integer procurementStatusId,
                         Pageable pageable);
+
+        /**
+         * Creator-scoped filter for USER and SUPERVISOR visibility.
+         * Restricts results to indents whose creator employeeNumber is in empNumbers.
+         * All other optional filters behave identically to filterIndents().
+         */
+        @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status",
+                        "approvedStatus", "finalStatus", "procurementStatus" })
+        @Query("SELECT i FROM Indent i WHERE " +
+                        "i.employee.employeeNumber IN :empNumbers AND " +
+                        "(:search IS NULL OR LOWER(i.indentNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(i.comments) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+                        "(:statusId IS NULL OR i.status.id = :statusId) AND " +
+                        "(:plantId IS NULL OR i.plant.id = :plantId) AND " +
+                        "(:companyId IS NULL OR i.company.id = :companyId) AND " +
+                        "(:fromDate IS NULL OR i.indentDate >= :fromDate) AND " +
+                        "(:toDate IS NULL OR i.indentDate <= :toDate) AND " +
+                        "(:approvedStatusId IS NULL OR i.approvedStatus.id = :approvedStatusId) AND " +
+                        "(:finalStatusId IS NULL OR i.finalStatus.id = :finalStatusId) AND " +
+                        "(:procurementStatusId IS NULL OR i.procurementStatus.id = :procurementStatusId)")
+        Page<Indent> filterIndentsForCreators(
+                        @Param("empNumbers") List<Integer> empNumbers,
+                        @Param("search") String search,
+                        @Param("statusId") Integer statusId,
+                        @Param("plantId") Integer plantId,
+                        @Param("companyId") Integer companyId,
+                        @Param("fromDate") LocalDateTime fromDate,
+                        @Param("toDate") LocalDateTime toDate,
+                        @Param("approvedStatusId") Integer approvedStatusId,
+                        @Param("finalStatusId") Integer finalStatusId,
+                        @Param("procurementStatusId") Integer procurementStatusId,
+                        Pageable pageable);
 }

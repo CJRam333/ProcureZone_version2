@@ -147,4 +147,22 @@ public interface IssueNoteRepository extends JpaRepository<IssueNote, Integer> {
                 @Param("storesByStatus") Integer storesByStatus,
                 @Param("departmentId")   Integer departmentId,
                 Pageable pageable);
+
+        /**
+         * Creator-scoped filter for USER and SUPERVISOR visibility.
+         * Restricts to issue notes whose createdBy is in empNumbers.
+         */
+        @Query("""
+                SELECT i FROM IssueNote i WHERE
+                    i.createdBy IN :empNumbers
+                    AND (:search IS NULL OR LOWER(i.issueNoteNumber) LIKE LOWER(CONCAT('%', :search, '%')))
+                    AND (:approvedStatus IS NULL OR i.approvedStatus = :approvedStatus)
+                    AND (:storesByStatus IS NULL OR i.storesByStatus = :storesByStatus)
+                """)
+        Page<IssueNote> filterIssueNotesForCreators(
+                @Param("empNumbers")     java.util.List<Integer> empNumbers,
+                @Param("search")         String  search,
+                @Param("approvedStatus") Integer approvedStatus,
+                @Param("storesByStatus") Integer storesByStatus,
+                Pageable pageable);
 }

@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch, FaEdit, FaTimes } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { indentsApi, materialsApi, uomApi, companiesApi, departmentsApi, plantsApi, sectionsApi, getErrorMessage } from '../../api';
 import type { IndentFormMeta } from '../../api/indents';
 import type { MaterialDropdownItem } from '../../api/materials';
@@ -51,10 +52,13 @@ const IndentFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasAnyRole } = useAuth();
   const isEdit = !!id;
+  const isDeptHead = hasAnyRole(['DEPTHEAD', 'PLANTMANAGER']);
 
   const [error, setError] = useState<string | null>(null);
+  const [showDeptHeadConfirm, setShowDeptHeadConfirm] = useState(false);
+  const [pendingSubmitData, setPendingSubmitData] = useState<IndentFormData | null>(null);
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
@@ -274,12 +278,21 @@ const IndentFormPage: React.FC = () => {
     }
   };
 
-  // Handle save and submit
+  // Handle save and submit — shows confirmation for DEPTHEAD/PLANTMANAGER (indent bypasses RM)
   const handleSaveAndSubmit = async (data: IndentFormData) => {
+    if (isDeptHead) {
+      setPendingSubmitData(data);
+      setShowDeptHeadConfirm(true);
+      return;
+    }
+    await doSaveAndSubmit(data);
+  };
+
+  const doSaveAndSubmit = async (data: IndentFormData) => {
     setError(null);
     try {
       let indentId = Number(id);
-      
+
       const formData = transformFormData(data);
 
       if (isEdit) {
@@ -292,6 +305,14 @@ const IndentFormPage: React.FC = () => {
       await submitMutation.mutateAsync(indentId);
     } catch (err) {
       setError(getErrorMessage(err));
+    }
+  };
+
+  const handleDeptHeadConfirm = async () => {
+    setShowDeptHeadConfirm(false);
+    if (pendingSubmitData) {
+      await doSaveAndSubmit(pendingSubmitData);
+      setPendingSubmitData(null);
     }
   };
 
@@ -757,6 +778,17 @@ const IndentFormPage: React.FC = () => {
         </Card>
       </Form>
 
+      <ConfirmDialog
+        show={showDeptHeadConfirm}
+        title="Direct to Procurement"
+        message="You are a Department Head. Your indent will skip RM approval and go directly to Procurement. Do you agree?"
+        confirmLabel="Yes, Submit Directly"
+        cancelLabel="Cancel"
+        variant="warning"
+        loading={submitMutation.isPending}
+        onConfirm={handleDeptHeadConfirm}
+        onCancel={() => { setShowDeptHeadConfirm(false); setPendingSubmitData(null); }}
+      />
     </div>
   );
 };

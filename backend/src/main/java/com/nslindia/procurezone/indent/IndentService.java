@@ -262,22 +262,50 @@ public class IndentService {
                         Integer approvedStatusId, Integer finalStatusId, Integer procurementStatusId,
                         Pageable pageable) {
 
-                // Department scoping: SUPERADMIN and ADMIN see all departments.
-                // All other roles are restricted to their own department (from JWT deptId claim).
-                // If the user has no department assigned, no extra filter is applied.
-                Integer effectiveDeptId = departmentId;
+                // Role-based visibility:
+                //   USER             → own indents only (creator = self)
+                //   SUPERVISOR       → own + direct subordinates' indents
+                //   DEPTHEAD / PLANTMANAGER → all indents in their department
+                //   PROCUREMENT / ADMIN / SUPERADMIN → global (no scope restriction)
                 var auth = org.springframework.security.core.context.SecurityContextHolder
                         .getContext().getAuthentication();
                 if (auth != null && auth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal cu) {
-                        boolean isAdminOrSuper = cu.roles().stream()
-                                .anyMatch(r -> "SUPERADMIN".equals(r) || "ADMIN".equals(r));
-                        if (!isAdminOrSuper && cu.deptId() != null) {
-                                effectiveDeptId = cu.deptId();
+                        java.util.Set<String> roles = cu.roles();
+                        boolean isGlobal = roles.stream().anyMatch(r ->
+                                "SUPERADMIN".equals(r) || "ADMIN".equals(r) || "PROCUREMENT".equals(r));
+                        boolean isDeptScoped = !isGlobal && roles.stream().anyMatch(r ->
+                                "DEPTHEAD".equals(r) || "PLANTMANAGER".equals(r));
+                        boolean isSupervisor = !isGlobal && !isDeptScoped && roles.contains("SUPERVISOR");
+                        boolean isUserOnly   = !isGlobal && !isDeptScoped && !isSupervisor;
+
+                        if (isDeptScoped && cu.deptId() != null) {
+                                return indentRepository
+                                                .filterIndents(search, statusId, cu.deptId(), plantId, companyId,
+                                                        fromDate, toDate, approvedStatusId, finalStatusId,
+                                                        procurementStatusId, pageable)
+                                                .map(this::toIndentListResponse);
+                        } else if (isSupervisor && cu.employeeNumber() != null) {
+                                java.util.List<Integer> empNumbers = new java.util.ArrayList<>();
+                                empNumbers.add(cu.employeeNumber());
+                                empNumbers.addAll(employeeReportingRepository.findSubordinateNumbers(cu.employeeNumber()));
+                                return indentRepository
+                                                .filterIndentsForCreators(empNumbers, search, statusId, plantId,
+                                                        companyId, fromDate, toDate, approvedStatusId, finalStatusId,
+                                                        procurementStatusId, pageable)
+                                                .map(this::toIndentListResponse);
+                        } else if (isUserOnly && cu.employeeNumber() != null) {
+                                java.util.List<Integer> empNumbers = java.util.List.of(cu.employeeNumber());
+                                return indentRepository
+                                                .filterIndentsForCreators(empNumbers, search, statusId, plantId,
+                                                        companyId, fromDate, toDate, approvedStatusId, finalStatusId,
+                                                        procurementStatusId, pageable)
+                                                .map(this::toIndentListResponse);
                         }
+                        // isGlobal or edge case (no empNumber, no deptId): fall through to unscoped query.
                 }
 
                 return indentRepository
-                                .filterIndents(search, statusId, effectiveDeptId, plantId, companyId, fromDate, toDate,
+                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
                                                approvedStatusId, finalStatusId, procurementStatusId, pageable)
                                 .map(this::toIndentListResponse);
         }
