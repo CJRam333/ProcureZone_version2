@@ -2,6 +2,56 @@
 
 ---
 
+## 2026-07-01
+
+### SUPERVISOR Role — Complete End-to-End Audit and Fix
+
+**Scope:** Comprehensive audit of every auth layer (backend @PreAuthorize, service logic, frontend route guards, page-level role checks, sidebar) for the SUPERVISOR role. Single-commit closure of all gaps found.
+
+**Root causes fixed:**
+
+1. **Backend @PreAuthorize — 18 endpoint gaps across 5 controllers** — SUPERVISOR was missing from IndentController list/search, ApprovalController reject/request-info/department-indents, IssueNoteController create/list/get/submit/cancel/by-department/my-issue-notes, PlantIndentController create/all GETs/update/submit, and all 10 DashboardController endpoints.
+
+2. **Service logic — wrong approval queue routed to SUPERVISOR** — `IndentService.getPendingApprovals()` always returned the DeptHead L2 queue (indents waiting for final approval); SUPERVISOR needs the L1 RM queue (subordinates' submitted indents). Fixed by adding a role check that routes SUPERVISOR to `getPendingL1Approvals()`.
+
+3. **Frontend route guards — 8 routes missing SUPERVISOR** — `/indents/new`, `/indents/:id/edit`, `/issue-notes/new`, `/issue-notes/:id/edit`, `/plant-indent/new`, `/plant-indent/:id/edit`, `/confirmations/issue`, `/confirmations/receipt`.
+
+4. **Page-level role checks — 12 variables missing SUPERVISOR** — `IndentDetailPage.tsx` canEdit/canSubmit; `IssueNoteDetailPage.tsx` canEdit/canSubmit/canApprove; `IssueNoteApprovalPage.tsx` isManager; `IndentsListPage.tsx` edit button + New Indent button; `DashboardPage.tsx` stat card + 2 quick actions.
+
+5. **IndentApprovalPage `getApprovalLevel()`** — SUPERVISOR now maps to "Level 1 (RM Review)" label.
+
+6. **Sidebar.tsx** — Issue Notes, Confirmations, Reports group all missing SUPERVISOR.
+
+**Files changed:**
+- `backend/.../indent/ApprovalController.java` — `/reject`, `/request-info`, `/department-indents` + SUPERVISOR
+- `backend/.../indent/IndentController.java` — list, search + SUPERVISOR
+- `backend/.../issuenote/IssueNoteController.java` — 8 endpoints + SUPERVISOR
+- `backend/.../plantindent/PlantIndentController.java` — create, 6 GETs, update, submit + SUPERVISOR
+- `backend/.../dashboard/controller/DashboardController.java` — all 10 endpoints + SUPERVISOR
+- `backend/.../indent/IndentService.java` — `getPendingApprovals()` routes SUPERVISOR to L1 queue
+- `frontend/src/routes/router.tsx` — 8 routes + SUPERVISOR
+- `frontend/src/pages/indents/IndentDetailPage.tsx` — canEdit, canSubmit + SUPERVISOR
+- `frontend/src/pages/issue-notes/IssueNoteDetailPage.tsx` — canEdit, canSubmit, canApprove + SUPERVISOR
+- `frontend/src/pages/issue-notes/IssueNoteApprovalPage.tsx` — isManager + SUPERVISOR
+- `frontend/src/pages/indents/IndentsListPage.tsx` — edit button + create button + SUPERVISOR
+- `frontend/src/pages/dashboard/DashboardPage.tsx` — stat card + 2 quick actions + SUPERVISOR
+- `frontend/src/pages/indents/IndentApprovalPage.tsx` — getApprovalLevel() → "Level 1 (RM Review)"
+- `frontend/src/components/layout/Sidebar.tsx` — Issue Notes, Confirmations, Reports + SUPERVISOR
+- `docs/supervisor-role-verification.md` — new: full checklist with SQL verification queries
+
+**Commit:** TBD (see git log)
+
+**Layers confirmed clean (no gaps):**
+- RoleNormalizer: `"Supervisor"` → `"SUPERVISOR"` ✓
+- JwtAuthenticationFilter: `ROLE_SUPERVISOR` prepended ✓
+- ModuleAccessService: "ALL" wildcard + case normalization ✓ (fixed 2026-06-30)
+- filterIndents() dept scoping: SUPERVISOR scoped to their deptId ✓
+- createIndent() / submitIndent() service logic: no SUPERVISOR-specific exclusions ✓
+- ApprovalController /pending, /pending-for-me, /approve: SUPERVISOR already present ✓
+- IssueNoteController rm-approve, rm-reject, pending-rm-approval: SUPERVISOR already present ✓
+
+---
+
 ## 2026-06-26
 
 ### Issue Note Status Labels — Legacy Alignment

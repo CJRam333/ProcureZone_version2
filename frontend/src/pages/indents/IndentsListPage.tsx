@@ -170,7 +170,7 @@ const IndentsListPage: React.FC = () => {
             <FaEye />
           </Button>
           {((item as any).statusId ?? (item as any).status) === 1 &&
-            hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT']) && (
+            hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT', 'SUPERVISOR']) && (
               <Button
                 variant="outline-secondary"
                 size="sm"
@@ -209,7 +209,7 @@ const IndentsListPage: React.FC = () => {
                 </Button>
               </>
             )}
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT']) && (
+            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT', 'SUPERVISOR']) && (
               <Button variant="primary" onClick={() => navigate('/indents/new')}>
                 <FaPlus className="me-2" /> New Indent
               </Button>

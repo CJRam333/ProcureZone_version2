@@ -1615,11 +1615,26 @@ public class IndentService {
         }
 
         /**
-         * Get pending approvals for a user (Department Head)
+         * Get pending approvals for the calling user.
+         * SUPERVISOR (RM-level): routed to L1 queue (subordinates' submitted indents).
+         * DEPTHEAD / PLANTMANAGER / ADMIN / SUPERADMIN: DeptHead L2 queue.
          */
         @Transactional(readOnly = true)
         public List<PendingApprovalResponse> getPendingApprovals(String username, Integer departmentId) {
                 logger.info("Fetching pending approvals for user: {} in department: {}", username, departmentId);
+
+                var auth = org.springframework.security.core.context.SecurityContextHolder
+                                .getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal cu) {
+                        boolean isSupervisorOnly = cu.roles().contains("SUPERVISOR")
+                                        && cu.roles().stream().noneMatch(r ->
+                                                "DEPTHEAD".equals(r) || "PLANTMANAGER".equals(r)
+                                                || "ADMIN".equals(r) || "SUPERADMIN".equals(r));
+                        if (isSupervisorOnly) {
+                                logger.info("Routing SUPERVISOR {} to L1 RM pending queue", username);
+                                return getPendingL1Approvals(username);
+                        }
+                }
 
                 // Three-column filter: DeptHead queue (approvedStatus=3, finalStatus=1)
                 List<Indent> pendingIndents = (departmentId != null)

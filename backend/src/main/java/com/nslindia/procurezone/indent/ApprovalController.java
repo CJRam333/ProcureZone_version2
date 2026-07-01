@@ -149,7 +149,7 @@ public class ApprovalController {
      * POST /api/v1/approvals/indents/{id}/reject?remarks=...
      */
     @PostMapping("/indents/{id}/reject")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
     public ResponseEntity<?> rejectIndent(
             @PathVariable Integer id,
             @RequestParam String remarks,
@@ -176,7 +176,7 @@ public class ApprovalController {
      * POST /api/v1/approvals/indents/{id}/request-info
      */
     @PostMapping("/indents/{id}/request-info")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
     public ResponseEntity<IndentResponse> requestInfo(
             @PathVariable Integer id,
             @Valid @RequestBody RequestInfoRequest request,
@@ -215,7 +215,7 @@ public class ApprovalController {
      * GET /api/v1/indents/department-indents?departmentId={deptId}&page=0&size=10
      */
     @GetMapping("/department-indents")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
     public ResponseEntity<Page<IndentListResponse>> getDepartmentIndents(
             @RequestParam Integer departmentId,
             @RequestParam(defaultValue = "0") int page,

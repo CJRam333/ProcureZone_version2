@@ -197,7 +197,8 @@ const IndentApprovalPage: React.FC = () => {
         if (hasAnyRole(['SUPERADMIN', 'ADMIN'])) return 'All Levels';
         if (hasAnyRole(['INDENT_L3_APPROVER', 'PLANTMANAGER'])) return 'Level 3 (Final)';
         if (hasAnyRole(['INDENT_L2_APPROVER', 'DEPTHEAD'])) return 'Level 2 (Department)';
-        if (hasAnyRole(['INDENT_L1_APPROVER', 'PLANTMANAGER'])) return 'Level 1 (Manager)';
+        if (hasAnyRole(['SUPERVISOR'])) return 'Level 1 (RM Review)';
+        if (hasAnyRole(['INDENT_L1_APPROVER'])) return 'Level 1 (Manager)';
         return 'Approval Queue';
     };
 

@@ -53,7 +53,7 @@ const IssueNoteApprovalPage: React.FC = () => {
 
     // Determine if user is stores or manager
     const isStores = hasAnyRole(['ISSUECONFIRM', 'ADMIN', 'SUPERADMIN']);
-    const isManager = hasAnyRole(['PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN']);
+    const isManager = hasAnyRole(['PLANTMANAGER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR']);
 
     // Fetch issue notes pending action
     const { data, isLoading, refetch, isFetching } = useQuery({

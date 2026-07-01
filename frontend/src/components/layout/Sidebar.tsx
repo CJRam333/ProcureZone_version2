@@ -129,14 +129,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       path: '/issue-notes',
       label: 'Issue Notes',
       icon: <FaClipboardList />,
-      roles: ['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'ISSUECONFIRM'],
+      roles: ['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'ISSUECONFIRM', 'SUPERVISOR'],
       moduleCode: 'ISSUE_NOTES',
     },
     {
       path: '/confirmations/issue',
       label: 'Confirmations',
       icon: <FaExclamationTriangle />,
-      roles: ['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD', 'USER'],
+      roles: ['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD', 'USER', 'SUPERVISOR'],
       moduleCode: 'CONFIRMATIONS',
     },
     {
@@ -173,7 +173,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
   const reportsGroup: NavGroup = {
     label: 'Reports',
     icon: <FaChartBar />,
-    roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD'],
+    roles: ['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR'],
     groupKey: 'reports',
     moduleCode: 'REPORTS',
     items: [

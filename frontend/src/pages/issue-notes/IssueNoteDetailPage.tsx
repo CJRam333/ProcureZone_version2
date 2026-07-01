@@ -97,9 +97,9 @@ const IssueNoteDetailPage: React.FC = () => {
   });
 
   // Permissions based on status enum (backend 1-based, 10 statuses)
-  const canEdit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM']);
-  const canSubmit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM']);
-  const canApprove = (issueNote?.status === IssueNoteStatus.PENDING_RM_APPROVAL || issueNote?.status === IssueNoteStatus.RM_APPROVED) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD']);
+  const canEdit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
+  const canSubmit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
+  const canApprove = (issueNote?.status === IssueNoteStatus.PENDING_RM_APPROVAL || issueNote?.status === IssueNoteStatus.RM_APPROVED) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD', 'SUPERVISOR']);
   const canIssue = (issueNote?.status === IssueNoteStatus.APPROVED_BY_MANAGER || issueNote?.status === IssueNoteStatus.PENDING_STORE_ISSUE) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
 
   // Status color mapping based on backend enum values (1-10)

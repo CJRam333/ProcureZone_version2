@@ -32,7 +32,7 @@ public class DashboardController {
      * @return Complete dashboard statistics
      */
     @GetMapping("/statistics")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'PROCUREMENT')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'PROCUREMENT', 'SUPERVISOR')")
     public ResponseEntity<DashboardStatisticsResponse> getDashboardStatistics(
             @RequestParam(required = false) Integer companyId,
             @RequestParam(required = false) Integer departmentId,
@@ -50,7 +50,7 @@ public class DashboardController {
      * Get summary cards data only
      */
     @GetMapping("/summary")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'PROCUREMENT')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'PROCUREMENT', 'SUPERVISOR')")
     public ResponseEntity<SummaryCards> getSummaryCards(
             @RequestParam(required = false) Integer companyId) {
 
@@ -65,7 +65,7 @@ public class DashboardController {
      * Get indent statistics
      */
     @GetMapping("/indents/stats")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'PROCUREMENT')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'PROCUREMENT', 'SUPERVISOR')")
     public ResponseEntity<IndentStats> getIndentStats(
             @RequestParam(required = false) Integer companyId,
             @RequestParam(required = false) Integer departmentId) {
@@ -81,7 +81,7 @@ public class DashboardController {
      * Get purchase order statistics
      */
     @GetMapping("/purchase-orders/stats")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'USER', 'SUPERVISOR')")
     public ResponseEntity<PurchaseOrderStats> getPurchaseOrderStats(
             @RequestParam(required = false) Integer companyId) {
 
@@ -96,7 +96,7 @@ public class DashboardController {
      * Get goods receipt statistics
      */
     @GetMapping("/goods-receipts/stats")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'DEPTHEAD', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'DEPTHEAD', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<GoodsReceiptStats> getGoodsReceiptStats(
             @RequestParam(required = false) Integer companyId) {
 
@@ -111,7 +111,7 @@ public class DashboardController {
      * Get issue note statistics
      */
     @GetMapping("/issue-notes/stats")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'DEPTHEAD', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'DEPTHEAD', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<IssueNoteStats> getIssueNoteStats(
             @RequestParam(required = false) Integer companyId,
             @RequestParam(required = false) Integer departmentId) {
@@ -127,7 +127,7 @@ public class DashboardController {
      * Get inventory statistics
      */
     @GetMapping("/inventory/stats")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'DEPTHEAD', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'DEPTHEAD', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<InventoryStats> getInventoryStats(
             @RequestParam(required = false) Integer companyId) {
 
@@ -142,7 +142,7 @@ public class DashboardController {
      * Get vendor statistics
      */
     @GetMapping("/vendors/stats")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'USER', 'SUPERVISOR')")
     public ResponseEntity<VendorStats> getVendorStats() {
 
         log.debug("Fetching vendor statistics");
@@ -156,7 +156,7 @@ public class DashboardController {
      * Get monthly trends for charts
      */
     @GetMapping("/trends/monthly")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<List<MonthlyTrend>> getMonthlyTrends(
             @RequestParam(required = false) Integer companyId,
             @RequestParam(defaultValue = "6") int months) {
@@ -172,7 +172,7 @@ public class DashboardController {
      * Get department-wise breakdown
      */
     @GetMapping("/breakdown/department")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<List<DepartmentWiseData>> getDepartmentBreakdown(
             @RequestParam(required = false) Integer companyId) {
 
@@ -187,7 +187,7 @@ public class DashboardController {
      * Get top materials by consumption
      */
     @GetMapping("/top-materials")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<List<TopMaterialData>> getTopMaterials(
             @RequestParam(required = false) Integer companyId,
             @RequestParam(defaultValue = "10") int limit) {
@@ -203,7 +203,7 @@ public class DashboardController {
      * Get pending approvals
      */
     @GetMapping("/pending-approvals")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<List<PendingApprovalData>> getPendingApprovals(
             @RequestParam(required = false) Integer companyId,
             @RequestParam(required = false) Integer departmentId) {
@@ -219,7 +219,7 @@ public class DashboardController {
      * Get system alerts
      */
     @GetMapping("/alerts")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'VIEWER', 'DEPTHEAD', 'FLOORINCHARGE', 'GOODSINCHARGE', 'PROCUREMENT', 'USER', 'SUPERVISOR')")
     public ResponseEntity<List<AlertItem>> getAlerts(
             @RequestParam(required = false) Integer companyId) {
 

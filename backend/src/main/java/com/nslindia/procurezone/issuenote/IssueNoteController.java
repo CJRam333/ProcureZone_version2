@@ -63,7 +63,7 @@ public class IssueNoteController {
          * Authorized: REQUESTER, EMPLOYEE, ADMIN
          */
         @PostMapping
-        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR')")
         public ResponseEntity<Map<String, Object>> createIssueNote(
                         @Valid @RequestBody CreateIssueNoteRequest request,
                         Authentication authentication) {
@@ -90,7 +90,7 @@ public class IssueNoteController {
          * issue_note_storesby_status). Returns a standard Spring Page so totalElements serialises correctly.
          */
         @GetMapping
-        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER', 'SUPERVISOR')")
         public ResponseEntity<Page<IssueNoteSummaryResponse>> getAllIssueNotes(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "20") int size,
@@ -107,7 +107,7 @@ public class IssueNoteController {
          * Get issue note by ID
          */
         @GetMapping("/{id}")
-        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER', 'SUPERVISOR')")
         public ResponseEntity<Map<String, Object>> getIssueNoteById(@PathVariable Integer id) {
                 IssueNoteResponse response = issueNoteService.getById(id);
 
@@ -122,7 +122,7 @@ public class IssueNoteController {
          * Get issue note by issue note number
          */
         @GetMapping("/by-number")
-        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER', 'SUPERVISOR')")
         public ResponseEntity<Map<String, Object>> getIssueNoteByNumber(
                         @RequestParam String issueNoteNumber) {
 
@@ -140,7 +140,7 @@ public class IssueNoteController {
          * Changes status from 1 (Created) to 2 (Pending Approval)
          */
         @PostMapping("/{id}/submit")
-        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR')")
         public ResponseEntity<Map<String, Object>> submitForApproval(
                         @PathVariable Integer id,
                         Authentication authentication) {
@@ -303,7 +303,7 @@ public class IssueNoteController {
          * Only allowed for status 1 (Created) or 2 (Pending Approval)
          */
         @PostMapping("/{id}/cancel")
-        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR')")
         public ResponseEntity<Map<String, Object>> cancelIssueNote(
                         @PathVariable Integer id,
                         Authentication authentication) {
@@ -385,7 +385,7 @@ public class IssueNoteController {
          * Get issue notes by department
          */
         @GetMapping("/by-department/{deptId}")
-        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'USER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('PLANTMANAGER', 'USER', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR')")
         public ResponseEntity<Map<String, Object>> getByDepartment(
                         @PathVariable Integer deptId,
                         @RequestParam(defaultValue = "0") int page,
@@ -406,7 +406,7 @@ public class IssueNoteController {
          * Get issue notes created by the current user
          */
         @GetMapping("/my-issue-notes")
-        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR')")
         public ResponseEntity<Map<String, Object>> getMyIssueNotes(
                         @RequestParam(defaultValue = "0") int page,
                         @RequestParam(defaultValue = "10") int size,

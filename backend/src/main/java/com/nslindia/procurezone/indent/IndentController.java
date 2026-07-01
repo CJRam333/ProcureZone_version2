@@ -107,7 +107,7 @@ public class IndentController {
      * GET /api/v1/indents?page=0&size=10&sort=indentDate,desc
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'USER', 'SUPERVISOR')")
     public ResponseEntity<Page<IndentListResponse>> listIndents(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -267,7 +267,7 @@ public class IndentController {
      */
 
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'USER', 'SUPERVISOR')")
     public ResponseEntity<Page<IndentListResponse>> searchIndents(
             @RequestParam String q,
             @RequestParam(defaultValue = "0") int page,

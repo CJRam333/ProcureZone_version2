@@ -143,7 +143,7 @@ const DashboardPage: React.FC = () => {
         <>
           {/* Stats Row */}
           <Row className="g-4 mb-4">
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD', 'PLANTMANAGER']) && (
+            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD', 'SUPERVISOR']) && (
               <Col sm={6} xl={3}>
                 <StatCard
                   title="Pending Approvals"
@@ -277,13 +277,13 @@ const DashboardPage: React.FC = () => {
                 </Card.Header>
                 <Card.Body>
                   <div className="d-flex flex-wrap gap-2">
-                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER']) && (
+                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'SUPERVISOR']) && (
                       <Link to="/indents/new" className="btn btn-primary">
                         <FaFileAlt className="me-2" /> Create Indent
                       </Link>
                     )}
                     {/* SCOPE-REDUCTION: "Create PO" and "Create GRN" quick actions removed */}
-                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'ISSUECONFIRM']) && (
+                    {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']) && (
                       <Link to="/issue-notes/new" className="btn btn-secondary">
                         <FaClipboardList className="me-2" /> Create Issue Note
                       </Link>

@@ -165,8 +165,8 @@ const IndentDetailPage: React.FC = () => {
   );
 
   // Permissions — multi-stage approval
-  const canEdit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER']);
-  const canSubmit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER']);
+  const canEdit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
+  const canSubmit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
   
   // Approve permission per stage:
   // Status 2 (Submitted)          → Dept Head, Plant Manager, Admin, SuperAdmin
