@@ -150,17 +150,19 @@ public class ModuleAccessService {
         String defaultRoles = m.getDefaultRoles();
         if (defaultRoles == null || defaultRoles.isBlank()) return false;
 
+        // Normalize each DB token through RoleNormalizer so "Department Head" → "DEPTHEAD"
+        // and "ALL" (any case) is still recognized as the universal wildcard.
         Set<String> allowed = Arrays.stream(defaultRoles.split(","))
                 .map(String::trim)
-                .map(String::toUpperCase)
+                .filter(s -> !s.isEmpty())
+                .map(token -> token.equalsIgnoreCase("ALL") ? "ALL" : RoleNormalizer.normalize(token))
                 .collect(Collectors.toSet());
 
         // "ALL" anywhere in the list means every authenticated user gets this module
         if (allowed.contains("ALL")) return true;
 
-        return roles.stream()
-                .map(String::toUpperCase)
-                .anyMatch(allowed::contains);
+        // JWT roles are already normalized — compare directly (both sides are normalized)
+        return roles.stream().anyMatch(allowed::contains);
     }
 
     private UserPrincipal currentUser() {

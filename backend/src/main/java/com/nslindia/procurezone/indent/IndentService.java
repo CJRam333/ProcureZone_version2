@@ -644,7 +644,7 @@ public class IndentService {
                 // SUPERVISOR AUTO-APPROVAL: Only bypass L1 if the submitter has DEPTHEAD role
                 // AND has no supervisor of their own in the reporting hierarchy.
                 // A DEPTHEAD who still reports to someone must go through their RM like any employee.
-                boolean isDeptHead = hasRoleByCode(currentUser.getEmpNumber(), "Department");
+                boolean isDeptHead = hasRoleByCode(currentUser.getEmpNumber(), "Department Head");
                 boolean hasSupervisor = employeeReportingRepository.hasSupervisor(currentUser.getEmpNumber());
                 if (isDeptHead && !hasSupervisor) {
                         logger.info("Supervisor auto-approval: User {} has DEPTHEAD role, bypassing L1 approval",
@@ -714,7 +714,7 @@ public class IndentService {
 
                 // Hierarchy check: Supervisors (RMs) must be in the creator's reporting chain.
                 // Dept Heads and above have department-level authority and skip the check.
-                boolean hasDeptLevelAuth = hasRoleByCode(currentUser.getEmpNumber(), "Department")
+                boolean hasDeptLevelAuth = hasRoleByCode(currentUser.getEmpNumber(), "Department Head")
                                 || hasRoleByCode(currentUser.getEmpNumber(), "Plant Manager")
                                 || hasRoleByCode(currentUser.getEmpNumber(), "Admin")
                                 || hasRoleByCode(currentUser.getEmpNumber(), "Super Admin");

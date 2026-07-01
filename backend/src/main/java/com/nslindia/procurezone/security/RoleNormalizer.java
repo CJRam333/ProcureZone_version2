@@ -27,20 +27,21 @@ public final class RoleNormalizer {
      * Value = normalized code (uppercase, no spaces)
      */
     private static final Map<String, String> MAP = Map.ofEntries(
-            Map.entry("Super Admin",    "SUPERADMIN"),
-            Map.entry("Admin",          "ADMIN"),
-            Map.entry("User",           "USER"),
-            Map.entry("Supervisor",     "SUPERVISOR"),
-            Map.entry("Department",     "DEPTHEAD"),
-            Map.entry("Procurement",    "PROCUREMENT"),
-            Map.entry("Plant Manager",  "PLANTMANAGER"),
-            Map.entry("FloorIncharge",  "FLOORINCHARGE"),
-            Map.entry("DataEntry",      "DATAENTRYOPERATOR"),
-            Map.entry("GoodsIncharge",  "GOODSINCHARGE"),
-            Map.entry("GRNIncharge",    "GRNINCHARGE"),
-            Map.entry("IssueConfirm",   "ISSUECONFIRM"),
-            Map.entry("ReceiptConfirm", "RECEIPTCONFIRM"),
-            Map.entry("QualityManager", "QUALITYMANAGER")
+            Map.entry("Super Admin",      "SUPERADMIN"),
+            Map.entry("Admin",            "ADMIN"),
+            Map.entry("User",             "USER"),
+            Map.entry("Supervisor",       "SUPERVISOR"),
+            Map.entry("Department Head",  "DEPTHEAD"),   // actual DB role_code (with space)
+            Map.entry("Department",       "DEPTHEAD"),   // legacy alias — kept for safety
+            Map.entry("Procurement",      "PROCUREMENT"),
+            Map.entry("Plant Manager",    "PLANTMANAGER"),
+            Map.entry("FloorIncharge",    "FLOORINCHARGE"),
+            Map.entry("DataEntry",        "DATAENTRYOPERATOR"),
+            Map.entry("GoodsIncharge",    "GOODSINCHARGE"),
+            Map.entry("GRNIncharge",      "GRNINCHARGE"),
+            Map.entry("IssueConfirm",     "ISSUECONFIRM"),
+            Map.entry("ReceiptConfirm",   "RECEIPTCONFIRM"),
+            Map.entry("QualityManager",   "QUALITYMANAGER")
     );
 
     /**
