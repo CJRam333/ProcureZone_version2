@@ -698,3 +698,38 @@ The string `"false"` does not match either condition → evaluates correctly to 
 - `vite build` — built in 34.22s, 0 errors (pre-existing chunk-size warning)
 
 ---
+
+## 2026-07-01 (fifth entry)
+
+### IndentDetailPage — Approve/Reject Buttons Not Showing for DEPTHEAD
+
+**Commit:** `7bbe14a`
+
+**Root causes (two, compounding):**
+
+**Root cause A — Cached JWT (re-login required):**
+Before commit `86da7be` (RoleNormalizer fix), the `"Department Head"` DB role fell to the fallback normalizer → `"DEPARTMENTHEAD"`. Any DEPTHEAD user who was already logged in has a cached JWT with `"DEPARTMENTHEAD"`, so `hasAnyRole(['DEPTHEAD'])` returns `false`. Fix: user must log out and log back in to receive a new JWT with `"DEPTHEAD"`. This is not a code change — it is a session invalidation requirement.
+
+**Root cause B — canApprove used the wrong workflow signal (code bug):**
+`canApprove` checked `statusId === STATUS_SUBMITTED (2)` for the DEPTHEAD condition. The main `status` column stays at `2` through BOTH the RM-pending stage (approvedStatus=1) AND the RM-approved stage (approvedStatus=3). This meant:
+- DEPTHEAD saw the Approve button when indent was still waiting for RM (wrong — RM hasn't acted yet)
+- SUPERVISOR was grouped with DEPTHEAD at `statusId===2`, so SUPERVISOR also saw the button on RM-approved indents that should only show for DEPTHEAD
+
+**Fix — use `approvedStatusId` and `finalStatusId` from `IndentResponse`:**
+
+`IndentResponse` already returns `approvedStatusId`, `finalStatusId`, and `procurementStatusId`. The fix reads those fields to detect the exact workflow stage, then gates each role to its correct stage:
+
+| Stage | Condition | Roles that can act |
+|-------|-----------|-------------------|
+| L1 RM Review | `approvedStatusId=1` (pending RM) | SUPERVISOR, ADMIN, SUPERADMIN |
+| L2 Dept Head | `approvedStatusId=3 AND finalStatusId=1` | DEPTHEAD, PLANTMANAGER, ADMIN, SUPERADMIN |
+| Procurement | `finalStatusId=4 AND procurementStatusId=4` | PROCUREMENT, ADMIN, SUPERADMIN |
+
+The approve button label was also corrected: L1 → "Approve (RM Review)", L2 → "Approve (Dept Head)", Procurement → "Procurement Approve".
+
+**File changed:** `frontend/src/pages/indents/IndentDetailPage.tsx`
+
+**Build results:**
+- `tsc -b` — clean, 0 errors
+
+---
