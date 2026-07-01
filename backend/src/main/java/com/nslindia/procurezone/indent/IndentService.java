@@ -278,10 +278,18 @@ public class IndentService {
                         boolean isSupervisor = !isGlobal && !isDeptScoped && roles.contains("SUPERVISOR");
                         boolean isUserOnly   = !isGlobal && !isDeptScoped && !isSupervisor;
 
-                        if (isDeptScoped && cu.deptId() != null) {
+                        if (isDeptScoped && cu.employeeNumber() != null) {
+                                // 2-level hierarchy: own + direct reports + their direct reports
+                                java.util.List<Integer> deptEmpNumbers = new java.util.ArrayList<>();
+                                deptEmpNumbers.add(cu.employeeNumber());
+                                java.util.List<Integer> deptL1Reports = employeeReportingRepository.findSubordinateNumbers(cu.employeeNumber());
+                                deptEmpNumbers.addAll(deptL1Reports);
+                                for (Integer l1Emp : deptL1Reports) {
+                                        deptEmpNumbers.addAll(employeeReportingRepository.findSubordinateNumbers(l1Emp));
+                                }
                                 return indentRepository
-                                                .filterIndents(search, statusId, cu.deptId(), plantId, companyId,
-                                                        fromDate, toDate, approvedStatusId, finalStatusId,
+                                                .filterIndentsForCreators(deptEmpNumbers, search, statusId, plantId,
+                                                        companyId, fromDate, toDate, approvedStatusId, finalStatusId,
                                                         procurementStatusId, pageable)
                                                 .map(this::toIndentListResponse);
                         } else if (isSupervisor && cu.employeeNumber() != null) {
@@ -636,7 +644,7 @@ public class IndentService {
                 // SUPERVISOR AUTO-APPROVAL: Only bypass L1 if the submitter has DEPTHEAD role
                 // AND has no supervisor of their own in the reporting hierarchy.
                 // A DEPTHEAD who still reports to someone must go through their RM like any employee.
-                boolean isDeptHead = hasRoleByCode(currentUser.getEmpNumber(), "DEPTHEAD");
+                boolean isDeptHead = hasRoleByCode(currentUser.getEmpNumber(), "Department");
                 boolean hasSupervisor = employeeReportingRepository.hasSupervisor(currentUser.getEmpNumber());
                 if (isDeptHead && !hasSupervisor) {
                         logger.info("Supervisor auto-approval: User {} has DEPTHEAD role, bypassing L1 approval",
@@ -838,7 +846,7 @@ public class IndentService {
                 indent.setApprovedBy(currentUser);
                 indent.setApprovedByDate(LocalDateTime.now());
                 indent.setRemarks(request.remarks());
-                indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 2)); // L1 Approved marker
+                indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 3)); // L1 Approved → DeptHead queue
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
@@ -1123,12 +1131,21 @@ public class IndentService {
                                 logger.info("Fetching L2 approvals for ADMIN user: {} — all departments", username);
                                 pendingIndents = indentRepository.findDeptHeadQueue();
                         } else {
-                                Integer deptId = cu.deptId();
-                                logger.info("Fetching L2 approvals for user: {} in department: {}", username, deptId);
-                                if (deptId == null) {
+                                // Hierarchy-based: own + 2-level subordinates
+                                java.util.List<Integer> hierEmpNumbers = new java.util.ArrayList<>();
+                                if (cu.employeeNumber() != null) {
+                                        hierEmpNumbers.add(cu.employeeNumber());
+                                        java.util.List<Integer> l1Reports = employeeReportingRepository.findSubordinateNumbers(cu.employeeNumber());
+                                        hierEmpNumbers.addAll(l1Reports);
+                                        for (Integer l1EmpNo : l1Reports) {
+                                                hierEmpNumbers.addAll(employeeReportingRepository.findSubordinateNumbers(l1EmpNo));
+                                        }
+                                }
+                                logger.info("Fetching L2 approvals for user: {} hierarchy ({} employees)", username, hierEmpNumbers.size());
+                                if (hierEmpNumbers.isEmpty()) {
                                         return java.util.Collections.emptyList();
                                 }
-                                pendingIndents = indentRepository.findDeptHeadQueueByDepartment(deptId);
+                                pendingIndents = indentRepository.findDeptHeadQueueForCreators(hierEmpNumbers);
                         }
                 } else {
                         return java.util.Collections.emptyList();
@@ -1662,9 +1679,15 @@ public class IndentService {
                                 logger.info("Routing SUPERVISOR {} to L1 RM pending queue", username);
                                 return getPendingL1Approvals(username);
                         }
+                        boolean isDeptHeadRole = cu.roles().stream()
+                                        .anyMatch(r -> "DEPTHEAD".equals(r) || "PLANTMANAGER".equals(r));
+                        if (isDeptHeadRole) {
+                                logger.info("Routing DEPTHEAD {} to hierarchy-based L2 queue", username);
+                                return getPendingL2Approvals(username);
+                        }
                 }
 
-                // Three-column filter: DeptHead queue (approvedStatus=3, finalStatus=1)
+                // ADMIN/SUPERADMIN fallback: global DeptHead queue
                 List<Indent> pendingIndents = (departmentId != null)
                                 ? indentRepository.findDeptHeadQueueByDepartment(departmentId)
                                 : indentRepository.findDeptHeadQueue();

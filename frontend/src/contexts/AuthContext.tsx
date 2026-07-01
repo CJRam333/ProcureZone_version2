@@ -162,7 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const hasAnyRole = useCallback(
     (roles: string[]): boolean => {
       if (!user) return false;
-      if (user.roles.includes('SUPERADMIN') || user.canView) return true;
+      if (user.roles.includes('SUPERADMIN')) return true;
       return roles.some((role) => user.roles.includes(role));
     },
     [user]

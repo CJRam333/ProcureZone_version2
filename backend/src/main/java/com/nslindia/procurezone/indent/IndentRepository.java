@@ -185,32 +185,40 @@ public interface IndentRepository extends JpaRepository<Indent, Integer> {
          */
         @EntityGraph(attributePaths = { "company", "department", "plant", "employee", "status", "approvedBy",
                         "approvedStatus", "finalStatus", "procurementStatus" })
-        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 1 AND i.status.id = 1 AND i.employee.employeeNumber IN :employeeNumbers")
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 1 AND i.employee.employeeNumber IN :employeeNumbers")
         List<Indent> findRmQueueForEmployees(@Param("employeeNumbers") List<Integer> employeeNumbers);
 
         /**
-         * Dept Head Queue: approvedStatus=3 (RM Approved), finalStatus=1 (Pending), active.
+         * Dept Head Queue: approvedStatus=3 (RM Approved), finalStatus=1 (Pending), dept-scoped.
+         * Note: status column is not filtered — it changes to 2 after submission.
          */
-        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 1 AND i.status.id = 1 AND i.department.id = :deptId")
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 1 AND i.department.id = :deptId")
         List<Indent> findDeptHeadQueueByDepartment(@Param("deptId") Integer deptId);
 
         /**
          * Dept Head Queue — no department filter (for SUPERADMIN/ADMIN approvers).
          */
-        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 1 AND i.status.id = 1")
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 1")
         List<Indent> findDeptHeadQueue();
 
         /**
-         * Procurement Queue: approvedStatus=3, finalStatus=4 (Dept. Head Approved),
-         * procurementStatus=4, active.
+         * Dept Head Queue — hierarchy-scoped by creator employee numbers.
+         * Used for DEPTHEAD/PLANTMANAGER who see indents created by their subordinates.
          */
-        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 4 AND i.procurementStatus.id = 4 AND i.status.id = 1")
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 1 AND i.employee.employeeNumber IN :empNumbers")
+        List<Indent> findDeptHeadQueueForCreators(@Param("empNumbers") List<Integer> empNumbers);
+
+        /**
+         * Procurement Queue: approvedStatus=3, finalStatus=4 (Dept. Head Approved),
+         * procurementStatus=4.
+         */
+        @Query("SELECT i FROM Indent i WHERE i.approvedStatus.id = 3 AND i.finalStatus.id = 4 AND i.procurementStatus.id = 4")
         List<Indent> findProcurementQueue();
 
         /**
-         * Goods Receipt Queue: procurementStatus=7 (PO Released), active.
+         * Goods Receipt Queue: procurementStatus=7 (PO Released).
          */
-        @Query("SELECT i FROM Indent i WHERE i.procurementStatus.id = 7 AND i.status.id = 1")
+        @Query("SELECT i FROM Indent i WHERE i.procurementStatus.id = 7")
         List<Indent> findGoodsReceiptQueue();
 
         /**
