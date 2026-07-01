@@ -164,23 +164,35 @@ const IndentDetailPage: React.FC = () => {
     0
   );
 
+  // Three-column workflow state from backend (IndentResponse exposes these directly)
+  const approvedStatusId: number = (indent.approvedStatusId as number | null | undefined) ?? 1;
+  const finalStatusId: number = (indent.finalStatusId as number | null | undefined) ?? 1;
+  const procurementStatusIdVal: number = (indent.procurementStatusId as number | null | undefined) ?? 1;
+
+  // L1: submitted, awaiting RM review (approvedStatus=1)
+  const awaitingL1 = statusId >= STATUS_SUBMITTED && approvedStatusId === 1;
+  // L2: RM approved, awaiting Dept Head (approvedStatus=3, finalStatus=1)
+  const awaitingL2 = approvedStatusId === 3 && finalStatusId === 1;
+  // Procurement: Dept Head approved (finalStatus=4, procurementStatus=4)
+  const awaitingProcurement = finalStatusId === 4 && procurementStatusIdVal === 4;
+
   // Permissions — multi-stage approval
   const canEdit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
   const canSubmit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
-  
-  // Approve permission per stage:
-  // Status 2 (Submitted)          → Dept Head, Plant Manager, Admin, SuperAdmin
-  // Status 3 (Dept Head Approved) → Plant Manager, Admin, SuperAdmin
-  // Status 5 (Proc. In Progress)  → Procurement, Admin, SuperAdmin
-  const canApprove =
-    (statusId === STATUS_SUBMITTED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR'])) ||
-    (statusId === STATUS_DEPT_HEAD_APPROVED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER'])) ||
-    (statusId === STATUS_PROCUREMENT_APPROVED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']));
 
-  // Dynamic approve button label — describes the workflow stage, not the approver's title
-  const approveLabel = statusId === STATUS_SUBMITTED ? 'Approve (RM Review)'
-    : statusId === STATUS_DEPT_HEAD_APPROVED ? 'Final Approve'
-    : statusId === STATUS_PROCUREMENT_APPROVED ? 'Procurement Approve'
+  // Approve permission gated on EXACT workflow stage so each role sees the button only when it's their turn:
+  // L1 (RM Review):      SUPERVISOR acts when approvedStatus=1
+  // L2 (Dept Head):      DEPTHEAD/PLANTMANAGER act when approvedStatus=3 and finalStatus=1
+  // Procurement:         PROCUREMENT acts when finalStatus=4 and procurementStatus=4
+  const canApprove =
+    (awaitingL1 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'SUPERVISOR'])) ||
+    (awaitingL2 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER'])) ||
+    (awaitingProcurement && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']));
+
+  // Dynamic approve button label — describes the workflow stage
+  const approveLabel = awaitingL1 ? 'Approve (RM Review)'
+    : awaitingL2 ? 'Approve (Dept Head)'
+    : awaitingProcurement ? 'Procurement Approve'
     : 'Approve';
 
   return (
