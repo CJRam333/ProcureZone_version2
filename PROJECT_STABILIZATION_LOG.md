@@ -589,3 +589,112 @@ Now calls `filterIndentsForCreators(empNumbers, ...)` — same query used by SUP
 - `tsc -b` — clean, 0 errors
 
 ---
+
+## 2026-07-01 (fourth entry)
+
+### Role Code Mismatch Audit — `"Department Head"` Never Mapped in RoleNormalizer
+
+**Commit:** `86da7be`
+
+**Root cause (system-wide):**
+`tbl_roles_master.role_code` stores `"Department Head"` (with a space). `RoleNormalizer.java` had `Map.entry("Department", "DEPTHEAD")` — a dead mapping whose key never matched any real DB row. The fallback (`rawCode.replaceAll("\\s+","").toUpperCase()`) produced `"DEPARTMENTHEAD"`. Every `@PreAuthorize("hasRole('DEPTHEAD')")`, `hasAnyRole(['DEPTHEAD'])`, and module access check for Department Head silently failed system-wide since RoleNormalizer was introduced.
+
+---
+
+#### FIX 1 — RoleNormalizer.java
+
+**Before:**
+```
+"Department"  → "DEPTHEAD"   ← dead (no DB row has code "Department")
+```
+
+**After:**
+```
+"Department Head" → "DEPTHEAD"   ← primary (actual DB role_code)
+"Department"      → "DEPTHEAD"   ← legacy alias (kept for safety)
+```
+
+Both keys map to `"DEPTHEAD"`. Keeping `"Department"` means any cached JWTs that were issued using the old (broken) fallback still work after expiry. New logins pick up `"Department Head"` → `"DEPTHEAD"`.
+
+**Complete mapping table (after fix):**
+
+| DB `role_code`   | Normalized JWT role  |
+|------------------|----------------------|
+| Super Admin      | SUPERADMIN           |
+| Admin            | ADMIN                |
+| User             | USER                 |
+| Supervisor       | SUPERVISOR           |
+| Department Head  | DEPTHEAD (primary)   |
+| Department       | DEPTHEAD (alias)     |
+| Procurement      | PROCUREMENT          |
+| Plant Manager    | PLANTMANAGER         |
+| FloorIncharge    | FLOORINCHARGE        |
+| DataEntry        | DATAENTRYOPERATOR    |
+| GoodsIncharge    | GOODSINCHARGE        |
+| GRNIncharge      | GRNINCHARGE          |
+| IssueConfirm     | ISSUECONFIRM         |
+| ReceiptConfirm   | RECEIPTCONFIRM       |
+| QualityManager   | QUALITYMANAGER       |
+
+---
+
+#### FIX 2 — hasRoleByCode() callers (IndentService.java)
+
+`hasRoleByCode()` queries raw DB `role_code` via `er.getRole().getCode()` with `equalsIgnoreCase`. All callers passing `"Department"` were changed to `"Department Head"`:
+
+- `submitIndent()` DEPTHEAD bypass: `hasRoleByCode(empNum, "Department Head")`
+- `approveIndent()` `hasDeptLevelAuth` check: `hasRoleByCode(empNum, "Department Head")`
+
+Note: `"Plant Manager"`, `"Admin"`, `"Super Admin"` are correct (DB values match).
+
+---
+
+#### FIX 3 — ModuleAccessService.isAllowedByRole()
+
+**Before:** Uppercase-only comparison on `module_default_roles` tokens.
+```
+"Department Head" → toUpperCase → "DEPARTMENT HEAD"  ≠  "DEPTHEAD"  → no match
+```
+
+**After:** Tokens normalized through `RoleNormalizer.normalize()` before comparing.
+```
+"Department Head" → normalize → "DEPTHEAD"  ==  "DEPTHEAD"  → match ✓
+"ALL"             → "ALL" special case → universal grant ✓
+```
+
+JWT roles are already normalized, so no transformation needed on the user side.
+
+---
+
+#### FIX 4 — AuthContext.tsx hasAnyRole()
+
+Added `ADMIN` to the universal bypass alongside `SUPERADMIN`:
+```typescript
+if (user.roles.includes('SUPERADMIN') || user.roles.includes('ADMIN')) return true;
+```
+ADMIN should have the same UI pass-through as SUPERADMIN for role-gated elements.
+
+---
+
+#### STEP 5 — canView read logic (verified, no change)
+
+`AuthService.java` already reads `canView` as:
+```java
+"1".equals(r.getCanView()) || "true".equalsIgnoreCase(r.getCanView())
+```
+The string `"false"` does not match either condition → evaluates correctly to `false` for Supervisor. No code change needed.
+
+---
+
+**Files changed:**
+- `backend/.../security/RoleNormalizer.java` — Fix 1
+- `backend/.../indent/IndentService.java` — Fix 2
+- `backend/.../moduleaccess/ModuleAccessService.java` — Fix 3
+- `frontend/src/contexts/AuthContext.tsx` — Fix 4
+
+**Build results:**
+- `mvn compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in 34.22s, 0 errors (pre-existing chunk-size warning)
+
+---
