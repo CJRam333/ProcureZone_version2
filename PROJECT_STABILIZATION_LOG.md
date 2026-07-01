@@ -494,3 +494,98 @@ Injected `EmployeeReportingRepository` into `IssueNoteService` (previously not p
 - `vite build` — built in 32.61s, 0 errors (pre-existing chunk-size warning unrelated to this change)
 
 ---
+
+## 2026-07-01 (third entry)
+
+### USER→RM→DEPTHEAD Approval Workflow — 5 Root-Cause Bugs Fixed
+
+**Commit:** `3d14c07`
+
+**Scope:** After the visibility fix (commit `adcd7d0`), testing revealed the complete approval workflow was broken for all roles. Five distinct root-cause bugs prevented indents from moving through the pipeline.
+
+**Correction to prior log entry (2026-06-30, "Approval Workflow Bugs"):**
+> "The `hasRoleByCode` bug does not affect any live workflow (the bypass is dead code)."
+
+This was **WRONG**. The bypass WAS needed for DEPTHEAD to skip RM approval on submit. It was silently broken (never firing), which is why DEPTHEADs saw their indents going to RM instead of Procurement directly.
+
+---
+
+#### BUG 1 — USER sees "Direct to Procurement" popup (Frontend)
+
+**File:** `frontend/src/contexts/AuthContext.tsx`
+
+**Root cause:** `hasAnyRole()` had a shortcut `if (user.roles.includes('SUPERADMIN') || user.canView) return true`. If the "User" DB role has `can_view = "1"`, every USER employee has `user.canView = true`, causing them to pass ANY role check — including `hasAnyRole(['DEPTHEAD', 'PLANTMANAGER'])` which guards the popup.
+
+**Fix:** Removed `|| user.canView`. SUPERADMIN shortcut kept; role membership check is now the only path.
+
+---
+
+#### BUG 2 — DEPTHEAD bypass never fires (Backend)
+
+**File:** `backend/.../indent/IndentService.java` `submitIndent()`
+
+**Root cause:** `hasRoleByCode(currentUser.getEmpNumber(), "DEPTHEAD")` always returned `false`. `hasRoleByCode()` compares the passed string against the raw DB `role_code` column using `equalsIgnoreCase`. DB stores `"Department"`, not `"DEPTHEAD"`. `"Department".equalsIgnoreCase("DEPTHEAD") = false`.
+
+**Fix:** Changed to `hasRoleByCode(currentUser.getEmpNumber(), "Department")`.
+
+---
+
+#### BUG 3 — RM-approved indent never reaches DeptHead queue (Backend)
+
+**File:** `backend/.../indent/IndentService.java` `l1Approve()`
+
+**Root cause:** `l1Approve()` set `approvedStatus = IndentStatus(2)` with comment "L1 Approved marker". DeptHead queue JPQL (`findDeptHeadQueue`, `findDeptHeadQueueByDepartment`) requires `approvedStatus.id = 3`. Value `2` never matched the queue filter.
+
+**Fix:** Changed to `approvedStatus = IndentStatus(3)` — consistent with the auto-bypass in `submitIndent()` which already correctly sets `approvedStatus = 3`.
+
+---
+
+#### BUG 4 — ALL approval queues permanently empty (Backend)
+
+**File:** `backend/.../indent/IndentRepository.java`
+
+**Root cause:** All 5 queue queries contained `AND i.status.id = 1`. But `submitIndent()` changes `status` from 1 (Draft) to 2 (Submitted). After submission, every indent has `status.id = 2`, so no indent ever satisfies `status.id = 1`. All approval queues (RM, DeptHead, Procurement, GoodsReceipt) returned empty for every submitted indent.
+
+This is the root cause of "SUPERVISOR approval page is empty" and "DEPTHEAD approval queue is empty".
+
+**Fix:** Removed `AND i.status.id = 1` from all five queries:
+- `findRmQueueForEmployees` — RM (SUPERVISOR) approval queue
+- `findDeptHeadQueueByDepartment` — DeptHead dept-scoped queue
+- `findDeptHeadQueue` — DeptHead global queue (ADMIN/SUPERADMIN)
+- `findProcurementQueue` — Procurement queue
+- `findGoodsReceiptQueue` — Goods Receipt queue
+
+The workflow stage is already uniquely determined by the three workflow columns (`approvedStatus`, `finalStatus`, `procurementStatus`); the `status` column filter adds no meaningful constraint and actively breaks every queue.
+
+---
+
+#### BUG 5 — DEPTHEAD list only shows own indents (Backend)
+
+**Files:** `backend/.../indent/IndentService.java` `filterIndents()` + `getPendingL2Approvals()` + `getPendingApprovals()`
+
+**Root cause:** DEPTHEAD scope used `cu.deptId()` (from `emp_department` FK on the logged-in user's employee record). Indents from subordinate employees have a `department.id` FK on the indent itself. If `emp_department` values are not consistently populated across test employees (or point to different rows), the dept-based filter silently misses all subordinates' indents.
+
+**Fix:** Replaced dept-based approach with 2-level hierarchy expansion for DEPTHEAD/PLANTMANAGER:
+1. Own employee number
+2. Direct reports (`employeeReportingRepository.findSubordinateNumbers(own)`)
+3. Their direct reports (one more level)
+
+Now calls `filterIndentsForCreators(empNumbers, ...)` — same query used by SUPERVISOR, just with a wider employee list.
+
+**Same fix applied to approval queues:**
+- Added `findDeptHeadQueueForCreators(List<Integer> empNumbers)` to `IndentRepository` — `approvedStatus=3 AND finalStatus=1 AND employee.employeeNumber IN :empNumbers`
+- `getPendingL2Approvals()`: replaced `findDeptHeadQueueByDepartment(deptId)` with `findDeptHeadQueueForCreators(hierEmpNumbers)`
+- `getPendingApprovals()`: added DEPTHEAD branch that routes to `getPendingL2Approvals()` (hierarchy-based) before falling through to the old global queue (which remains correct for ADMIN/SUPERADMIN)
+
+---
+
+**Files changed:**
+- `frontend/src/contexts/AuthContext.tsx` — Bug 1
+- `backend/.../indent/IndentService.java` — Bugs 2, 3, 5
+- `backend/.../indent/IndentRepository.java` — Bugs 4, 5
+
+**Build results:**
+- `mvn compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+
+---
