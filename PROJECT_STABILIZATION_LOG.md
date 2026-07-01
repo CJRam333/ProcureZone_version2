@@ -403,3 +403,94 @@ Every `ProtectedRoute` in `router.tsx` was audited. SUPERVISOR added to routes t
 **File changed:** `AuthContext.tsx`
 
 ---
+
+## 2026-07-01 (second entry)
+
+### Role-Based Indent and Issue Note Visibility + DEPTHEAD Confirmation Popup
+
+**Commit:** `adcd7d0`
+
+**Scope:** End-to-end visibility fix for the Indents list and Issue Notes list — each role now sees only the records it is entitled to. Accompanying UX: DEPTHEAD/PLANTMANAGER get an explicit confirmation dialog before submitting an indent, because their submit bypasses RM approval and goes directly to Procurement.
+
+---
+
+#### PART 1 + PART 2 — filterIndents() role-based routing (IndentService + IndentRepository)
+
+**Root cause:** `IndentService.filterIndents()` had a single block: if not ADMIN/SUPERADMIN, force `effectiveDeptId = cu.deptId()`. This incorrectly dept-scoped USER (should see only own indents), SUPERVISOR (should see own + subordinates), and PROCUREMENT (should see global, not their dept).
+
+**Fix — IndentService.filterIndents():** Replaced the flat dept-scope block with a priority chain:
+
+| Role | Visibility |
+|------|-----------|
+| ADMIN, SUPERADMIN, PROCUREMENT | Global — no scope restriction |
+| DEPTHEAD, PLANTMANAGER | All indents in their department (`cu.deptId()`) |
+| SUPERVISOR | Own indents + direct subordinates (`findSubordinateNumbers()`) |
+| USER (default) | Own indents only (`cu.employeeNumber()`) |
+
+DEPTHEAD/PLANTMANAGER continue to call the existing `filterIndents()` with `departmentId = cu.deptId()`. SUPERVISOR and USER call the new `filterIndentsForCreators()` with a list of employee numbers. ADMIN/SUPERADMIN/PROCUREMENT fall through to the unscoped `filterIndents()`.
+
+**Fix — IndentRepository:** Added `filterIndentsForCreators()` — same JPQL as `filterIndents()` except `i.employee.employeeNumber IN :empNumbers` replaces the `departmentId` clause. `@EntityGraph` identical to `filterIndents()`.
+
+**PART 4 note (verify only, no change):** `submitIndent()` auto-skip condition is `hasRoleByCode(empNum, "DEPTHEAD") && !hasSupervisor(empNum)`. SUPERVISOR role is NOT present — SUPERVISOR submits through the normal L1 flow. Confirmed correct, no change made.
+
+**Files changed:**
+- `backend/.../indent/IndentRepository.java` — added `filterIndentsForCreators()`
+- `backend/.../indent/IndentService.java` — replaced dept-scope block in `filterIndents()` with role-priority chain
+
+---
+
+#### PART 3 — DEPTHEAD confirmation popup (IndentFormPage)
+
+**Context:** When a DEPTHEAD or PLANTMANAGER submits an indent, `submitIndent()` auto-approves L1, routing directly to the Procurement queue. The user had no indication of this bypass.
+
+**Fix:** "Save & Submit" now triggers a two-step flow for DEPTHEAD/PLANTMANAGER:
+
+1. `handleSaveAndSubmit()` detects `isDeptHead` → stores form data in `pendingSubmitData`, opens `showDeptHeadConfirm` modal.
+2. `ConfirmDialog` renders with: title "Direct to Procurement", message "You are a Department Head. Your indent will skip RM approval and go directly to Procurement. Do you agree?", confirm "Yes, Submit Directly", cancel "Cancel", variant "warning".
+3. On confirm → `handleDeptHeadConfirm()` calls `doSaveAndSubmit()`.
+
+**Component used:** Existing `ConfirmDialog` at `frontend/src/components/common/ConfirmDialog.tsx`.
+
+**File changed:** `frontend/src/pages/indents/IndentFormPage.tsx`
+
+---
+
+#### PART 5 — Same visibility fix applied to Issue Notes (IssueNoteService + IssueNoteRepository)
+
+**Root cause:** `IssueNoteService.getAll()` had no role-based scoping — all roles saw all issue notes.
+
+**Fix — IssueNoteService.getAll():** Same role priority chain as Indents. ISSUECONFIRM added to the global group (alongside ADMIN/SUPERADMIN/PROCUREMENT).
+
+Injected `EmployeeReportingRepository` into `IssueNoteService` (previously not present).
+
+**Fix — IssueNoteRepository:** Added `filterIssueNotesForCreators()` — same JPQL as `filterIssueNotes()` except `i.createdBy IN :empNumbers` (IssueNote uses a raw Integer column, not an Employee relation).
+
+**Note:** `filterIssueNotes()` already existed (added 2026-06-29). Only `filterIssueNotesForCreators()` was new.
+
+**Files changed:**
+- `backend/.../issuenote/IssueNoteRepository.java` — added `filterIssueNotesForCreators()`
+- `backend/.../issuenote/IssueNoteService.java` — added `EmployeeReportingRepository` field + role-priority chain in `getAll()`
+
+---
+
+#### PART 6 — Role-aware page titles (IndentsListPage, IssueNotesListPage)
+
+| Role | Indents title | Issue Notes title |
+|------|--------------|-------------------|
+| ADMIN / SUPERADMIN / PROCUREMENT | All Indents | All Issue Notes |
+| DEPTHEAD / PLANTMANAGER | Department Indents | Department Issue Notes |
+| SUPERVISOR | My Team Indents | My Team Issue Notes |
+| USER (default) | My Indents | My Issue Notes |
+
+**Files changed:**
+- `frontend/src/pages/indents/IndentsListPage.tsx`
+- `frontend/src/pages/issue-notes/IssueNotesListPage.tsx`
+
+---
+
+**Build results:**
+- `mvn compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in 32.61s, 0 errors (pre-existing chunk-size warning unrelated to this change)
+
+---
