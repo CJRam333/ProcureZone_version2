@@ -69,6 +69,10 @@ const IndentDetailPage: React.FC = () => {
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [procSubStatus, setProcSubStatus] = useState<number>(5);
+  const [procPoNumber, setProcPoNumber] = useState('');
+  const [procDeliveryDate, setProcDeliveryDate] = useState('');
+  const [procRemarks, setProcRemarks] = useState('');
 
   // Validate id parameter
   const numericId = id ? Number(id) : Number.NaN;
@@ -110,6 +114,20 @@ const IndentDetailPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['indents'] });
       setShowRejectModal(false);
       setRejectionReason('');
+    },
+    onError: (err) => setError(getErrorMessage(err)),
+  });
+
+  const procurementUpdateMutation = useMutation({
+    mutationFn: () => indentsApi.procurementUpdate(numericId, {
+      procurementSubStatus: procSubStatus,
+      ...(procSubStatus === 7 && { poNumber: procPoNumber, deliveryDate: procDeliveryDate }),
+      ...(procSubStatus === 8 && { remarks: procRemarks }),
+      ...(procSubStatus === 9 && { deliveryDate: procDeliveryDate }),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indent', id] });
+      queryClient.invalidateQueries({ queryKey: ['indents'] });
     },
     onError: (err) => setError(getErrorMessage(err)),
   });
@@ -195,6 +213,9 @@ const IndentDetailPage: React.FC = () => {
     : awaitingProcurement ? 'Procurement Approve'
     : 'Approve';
 
+  const isProcurementStage = finalStatusId === 4 && procurementStatusIdVal >= 4 && procurementStatusIdVal <= 9;
+  const canUpdateProcurement = isProcurementStage && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']);
+
   return (
     <div>
       <PageHeader
@@ -273,6 +294,72 @@ const IndentDetailPage: React.FC = () => {
           </div>
         </Card.Body>
       </Card>
+
+      {canUpdateProcurement && (
+        <Card className="mb-4">
+          <Card.Header>
+            <h5 className="mb-0">Procurement Status Update</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row className="g-3 align-items-end">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Status</Form.Label>
+                  <Form.Select value={procSubStatus} onChange={(e) => { setProcSubStatus(Number(e.target.value)); setProcPoNumber(''); setProcDeliveryDate(''); setProcRemarks(''); }}>
+                    <option value={5}>Quotations Collected</option>
+                    <option value={6}>Negotiation Done</option>
+                    <option value={7}>PO Released</option>
+                    <option value={8}>Hold</option>
+                    <option value={9}>Cash Buy</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              {procSubStatus === 7 && (
+                <>
+                  <Col md={3}>
+                    <Form.Group>
+                      <Form.Label>PO Number</Form.Label>
+                      <Form.Control value={procPoNumber} onChange={(e) => setProcPoNumber(e.target.value)} placeholder="PO Number" />
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group>
+                      <Form.Label>Delivery Date</Form.Label>
+                      <Form.Control type="date" value={procDeliveryDate} onChange={(e) => setProcDeliveryDate(e.target.value)} />
+                    </Form.Group>
+                  </Col>
+                </>
+              )}
+              {procSubStatus === 8 && (
+                <Col md={5}>
+                  <Form.Group>
+                    <Form.Label>Remarks</Form.Label>
+                    <Form.Control value={procRemarks} onChange={(e) => setProcRemarks(e.target.value)} placeholder="Reason for hold..." />
+                  </Form.Group>
+                </Col>
+              )}
+              {procSubStatus === 9 && (
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Delivery Date</Form.Label>
+                    <Form.Control type="date" value={procDeliveryDate} onChange={(e) => setProcDeliveryDate(e.target.value)} />
+                  </Form.Group>
+                </Col>
+              )}
+              <Col md="auto">
+                <Button
+                  variant="primary"
+                  onClick={() => procurementUpdateMutation.mutate()}
+                  disabled={procurementUpdateMutation.isPending}
+                >
+                  {procurementUpdateMutation.isPending && <Spinner as="span" animation="border" size="sm" className="me-2" />}
+                  Update Status
+                </Button>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+      )}
 
       <Tabs defaultActiveKey="details" className="mb-4">
         {/* Details Tab */}

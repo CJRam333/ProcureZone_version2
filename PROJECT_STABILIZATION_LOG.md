@@ -2,6 +2,53 @@
 
 ---
 
+## 2026-07-02
+
+### Procurement Role — UI Workflow + Route Access + Filter Cleanup
+
+**Scope:** Four-part task completing PROCUREMENT role integration in the frontend: module access via issue-notes routes, procurement status update sub-workflow on indent detail, Stores issue/reject on issue note detail, and filter cleanup.
+
+**Changes:**
+
+#### PART 1 — Issue Notes module: add PROCUREMENT to route guards
+- `frontend/src/routes/router.tsx` — Added `'PROCUREMENT'` to both `issue-notes` list (index) and `issue-notes/:id` detail ProtectedRoute roles arrays.
+- Backend GET list `@PreAuthorize` already included PROCUREMENT — no backend change needed.
+
+#### PART 2 — Indent detail: procurement sub-status update UI
+- `frontend/src/api/indents.ts` — Added `procurementUpdate(id, data)` calling `POST /api/v1/indents/{id}/procurement-update` with `{ procurementSubStatus, poNumber?, deliveryDate?, remarks? }`.
+- `frontend/src/pages/indents/IndentDetailPage.tsx`:
+  - Added state: `procSubStatus` (default 5), `procPoNumber`, `procDeliveryDate`, `procRemarks`.
+  - Added `procurementUpdateMutation`.
+  - Added `isProcurementStage = finalStatusId === 4 && procurementStatusIdVal >= 4 && procurementStatusIdVal <= 9` flag.
+  - Added `canUpdateProcurement = isProcurementStage && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT'])`.
+  - Rendered inline "Procurement Status Update" card (no modal) with a dropdown (Quotations Collected=5, Negotiation Done=6, PO Released=7, Hold=8, Cash Buy=9) and conditional extra fields: PO Released shows poNumber + deliveryDate; Hold shows remarks; Cash Buy shows deliveryDate.
+
+#### PART 3 — Issue note detail: Goods Issued + Reject (Stores) buttons
+- `frontend/src/pages/issue-notes/IssueNoteDetailPage.tsx`:
+  - Fixed `canIssue`: was checking flat `status` enum (`APPROVED_BY_MANAGER || PENDING_STORE_ISSUE`). Now uses two-column: `issueNote.approvedStatus === 3 && issueNote.storesByStatus === 1`.
+  - Added `showStoresRejectModal`, `storesRejectReason` state.
+  - Added `storesRejectMutation` calling `issueNotesApi.storesReject(id, { reason })` → `POST /issue-notes/{id}/reject-stores`.
+  - Renamed "Issue Materials" button to "Goods Issued".
+  - Added "Reject (Stores)" button alongside "Goods Issued" when `canIssue`.
+  - Added Stores Rejection modal with required reason field.
+
+#### PART 4 — Remove Goods Receipt / Goods Issued from indent status filter
+- `frontend/src/pages/indents/IndentsListPage.tsx`:
+  - Removed `'Goods Receipt'` (procurementStatus=10) and `'Goods Issued'` (procurementStatus=11) from `STATUS_FILTERS` map.
+  - Removed corresponding `<option>` elements from the status dropdown.
+  - `IndentReportPage.tsx` has no status dropdown — no change needed there.
+
+**Confirmed clean (no change needed):**
+- PROCUREMENT already in `filterIndents()` `isGlobal` group in `IndentService.java` ✓
+- `issueNotesApi.storesReject()` already implemented in `issueNotes.ts` ✓
+- Backend `POST /api/v1/indents/{id}/procurement-update` already exists with correct `@PreAuthorize("hasAnyRole('PROCUREMENT', 'ADMIN', 'SUPERADMIN')")` ✓
+
+**Build:** Clean (`tsc -b && vite build` — 0 TypeScript errors)
+
+**Commit:** (see git log)
+
+---
+
 ## 2026-07-01
 
 ### SUPERVISOR Role — Complete End-to-End Audit and Fix

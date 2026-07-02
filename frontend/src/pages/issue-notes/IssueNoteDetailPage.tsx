@@ -41,9 +41,11 @@ const IssueNoteDetailPage: React.FC = () => {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showStoresRejectModal, setShowStoresRejectModal] = useState(false);
   const [approvalComments, setApprovalComments] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [issueRemarks, setIssueRemarks] = useState('');
+  const [storesRejectReason, setStoresRejectReason] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // Fetch issue note details
@@ -96,11 +98,23 @@ const IssueNoteDetailPage: React.FC = () => {
     onError: (err) => setError(getErrorMessage(err)),
   });
 
+  const storesRejectMutation = useMutation({
+    mutationFn: () => issueNotesApi.storesReject(Number(id), { reason: storesRejectReason }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['issue-note', id] });
+      queryClient.invalidateQueries({ queryKey: ['issue-notes'] });
+      setShowStoresRejectModal(false);
+      setStoresRejectReason('');
+    },
+    onError: (err) => setError(getErrorMessage(err)),
+  });
+
   // Permissions based on status enum (backend 1-based, 10 statuses)
   const canEdit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
   const canSubmit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
   const canApprove = (issueNote?.status === IssueNoteStatus.PENDING_RM_APPROVAL || issueNote?.status === IssueNoteStatus.RM_APPROVED) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD', 'SUPERVISOR']);
-  const canIssue = (issueNote?.status === IssueNoteStatus.APPROVED_BY_MANAGER || issueNote?.status === IssueNoteStatus.PENDING_STORE_ISSUE) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
+  // Two-column check: approvedStatus=3 (RM approved) AND storesByStatus=1 (pending store issue)
+  const canIssue = issueNote?.approvedStatus === 3 && issueNote?.storesByStatus === 1 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
 
   // Status color mapping based on backend enum values (1-10)
   const getStatusVariant = (status: IssueNoteStatus): string => {
@@ -250,9 +264,14 @@ const IssueNoteDetailPage: React.FC = () => {
               </>
             )}
             {canIssue && (
-              <Button variant="info" onClick={() => setShowIssueModal(true)}>
-                <FaBoxOpen className="me-2" /> Issue Materials
-              </Button>
+              <>
+                <Button variant="info" onClick={() => setShowIssueModal(true)}>
+                  <FaBoxOpen className="me-2" /> Goods Issued
+                </Button>
+                <Button variant="danger" onClick={() => setShowStoresRejectModal(true)}>
+                  <FaTimes className="me-2" /> Reject (Stores)
+                </Button>
+              </>
             )}
           </div>
         </Card.Body>
@@ -656,6 +675,42 @@ const IssueNoteDetailPage: React.FC = () => {
               <Spinner as="span" animation="border" size="sm" className="me-2" />
             )}
             <FaBoxOpen className="me-2" /> Issue Materials
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Stores Reject Modal */}
+      <Modal show={showStoresRejectModal} onHide={() => setShowStoresRejectModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Reject (Stores)</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Reject issue note <strong>{issueNote.issueNumber}</strong> — materials cannot be issued from stores?</p>
+          <Form.Group>
+            <Form.Label>Rejection Reason <span className="text-danger">*</span></Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={storesRejectReason}
+              onChange={(e) => setStoresRejectReason(e.target.value)}
+              placeholder="Provide a reason (e.g. insufficient stock)..."
+              required
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowStoresRejectModal(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => storesRejectMutation.mutate()}
+            disabled={storesRejectMutation.isPending || !storesRejectReason.trim()}
+          >
+            {storesRejectMutation.isPending && (
+              <Spinner as="span" animation="border" size="sm" className="me-2" />
+            )}
+            Reject (Stores)
           </Button>
         </Modal.Footer>
       </Modal>

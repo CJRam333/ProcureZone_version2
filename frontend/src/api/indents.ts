@@ -330,6 +330,14 @@ export const indentsApi = {
         return response.data;
     },
 
+    procurementUpdate: async (
+        id: number,
+        data: { procurementSubStatus: number; poNumber?: string; deliveryDate?: string; remarks?: string }
+    ): Promise<Indent> => {
+        const response = await apiClient.post<Indent>(`/indents/${id}/procurement-update`, data);
+        return response.data;
+    },
+
     getStatistics: async (): Promise<any> => {
         const response = await apiClient.get("/indents/statistics");
         return response.data;

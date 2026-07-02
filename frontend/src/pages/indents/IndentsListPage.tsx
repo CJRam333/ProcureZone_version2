@@ -40,8 +40,6 @@ const DISPLAY_STATUS_FILTERS: Record<string, { approvedStatus?: number; finalSta
   'PO Released':          { approvedStatus: 3, finalStatus: 4, procurementStatus: 7 },
   'Hold':                 { approvedStatus: 3, finalStatus: 4, procurementStatus: 8 },
   'Cash Buy':             { approvedStatus: 3, finalStatus: 4, procurementStatus: 9 },
-  'Goods Receipt':        { approvedStatus: 3, finalStatus: 4, procurementStatus: 10 },
-  'Goods Issued':         { approvedStatus: 3, finalStatus: 4, procurementStatus: 11 },
 };
 
 const IndentsListPage: React.FC = () => {
@@ -259,8 +257,6 @@ const IndentsListPage: React.FC = () => {
                 <option value="PO Released">PO Released</option>
                 <option value="Hold">Hold</option>
                 <option value="Cash Buy">Cash Buy</option>
-                <option value="Goods Receipt">Goods Receipt</option>
-                <option value="Goods Issued">Goods Issued</option>
               </Form.Select>
             </Col>
             <Col md="auto">
