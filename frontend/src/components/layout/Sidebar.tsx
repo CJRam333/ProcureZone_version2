@@ -129,7 +129,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       path: '/issue-notes',
       label: 'Issue Notes',
       icon: <FaClipboardList />,
-      roles: ['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'ISSUECONFIRM', 'SUPERVISOR'],
+      roles: ['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'ISSUECONFIRM', 'SUPERVISOR', 'PROCUREMENT'],
       moduleCode: 'ISSUE_NOTES',
     },
     {

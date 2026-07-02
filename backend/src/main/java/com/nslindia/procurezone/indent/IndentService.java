@@ -266,17 +266,29 @@ public class IndentService {
                 //   USER             → own indents only (creator = self)
                 //   SUPERVISOR       → own + direct subordinates' indents
                 //   DEPTHEAD / PLANTMANAGER → all indents in their department
-                //   PROCUREMENT / ADMIN / SUPERADMIN → global (no scope restriction)
+                //   PROCUREMENT      → only indents that reached procurement stage (approvedStatus=3, finalStatus=4)
+                //   ADMIN / SUPERADMIN → global (no scope restriction)
                 var auth = org.springframework.security.core.context.SecurityContextHolder
                         .getContext().getAuthentication();
                 if (auth != null && auth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal cu) {
                         java.util.Set<String> roles = cu.roles();
                         boolean isGlobal = roles.stream().anyMatch(r ->
-                                "SUPERADMIN".equals(r) || "ADMIN".equals(r) || "PROCUREMENT".equals(r));
-                        boolean isDeptScoped = !isGlobal && roles.stream().anyMatch(r ->
+                                "SUPERADMIN".equals(r) || "ADMIN".equals(r));
+                        boolean isProcurement = !isGlobal && roles.contains("PROCUREMENT");
+                        boolean isDeptScoped = !isGlobal && !isProcurement && roles.stream().anyMatch(r ->
                                 "DEPTHEAD".equals(r) || "PLANTMANAGER".equals(r));
-                        boolean isSupervisor = !isGlobal && !isDeptScoped && roles.contains("SUPERVISOR");
-                        boolean isUserOnly   = !isGlobal && !isDeptScoped && !isSupervisor;
+                        boolean isSupervisor = !isGlobal && !isProcurement && !isDeptScoped && roles.contains("SUPERVISOR");
+                        boolean isUserOnly   = !isGlobal && !isProcurement && !isDeptScoped && !isSupervisor;
+
+                        if (isProcurement) {
+                                // PROCUREMENT sees only indents that reached the procurement stage:
+                                // approvedStatus=3 (RM approved) + finalStatus=4 (DeptHead approved, forwarded to procurement).
+                                // procurementStatus is passed through so the user can still filter by sub-stage.
+                                return indentRepository
+                                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
+                                                        3, 4, procurementStatusId, pageable)
+                                                .map(this::toIndentListResponse);
+                        }
 
                         if (isDeptScoped && cu.employeeNumber() != null) {
                                 // 2-level hierarchy: own + direct reports + their direct reports
@@ -1010,7 +1022,11 @@ public class IndentService {
                 indent.setFinalApprovedDate(LocalDateTime.now());
                 indent.setFinalRemarks(request.remarks());
                 indent.setStatus(entityManager.getReference(IndentStatus.class, 3)); // Department Head Approved
-                indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 3));
+                // Three-column state must be (approvedStatus=3, finalStatus=4, procurementStatus=4)
+                // so deriveDisplayStatus() returns "Dept. Head Approved" and the frontend
+                // awaitingProcurement flag fires correctly.
+                indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 4));
+                indent.setProcurementStatus(entityManager.getReference(IndentStatus.class, 4));
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
@@ -1347,8 +1363,13 @@ public class IndentService {
                 indent.setFinalApprovedBy(currentUser);
                 indent.setFinalApprovedDate(LocalDateTime.now());
                 indent.setFinalRemarks(remarks);
-                indent.setStatus(entityManager.getReference(IndentStatus.class, 5)); // PROCUREMENT_IN_PROGRESS
-                indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 5));
+                // status=5 keeps the smart-router routing PROCUREMENT's next action to procurementApproveIndent()
+                indent.setStatus(entityManager.getReference(IndentStatus.class, 5));
+                // Three-column state must be (approvedStatus=3, finalStatus=4, procurementStatus=4)
+                // so deriveDisplayStatus() returns "Dept. Head Approved" and the frontend
+                // awaitingProcurement flag fires. finalStatus=4 NOT 5 — the matrix entry is (3,4,4).
+                indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 4));
+                indent.setProcurementStatus(entityManager.getReference(IndentStatus.class, 4));
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 

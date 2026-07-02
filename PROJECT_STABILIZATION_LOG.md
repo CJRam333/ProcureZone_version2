@@ -4,6 +4,85 @@
 
 ## 2026-07-02
 
+### l2Approve() Status Corruption + PROCUREMENT Sidebar + Procurement Scope
+
+**Root cause — "In Progress" phantom status after DeptHead approval:**
+
+`finalApproveIndent()` (called by the smart-route ApprovalController when status=3) and
+`l2Approve()` (called by the legacy `/indents/{id}/l2-approve` endpoint) both produced
+invalid three-column triples that fell through `deriveDisplayStatus()` to the "In Progress"
+fallback, making DeptHead-approved indents show the wrong status and making the entire
+procurement sub-workflow invisible to PROCUREMENT users.
+
+| Method | set status | set finalStatus | set procurementStatus | triple | display |
+|---|---|---|---|---|---|
+| `finalApproveIndent()` BEFORE | 5 | **5** ← wrong | never set → 1 | (3,5,1) | "In Progress" |
+| `finalApproveIndent()` AFTER | 5 | **4** ✓ | **4** ✓ | (3,4,4) | "Dept. Head Approved" |
+| `l2Approve()` BEFORE | 3 | **3** ← wrong | never set → 1 | (3,3,1) | "In Progress" |
+| `l2Approve()` AFTER | 3 | **4** ✓ | **4** ✓ | (3,4,4) | "Dept. Head Approved" |
+
+The `status=5` in `finalApproveIndent()` is intentionally kept so the smart-router can
+route the PROCUREMENT user's subsequent "Procurement Approve" click to `procurementApproveIndent()`.
+The display label comes from the three-column triple, not from `status`.
+
+**Root cause — PROCUREMENT sidebar Issue Notes not visible:**
+
+The Issue Notes sidebar item had `roles: [SUPERADMIN, ADMIN, USER, DEPTHEAD, ISSUECONFIRM, SUPERVISOR]`
+— PROCUREMENT was absent. The `activeNavItems` filter requires BOTH `hasAnyRole(item.roles)` AND
+`hasModuleAccess(item.moduleCode)` to pass. PROCUREMENT failed the first check immediately,
+short-circuiting the module check. The router.tsx fix from the previous commit was necessary
+but insufficient — route guards prevent 403 on direct URL, but the sidebar never showed the link.
+
+**Sidebar audit — PROCUREMENT presence by nav item:**
+
+| Item | roles restricted? | PROCUREMENT included? | Action |
+|---|---|---|---|
+| Dashboard | No | Yes (no restriction) | None needed |
+| Indents | No (moduleCode only) | Yes (no role gate) | None needed |
+| Plant Indent | No (moduleCode only) | Yes (no role gate) | None needed |
+| Issue Notes | Yes | **Added** ✓ | Fixed |
+| Purchase Orders | Yes | Yes (already present) | None needed |
+| Reports group | Yes | No — `[SUPERADMIN, ADMIN, DEPTHEAD, SUPERVISOR]` | Not fixed (separate task) |
+| Confirmations | Yes | No — not a procurement workflow item | Not fixed |
+| GRN | Yes (future) | No — future item, greyed for all | None needed |
+| Quality Control | Yes (future) | No — future item | None needed |
+
+**FIX — PROCUREMENT indent list scoping:**
+
+Removed PROCUREMENT from the `isGlobal` group in `filterIndents()`. Added a dedicated
+`isProcurement` branch that forces `approvedStatusId=3` and `finalStatusId=4` as mandatory
+filters, ensuring PROCUREMENT only sees indents that have fully cleared the approval chain
+and landed in the procurement queue. The user-selected `procurementStatusId` is passed through
+so PROCUREMENT can still filter by sub-stage (Quotations Collected, PO Released, etc.).
+
+**Data repair SQL:**
+
+Written to `docs/fix-l2-approved-indents.sql` — covers both corruption paths:
+- Path A: `(3, 5, 1)` with `status=5` — from `finalApproveIndent()` smart-route
+- Path B: `(3, 3, 1)` with `status=3` — from `l2Approve()` legacy endpoint
+Business owner reviews SELECT output, then uncomments and runs the UPDATE for each path.
+
+**Execution path clarification:**
+
+The smart-route `POST /api/v1/approvals/indents/{id}/approve` (ApprovalController) is the
+**primary path** used by the current frontend (`indentsApi.approve()`). It routes:
+- status=2 → `approveIndent()` (RM L1 approval: sets status=3, approvedStatus=3)
+- status=3 → `finalApproveIndent()` ← **real DeptHead approval path**
+- status=5 → `procurementApproveIndent()`
+
+`l1Approve()` / `l2Approve()` are reached only via the legacy
+`POST /api/v1/indents/{id}/l1-approve` and `/l2-approve` endpoints in IndentController.
+Both methods are now also fixed for consistency.
+
+**Files changed:**
+- `backend/.../indent/IndentService.java` — `finalApproveIndent()`: finalStatus 5→4, procurementStatus added as 4; `l2Approve()`: finalStatus 3→4, procurementStatus added as 4; `filterIndents()`: PROCUREMENT removed from isGlobal, new isProcurement branch added
+- `frontend/src/components/layout/Sidebar.tsx` — Issue Notes roles: PROCUREMENT added
+- `docs/fix-l2-approved-indents.sql` — new: manual data repair for production
+
+**Build:** Backend `mvn compile` clean. Frontend `tsc -b && vite build` clean.
+
+---
+
 ### Procurement Role — UI Workflow + Route Access + Filter Cleanup
 
 **Scope:** Four-part task completing PROCUREMENT role integration in the frontend: module access via issue-notes routes, procurement status update sub-workflow on indent detail, Stores issue/reject on issue note detail, and filter cleanup.
