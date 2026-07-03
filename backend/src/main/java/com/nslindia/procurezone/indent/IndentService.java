@@ -74,29 +74,55 @@ public class IndentService {
 
         /**
          * Derives the user-visible operational status label from the three workflow FK columns.
-         * Mirrors the legacy JSP compound matrix. Returns "In Progress" for unrecognised combinations.
+         * Hierarchical: RM stage decides first (approvedStatus), then Dept Head (finalStatus),
+         * then procurement sub-stage (procurementStatus). Covers every combination observed in
+         * production data (including legacy edge cases 3-5-6, 2-2-2, 4-1-1 and the pre-repair
+         * corruption triples 3-3-x / 3-5-x). "In Progress" is a true fallback and should be
+         * extremely rare.
          */
-        private static String deriveDisplayStatus(
+        static String deriveDisplayStatus(
                         Integer approvedId, Integer finalId, Integer procurementId) {
 
-                if (approvedId == null || finalId == null || procurementId == null)
-                        return "Pending";
+                if (approvedId == null) return "Pending";
 
-                if (approvedId == 1 && finalId == 1 && procurementId == 1) return "Pending";
-                if (approvedId == 2 && finalId == 1 && procurementId == 1) return "RM Rejected";
-                if (approvedId == 3 && finalId == 1 && procurementId == 1) return "RM Approved";
-                if (approvedId == 3 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
-                if (approvedId == 2 && finalId == 2 && procurementId == 2) return "Dept. Head Rejected";
-                if (approvedId == 3 && finalId == 4 && procurementId == 4) return "Dept. Head Approved";
-                if (approvedId == 3 && finalId == 4 && procurementId == 5) return "Quotations Collected";
-                if (approvedId == 3 && finalId == 4 && procurementId == 6) return "Negotiation Done";
-                if (approvedId == 3 && finalId == 4 && procurementId == 7) return "PO Released";
-                if (approvedId == 3 && finalId == 4 && procurementId == 8) return "Hold";
-                if (approvedId == 3 && finalId == 4 && procurementId == 9) return "Cash Buy";
-                if (approvedId == 3 && finalId == 4 && procurementId == 10) return "Goods Receipt";
-                if (approvedId == 3 && finalId == 4 && procurementId == 11) return "Goods Issued";
+                // RM stage
+                if (approvedId == 1) return "Pending RM Approval";
+                if (approvedId == 2) return "RM Rejected";
 
-                return "In Progress";
+                // approvedId == 3 (RM approved) — now look at final status
+                if (approvedId == 3) {
+                        if (finalId == null || finalId == 1) return "RM Approved"; // awaiting Dept Head
+                        if (finalId == 2) return "Dept. Head Rejected";
+
+                        // finalId == 4 (Dept Head approved) — now look at procurement status
+                        if (finalId == 4) {
+                                if (procurementId == null || procurementId <= 4) return "Dept. Head Approved";
+                                if (procurementId == 5) return "Quotations Collected";
+                                if (procurementId == 6) return "Negotiation Done";
+                                if (procurementId == 7) return "PO Released";
+                                if (procurementId == 8) return "Hold";
+                                if (procurementId == 9) return "Cash Buy";
+                                if (procurementId == 10) return "Goods Receipt";
+                                if (procurementId == 11) return "Goods Issued";
+                                return "In Procurement";
+                        }
+
+                        // finalId == 3 — legacy l2Approve corruption (3,3,x) before the 2026-07-02
+                        // code fix; rows remain until the owner runs docs/fix-l2-approved-indents.sql
+                        if (finalId == 3) return "Dept. Head Approved";
+
+                        // finalId == 5 — legacy edge case (appears in production as 3,5,6 and as
+                        // pre-repair 3,5,1 from the old finalApproveIndent bug)
+                        if (finalId == 5) {
+                                if (procurementId != null && procurementId == 6) return "Negotiation Done";
+                                return "In Procurement";
+                        }
+                }
+
+                // approvedId == 4 — legacy edge (4,1,1) — treat as approved / in workflow
+                if (approvedId == 4) return "RM Approved";
+
+                return "In Progress"; // true fallback — should now be extremely rare
         }
 
         private final IndentRepository indentRepository;

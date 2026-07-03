@@ -81,6 +81,84 @@ Removed the now-unused `STATUS_PROCUREMENT_APPROVED` constant; added `PROC_SUB_L
 
 ## 2026-07-02
 
+### deriveDisplayStatus() Complete Matrix + Flowchart/Submit Decoupled from Spring Status
+
+**Root cause:** `deriveDisplayStatus()` only matched a handful of exact triples; the 562
+production PO Released indents `(3,4,7)` and 12 other real combinations fell through to the
+`"In Progress"` fallback. Separately, the detail-page flowchart's "Submitted" stage and the
+"Submit for Approval" button keyed off the Spring single-column `status` — which migrated
+legacy rows carry as `1` (legacy used `indent_status` as an active flag) — so old indents
+deep in the workflow showed "Not yet submitted" and a live Submit button.
+
+**FIX 1 — deriveDisplayStatus() rewritten as a hierarchical decision tree** (`IndentService.java`):
+
+RM stage decides first (`approvedStatus`), then Dept Head (`finalStatus`), then procurement
+sub-stage (`procurementStatus`). Wildcard matching per level instead of exact-triple matching.
+All 13 production combinations verified by unit test (`DeriveDisplayStatusTest`, 4 tests green):
+
+| Triple | Label | Triple | Label |
+|---|---|---|---|
+| (3,4,7) ×562 | PO Released | (2,2,2) | RM Rejected |
+| (3,4,8) ×39 | Hold | (3,4,5) | Quotations Collected |
+| (3,4,9) ×34 | Cash Buy | (4,1,1) | RM Approved (legacy edge) |
+| (2,1,1) ×23 | RM Rejected | (3,4,6) | Negotiation Done |
+| (3,4,4) ×11 | Dept. Head Approved | (1,1,1) | Pending RM Approval |
+| (3,2,2) ×10 | Dept. Head Rejected | (3,5,6) | Negotiation Done (legacy edge) |
+| (3,1,1) ×10 | RM Approved | | |
+
+Defensive extras beyond the production list: `(3,3,x)` → "Dept. Head Approved" and `(3,5,1)` →
+"In Procurement" (pre-repair corruption triples, correct display until the owner runs
+`docs/fix-l2-approved-indents.sql`); `(3,4,10/11)` Goods Receipt/Issued preserved;
+`(3,4,≤4)` and null procurement → "Dept. Head Approved". `"In Progress"` remains only as a
+true fallback. **Accessor confirmed:** the three columns are `IndentStatus` entity references
+on `Indent`; the integer is extracted with `.getId()` (null-guarded) at both call sites
+(`toIndentResponse`, `toIndentListResponse`). Method visibility changed private→package-private
+for the unit test.
+
+New labels "Pending RM Approval" (warning) and "In Procurement" (indigo) added to
+`INDENT_STATUS_COLORS`; the list-page filter option "Pending" renamed to match.
+
+**FIX 2 — Flowchart driven purely by the three-column model** (`IndentDetailPage.tsx`):
+
+"Submitted" now always renders green — any persisted indent has entered the workflow; the
+Spring status is never consulted. Stage rules: RM green when `approved∈{3,4}`, red when `2`,
+amber when `1`; Dept Head green when `final∈{3,4,5}` (legacy ids included), red when `2`,
+amber when RM-approved and `final=1`; Procurement reached once Dept Head approved, green when
+`proc≥5` with the sub-stage label, amber "Awaiting Procurement" when `proc<5`. Rejection at
+either level terminates the flow (later stages grey).
+
+**FIX 3 — Submit (and Edit) button only for true drafts** (`IndentDetailPage.tsx`):
+
+**Finding from `createIndent()`:** drafts are created with `approvedStatus=1, finalStatus=1,
+procurementStatus=1` immediately — identical three-column state to a submitted indent. The
+draft/submitted distinction lives ONLY in the Spring column (`status` 1=Draft → 2=Submitted via
+`submitIndent()`). Therefore the task's literal condition (`approvedStatusId == null || === 0`)
+would never be true for ANY indent and would kill the submit path for genuine new-app drafts —
+NOT implemented as written. Implemented instead:
+`isTrueDraft = status=1 AND approved=1 AND final=1 AND procurement=1` — hides Submit/Edit on
+every in-workflow production combination listed above. Residual ambiguity: legacy rows at
+exactly `(1,1,1)` with `status=1` are indistinguishable from new-app drafts; those still show
+the button (clicking it is benign — sets status=2 and notifies RM). If desired the owner can
+bulk-set `indent_status=2` on legacy `(1,1,1)` rows by import-date cutoff. The list page has
+no submit button (verified).
+
+**FIX 4 — Single source of truth confirmed:** both `toIndentResponse` and `toIndentListResponse`
+call `deriveDisplayStatus`; Indent list, detail, approval page, and IndentReportPage all render
+`displayStatus`; CSV/Excel export (`IndentController` lines ~172/212) already uses
+`r.displayStatus()` with `statusName` fallback. No page computes labels independently.
+
+**Files changed:**
+- `backend/.../indent/IndentService.java` — deriveDisplayStatus rewrite
+- `backend/src/test/java/.../indent/DeriveDisplayStatusTest.java` — new: 13-combination verification
+- `frontend/src/pages/indents/IndentDetailPage.tsx` — flowchart + isTrueDraft gating
+- `frontend/src/pages/indents/IndentsListPage.tsx` — filter label rename
+- `frontend/src/constants/indentStatus.ts` — 2 new labels
+
+**Build:** `mvn compile` clean; `mvn test -Dtest=DeriveDisplayStatusTest` 4/4 green;
+`tsc -b && vite build` clean.
+
+---
+
 ### l2Approve() Status Corruption + PROCUREMENT Sidebar + Procurement Scope
 
 **Root cause — "In Progress" phantom status after DeptHead approval:**

@@ -30,7 +30,7 @@ const formatDate = (dateStr: string | null | undefined): string => {
 // Maps each display-status label to the three workflow-column IDs that produce it.
 // Derived from IndentService.deriveDisplayStatus() compound matrix.
 const DISPLAY_STATUS_FILTERS: Record<string, { approvedStatus?: number; finalStatus?: number; procurementStatus?: number }> = {
-  'Pending':              { approvedStatus: 1, finalStatus: 1, procurementStatus: 1 },
+  'Pending RM Approval':  { approvedStatus: 1, finalStatus: 1, procurementStatus: 1 },
   'RM Rejected':          { approvedStatus: 2, finalStatus: 1 },
   'RM Approved':          { approvedStatus: 3, finalStatus: 1 },
   'Dept. Head Rejected':  { finalStatus: 2 },
@@ -247,7 +247,7 @@ const IndentsListPage: React.FC = () => {
                 onChange={(e) => handleStatusFilter(e.target.value)}
               >
                 <option value="">All Statuses</option>
-                <option value="Pending">Pending</option>
+                <option value="Pending RM Approval">Pending RM Approval</option>
                 <option value="RM Approved">RM Approved</option>
                 <option value="RM Rejected">RM Rejected</option>
                 <option value="Dept. Head Approved">Dept. Head Approved</option>

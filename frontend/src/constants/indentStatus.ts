@@ -10,7 +10,9 @@
 
 export const INDENT_STATUS_COLORS: Record<string, string> = {
   // Regular indent statuses (three-column compound logic)
-  'Pending':              'warning',      // amber
+  'Pending':              'warning',      // amber (approvedStatus null)
+  'Pending RM Approval':  'warning',      // amber (approvedStatus=1) — same stage as Pending
+  'In Procurement':       'indigo',       // legacy finalStatus=5 edge — shares indigo with plant-only DEO Approved (never co-occur)
   'RM Approved':          'info',         // light blue
   'RM Rejected':          'danger',       // red
   'Dept. Head Approved':  'primary',      // blue

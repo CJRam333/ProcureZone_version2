@@ -211,9 +211,16 @@ const IndentDetailPage: React.FC = () => {
   // L2: RM approved, awaiting Dept Head (approvedStatus=3, finalStatus=1)
   const awaitingL2 = approvedStatusId === 3 && finalStatusId === 1;
 
+  // True unsubmitted draft: Spring status=1 (Draft) AND no workflow progress in the
+  // three-column model. Migrated legacy indents also carry status=1 (legacy used the
+  // column as an active flag), so the three-column check is what hides Edit/Submit
+  // on legacy rows that are already deep in the workflow (e.g. PO Released 3-4-7).
+  const isTrueDraft = statusId === STATUS_DRAFT
+    && approvedStatusId === 1 && finalStatusId === 1 && procurementStatusIdVal === 1;
+
   // Permissions — multi-stage approval
-  const canEdit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
-  const canSubmit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
+  const canEdit = isTrueDraft && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
+  const canSubmit = isTrueDraft && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
 
   // Approve/Reject buttons exist ONLY for the two approval stages:
   // L1 (RM Review):      SUPERVISOR acts when approvedStatus=1
@@ -485,28 +492,29 @@ const IndentDetailPage: React.FC = () => {
                 </Card.Header>
                 <Card.Body>
                   {(() => {
-                    // Stage states from the three-column workflow model:
-                    // RM Review:        approvedStatus 1=pending, 3=approved, 2=rejected
-                    // Dept Head Review: finalStatus    1=pending, 4=approved, 2=rejected
-                    // Procurement:      procurementStatus 4=arrived, 5-9=sub-stage
-                    const submitted = statusId >= STATUS_SUBMITTED;
-                    const rmApproved = approvedStatusId === 3;
+                    // Stage states derive PURELY from the three-column workflow model —
+                    // never from the Spring single-column status (legacy rows carry status=1
+                    // as an active flag, which wrongly read as "not yet submitted"):
+                    // RM Review:        approvedStatus 1=pending, 3=approved (4=legacy approved), 2=rejected
+                    // Dept Head Review: finalStatus    1=pending, 4=approved (3/5=legacy approved), 2=rejected
+                    // Procurement:      procurementStatus 4=arrived, 5+=sub-stage
+                    const rmApproved = approvedStatusId === 3 || approvedStatusId === 4;
                     const rmRejected = approvedStatusId === 2;
-                    const rmPending = submitted && approvedStatusId === 1;
-                    const dhApproved = rmApproved && finalStatusId === 4;
+                    const rmPending = approvedStatusId === 1;
+                    const dhApproved = rmApproved && (finalStatusId === 4 || finalStatusId === 3 || finalStatusId === 5);
                     const dhRejected = rmApproved && finalStatusId === 2;
                     const dhPending = rmApproved && finalStatusId === 1;
-                    const procReached = dhApproved && procurementStatusIdVal >= 4;
-                    const procDone = procReached && (procurementStatusIdVal === 7 || procurementStatusIdVal === 9);
+                    const procReached = dhApproved;
+                    const procDone = procReached && procurementStatusIdVal >= 5;
 
                     type StageState = 'done' | 'rejected' | 'pending' | 'unreached';
                     const stages: { label: string; state: StageState; detail?: React.ReactNode }[] = [
                       {
+                        // Any persisted indent visible here has entered the workflow —
+                        // this stage is always complete.
                         label: 'Submitted',
-                        state: submitted ? 'done' : 'pending',
-                        detail: submitted
-                          ? <span className="text-success">Submitted</span>
-                          : <span className="text-muted">Not yet submitted</span>,
+                        state: 'done',
+                        detail: <span className="text-success">Submitted</span>,
                       },
                       {
                         label: 'RM Review',
@@ -539,7 +547,7 @@ const IndentDetailPage: React.FC = () => {
                         state: procDone ? 'done' : procReached ? 'pending' : 'unreached',
                         detail: procReached
                           ? <span className={procDone ? 'text-success' : 'text-warning'}>
-                              {PROC_SUB_LABELS[procurementStatusIdVal] ?? 'In Procurement'}
+                              {PROC_SUB_LABELS[procurementStatusIdVal] ?? 'Awaiting Procurement'}
                             </span>
                           : undefined,
                       },
