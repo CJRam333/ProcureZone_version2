@@ -2,6 +2,83 @@
 
 ---
 
+## 2026-07-03
+
+### Procurement UI Fixes + Unique Status Colors + Approval Flowchart Correction
+
+**FIX 1 — Approve/Reject buttons removed for procurement stage (`IndentDetailPage.tsx`):**
+
+Previous `canApprove` had a third clause `(awaitingProcurement && hasAnyRole([SUPERADMIN, ADMIN, PROCUREMENT]))`
+that showed "Procurement Approve"/"Reject" buttons once an indent reached the procurement stage.
+Removed that clause — Approve/Reject now exist only for the two approval stages:
+L1 (SUPERVISOR when `approvedStatus=1`) and L2 (DEPTHEAD/PLANTMANAGER when `approvedStatus=3, finalStatus=1`).
+PROCUREMENT works exclusively through the Procurement Status Update card. The smart-route
+`status=5 → procurementApproveIndent()` branch is now unreachable from the UI by design.
+
+**FIX 2 — Procurement dropdown reflects saved sub-status on load:**
+
+The dropdown was `useState(5)` — always reset to "Quotations Collected" on reload even when the
+indent was already at PO Released. Added a `useEffect` that seeds the dropdown from
+`indent.procurementStatusId` when it is a valid sub-status (5–9). Value 4 means "arrived at
+procurement, no sub-status chosen yet" and keeps the default of 5.
+
+**FIX 3 — Lock after terminal status (PO Released / Cash Buy):**
+
+`isTerminalStatus = procurementStatusId === 7 || === 9`. When terminal, the editable card is
+replaced by a read-only summary card: badge + "Procurement complete — PO# XXX, Delivery: DATE".
+**Hold (8) is NOT terminal** — procurement can move a held indent to PO Released or Cash Buy later.
+The backend (`updateProcurementStatus`) places no restriction on transitions out of any sub-status
+(only requires `finalStatus=4`), and no legacy documentation indicates Hold was terminal, so this
+matches both. Note: the lock is UI-level only; the backend still accepts updates after 7/9.
+
+**FIX 4 — Unique color per status (`constants/indentStatus.ts` + `styles/main.scss`):**
+
+Before: heavy collisions — `info` shared by 4 statuses, `success` by 5, `danger` by 4, `secondary` by 4.
+After: every status in the regular indent workflow has a unique color. Approach chosen:
+**custom `.badge.bg-*` CSS classes in main.scss** (purple, orange, teal, cyan, dark-green, maroon,
+indigo, olive, pink, brown). Because react-bootstrap `<Badge bg={x}>` renders class `bg-{x}`,
+custom suffixes work through the existing `INDENT_STATUS_COLORS` lookup with **zero consumer changes** —
+Indent list, Indent detail, Plant Indent list, Issue Notes list, and IndentApprovalPage all pick the
+new colors up automatically. Also added `.badge.bg-light { color: #212529 }` so the In Progress
+fallback stays legible. Reports were the one gap: `IndentReportPage` (hardcoded `bg="secondary"`)
+and `IssueNoteReportPage` (local `statusBadgeColor()` by numeric id) now route through
+`INDENT_STATUS_COLORS` first.
+
+Key assignments: Pending=warning, RM Approved=info, RM Rejected=danger, Dept. Head Approved=primary,
+Dept. Head Rejected=maroon, Quotations Collected=secondary, Negotiation Done=purple, PO Released=success,
+Hold=orange, Cash Buy=teal, Goods Receipt=cyan, Goods Issued=dark-green, Stores Rejected=pink,
+In Progress=light. Reuse only where statuses can never co-occur in one view (plant-only 'Rejected'
+vs regular-only 'RM Rejected'; 'Completed' vs 'PO Released').
+
+**FIX 5 — Approval flowchart corrected (`IndentDetailPage.tsx`):**
+
+Before: a 3-step timeline (Submitted → Dept Head Approval → Final Approval) driven entirely by the
+legacy single `statusId` — wrong stage names and ignored the three-column model.
+After: a 4-stage stepper driven by the three-column state:
+
+| Stage | State source | Display |
+|---|---|---|
+| Submitted | `statusId >= 2` | ✓ done / grey |
+| RM Review | `approvedStatus` 1=pending, 3=approved, 2=rejected | ✓ / ✗ / amber Pending + approver name/date |
+| Dept Head Review | `finalStatus` 1=pending, 4=approved, 2=rejected (reachable only if RM approved) | ✓ / ✗ / amber Pending + approver name/date |
+| Procurement | `procurementStatus` 4=arrived, 5–9=sub-stage (reachable only if DH approved) | sub-stage label; ✓ when 7/9 |
+
+Rejection terminates the flow: RM rejected → Dept Head and Procurement render grey/unreached;
+same for Dept Head rejection. Red ✗ icon (FaTimes) marks the rejected stage, and the rejection
+alert below now says which level rejected ("Rejected by RM" / "Rejected by Dept Head").
+Removed the now-unused `STATUS_PROCUREMENT_APPROVED` constant; added `PROC_SUB_LABELS` map.
+
+**Files changed:**
+- `frontend/src/pages/indents/IndentDetailPage.tsx` — FIX 1, 2, 3, 5
+- `frontend/src/constants/indentStatus.ts` — FIX 4 color map
+- `frontend/src/styles/main.scss` — FIX 4 custom badge classes
+- `frontend/src/pages/reports/IndentReportPage.tsx` — FIX 4 reports consistency
+- `frontend/src/pages/reports/IssueNoteReportPage.tsx` — FIX 4 reports consistency
+
+**Build:** Backend `mvn compile` clean (no Java changes). Frontend `tsc -b && vite build` clean.
+
+---
+
 ## 2026-07-02
 
 ### l2Approve() Status Corruption + PROCUREMENT Sidebar + Procurement Scope

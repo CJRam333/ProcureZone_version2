@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -47,8 +47,18 @@ const STATUS_DRAFT = 1;
 const STATUS_SUBMITTED = 2;
 const STATUS_DEPT_HEAD_APPROVED = 3;
 const STATUS_REJECTED = 4;           // ID 4 = Rejected (legacy DB compatible)
-const STATUS_PROCUREMENT_APPROVED = 5;
-// ID 6 = PO Created (legacy DB compatible — no constant needed beyond the label maps)
+
+// Procurement sub-status labels (indent_procurement_status FK)
+const PROC_SUB_LABELS: Record<number, string> = {
+  4: 'Awaiting Procurement',
+  5: 'Quotations Collected',
+  6: 'Negotiation Done',
+  7: 'PO Released',
+  8: 'Hold',
+  9: 'Cash Buy',
+  10: 'Goods Receipt',
+  11: 'Goods Issued',
+};
 
 const getStatusLabel = (_statusId: number | null | undefined, displayStatus: string | null | undefined): string => {
   return displayStatus || 'Unknown';
@@ -85,6 +95,15 @@ const IndentDetailPage: React.FC = () => {
     queryFn: () => indentsApi.getById(numericId),
     enabled: isValidId,
   });
+
+  // Dropdown must reflect the saved procurement sub-status on load.
+  // 4 means "arrived at procurement, no sub-status yet" — keep the default (5).
+  useEffect(() => {
+    const saved = indent?.procurementStatusId;
+    if (saved && saved >= 5 && saved <= 9) {
+      setProcSubStatus(saved);
+    }
+  }, [indent]);
 
   // Mutations
   const submitMutation = useMutation({
@@ -191,30 +210,31 @@ const IndentDetailPage: React.FC = () => {
   const awaitingL1 = statusId >= STATUS_SUBMITTED && approvedStatusId === 1;
   // L2: RM approved, awaiting Dept Head (approvedStatus=3, finalStatus=1)
   const awaitingL2 = approvedStatusId === 3 && finalStatusId === 1;
-  // Procurement: Dept Head approved (finalStatus=4, procurementStatus=4)
-  const awaitingProcurement = finalStatusId === 4 && procurementStatusIdVal === 4;
 
   // Permissions — multi-stage approval
   const canEdit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
   const canSubmit = statusId === STATUS_DRAFT && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'DEPTHEAD', 'PLANTMANAGER', 'SUPERVISOR']);
 
-  // Approve permission gated on EXACT workflow stage so each role sees the button only when it's their turn:
+  // Approve/Reject buttons exist ONLY for the two approval stages:
   // L1 (RM Review):      SUPERVISOR acts when approvedStatus=1
   // L2 (Dept Head):      DEPTHEAD/PLANTMANAGER act when approvedStatus=3 and finalStatus=1
-  // Procurement:         PROCUREMENT acts when finalStatus=4 and procurementStatus=4
+  // Once the indent reaches procurement (finalStatus=4, procurementStatus>=4) there is no
+  // approve/reject — PROCUREMENT works exclusively through the status-update card below.
   const canApprove =
     (awaitingL1 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'SUPERVISOR'])) ||
-    (awaitingL2 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER'])) ||
-    (awaitingProcurement && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']));
+    (awaitingL2 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER']));
 
   // Dynamic approve button label — describes the workflow stage
   const approveLabel = awaitingL1 ? 'Approve (RM Review)'
     : awaitingL2 ? 'Approve (Dept Head)'
-    : awaitingProcurement ? 'Procurement Approve'
     : 'Approve';
 
   const isProcurementStage = finalStatusId === 4 && procurementStatusIdVal >= 4 && procurementStatusIdVal <= 9;
-  const canUpdateProcurement = isProcurementStage && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']);
+  // PO Released (7) and Cash Buy (9) are terminal — the procurement workflow is complete.
+  // Hold (8) is NOT terminal: procurement can move a held indent to PO Released / Cash Buy later.
+  const isTerminalStatus = procurementStatusIdVal === 7 || procurementStatusIdVal === 9;
+  const canUpdateProcurement = isProcurementStage && !isTerminalStatus && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PROCUREMENT']);
+  const showTerminalSummary = isProcurementStage && isTerminalStatus;
 
   return (
     <div>
@@ -361,6 +381,21 @@ const IndentDetailPage: React.FC = () => {
         </Card>
       )}
 
+      {showTerminalSummary && (
+        <Card className="mb-4">
+          <Card.Body className="d-flex flex-wrap align-items-center gap-3">
+            <Badge bg={procurementStatusIdVal === 7 ? 'success' : 'teal'} className="fs-6">
+              {procurementStatusIdVal === 7 ? 'PO Released' : 'Cash Buy'}
+            </Badge>
+            <span className="text-muted">
+              Procurement complete
+              {procurementStatusIdVal === 7 && indent.poNumber && <> — PO# <strong>{indent.poNumber}</strong></>}
+              {deliveryDate && <>, Delivery: <strong>{formatDate(deliveryDate)}</strong></>}
+            </span>
+          </Card.Body>
+        </Card>
+      )}
+
       <Tabs defaultActiveKey="details" className="mb-4">
         {/* Details Tab */}
         <Tab eventKey="details" title={<><FaFileAlt className="me-2" />Details</>}>
@@ -449,86 +484,97 @@ const IndentDetailPage: React.FC = () => {
                   <h5 className="mb-0">Approval Status</h5>
                 </Card.Header>
                 <Card.Body>
-                  <div className="approval-timeline">
-                    {/* L1 - Submitted */}
-                    <div className="d-flex mb-3">
-                      <div
-                        className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
-                          statusId >= STATUS_SUBMITTED ? 'bg-success' : 'bg-secondary'
-                        }`}
-                        style={{ width: 32, height: 32, minWidth: 32 }}
-                      >
-                        {statusId >= STATUS_SUBMITTED ? <FaCheck className="text-white" /> : <span className="text-white">1</span>}
-                      </div>
-                      <div className="flex-grow-1">
-                        <strong>Submitted</strong>
-                        {statusId === STATUS_DRAFT && <div className="small text-muted">Not yet submitted</div>}
-                        {statusId >= STATUS_SUBMITTED && <div className="small text-success">Submitted</div>}
-                      </div>
-                    </div>
+                  {(() => {
+                    // Stage states from the three-column workflow model:
+                    // RM Review:        approvedStatus 1=pending, 3=approved, 2=rejected
+                    // Dept Head Review: finalStatus    1=pending, 4=approved, 2=rejected
+                    // Procurement:      procurementStatus 4=arrived, 5-9=sub-stage
+                    const submitted = statusId >= STATUS_SUBMITTED;
+                    const rmApproved = approvedStatusId === 3;
+                    const rmRejected = approvedStatusId === 2;
+                    const rmPending = submitted && approvedStatusId === 1;
+                    const dhApproved = rmApproved && finalStatusId === 4;
+                    const dhRejected = rmApproved && finalStatusId === 2;
+                    const dhPending = rmApproved && finalStatusId === 1;
+                    const procReached = dhApproved && procurementStatusIdVal >= 4;
+                    const procDone = procReached && (procurementStatusIdVal === 7 || procurementStatusIdVal === 9);
 
-                    {/* L2 - Dept Head Approval */}
-                    <div className="d-flex mb-3">
-                      <div
-                        className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
-                          statusId >= STATUS_DEPT_HEAD_APPROVED && statusId !== STATUS_REJECTED
-                            ? 'bg-success'
-                            : statusId === STATUS_SUBMITTED
-                            ? 'bg-warning'
-                            : 'bg-secondary'
-                        }`}
-                        style={{ width: 32, height: 32, minWidth: 32 }}
-                      >
-                        {statusId >= STATUS_DEPT_HEAD_APPROVED && statusId !== STATUS_REJECTED
-                          ? <FaCheck className="text-white" />
-                          : <span className="text-white">2</span>}
-                      </div>
-                      <div className="flex-grow-1">
-                        <strong>Dept Head Approval</strong>
-                        {statusId === STATUS_SUBMITTED && <div className="small text-warning">Pending</div>}
-                        {statusId >= STATUS_DEPT_HEAD_APPROVED && statusId !== STATUS_REJECTED && approvedByName && (
-                          <div className="small text-muted">
-                            {approvedByName}
-                            {approvedByDate && ` on ${formatDate(approvedByDate, 'dd MMM yyyy HH:mm')}`}
+                    type StageState = 'done' | 'rejected' | 'pending' | 'unreached';
+                    const stages: { label: string; state: StageState; detail?: React.ReactNode }[] = [
+                      {
+                        label: 'Submitted',
+                        state: submitted ? 'done' : 'pending',
+                        detail: submitted
+                          ? <span className="text-success">Submitted</span>
+                          : <span className="text-muted">Not yet submitted</span>,
+                      },
+                      {
+                        label: 'RM Review',
+                        state: rmRejected ? 'rejected' : rmApproved ? 'done' : rmPending ? 'pending' : 'unreached',
+                        detail: rmRejected
+                          ? <span className="text-danger">Rejected</span>
+                          : rmApproved
+                          ? (approvedByName
+                              ? <span className="text-muted">{approvedByName}{approvedByDate && ` on ${formatDate(approvedByDate, 'dd MMM yyyy HH:mm')}`}</span>
+                              : <span className="text-success">Approved</span>)
+                          : rmPending
+                          ? <span className="text-warning">Pending</span>
+                          : undefined,
+                      },
+                      {
+                        label: 'Dept Head Review',
+                        state: dhRejected ? 'rejected' : dhApproved ? 'done' : dhPending ? 'pending' : 'unreached',
+                        detail: dhRejected
+                          ? <span className="text-danger">Rejected</span>
+                          : dhApproved
+                          ? (finalApprovedByName
+                              ? <span className="text-muted">{finalApprovedByName}{finalApprovedDate && ` on ${formatDate(finalApprovedDate, 'dd MMM yyyy HH:mm')}`}</span>
+                              : <span className="text-success">Approved</span>)
+                          : dhPending
+                          ? <span className="text-warning">Pending</span>
+                          : undefined,
+                      },
+                      {
+                        label: 'Procurement',
+                        state: procDone ? 'done' : procReached ? 'pending' : 'unreached',
+                        detail: procReached
+                          ? <span className={procDone ? 'text-success' : 'text-warning'}>
+                              {PROC_SUB_LABELS[procurementStatusIdVal] ?? 'In Procurement'}
+                            </span>
+                          : undefined,
+                      },
+                    ];
+
+                    return (
+                      <div className="approval-timeline">
+                        {stages.map((stage, i) => (
+                          <div className="d-flex mb-3" key={stage.label}>
+                            <div
+                              className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
+                                stage.state === 'done' ? 'bg-success'
+                                : stage.state === 'rejected' ? 'bg-danger'
+                                : stage.state === 'pending' ? 'bg-warning'
+                                : 'bg-secondary'
+                              }`}
+                              style={{ width: 32, height: 32, minWidth: 32 }}
+                            >
+                              {stage.state === 'done' ? <FaCheck className="text-white" />
+                                : stage.state === 'rejected' ? <FaTimes className="text-white" />
+                                : <span className="text-white">{i + 1}</span>}
+                            </div>
+                            <div className="flex-grow-1">
+                              <strong className={stage.state === 'unreached' ? 'text-muted' : undefined}>{stage.label}</strong>
+                              {stage.detail && <div className="small">{stage.detail}</div>}
+                            </div>
                           </div>
-                        )}
+                        ))}
                       </div>
-                    </div>
+                    );
+                  })()}
 
-                    {/* L3 - Final Approval */}
-                    <div className="d-flex mb-3">
-                      <div
-                        className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
-                          statusId >= STATUS_PROCUREMENT_APPROVED && statusId !== STATUS_REJECTED
-                            ? 'bg-success'
-                            : statusId >= STATUS_DEPT_HEAD_APPROVED && statusId < STATUS_REJECTED
-                            ? 'bg-warning'
-                            : 'bg-secondary'
-                        }`}
-                        style={{ width: 32, height: 32, minWidth: 32 }}
-                      >
-                        {statusId >= STATUS_PROCUREMENT_APPROVED && statusId !== STATUS_REJECTED
-                          ? <FaCheck className="text-white" />
-                          : <span className="text-white">3</span>}
-                      </div>
-                      <div className="flex-grow-1">
-                        <strong>Final Approval</strong>
-                        {statusId >= STATUS_DEPT_HEAD_APPROVED && statusId < STATUS_PROCUREMENT_APPROVED && statusId !== STATUS_REJECTED && (
-                          <div className="small text-warning">Pending</div>
-                        )}
-                        {finalApprovedByName && (
-                          <div className="small text-muted">
-                            {finalApprovedByName}
-                            {finalApprovedDate && ` on ${formatDate(finalApprovedDate, 'dd MMM yyyy HH:mm')}`}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {statusId === STATUS_REJECTED && (
+                  {(approvedStatusId === 2 || finalStatusId === 2 || statusId === STATUS_REJECTED) && (
                     <Alert variant="danger" className="mt-3 mb-0">
-                      <strong>Rejected</strong>
+                      <strong>{approvedStatusId === 2 ? 'Rejected by RM' : finalStatusId === 2 ? 'Rejected by Dept Head' : 'Rejected'}</strong>
                       {remarks && <div className="mt-2">{remarks}</div>}
                     </Alert>
                   )}

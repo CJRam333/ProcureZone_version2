@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/common';
 import { departmentsApi, getErrorMessage } from '../../api';
 import apiClient from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -163,7 +164,7 @@ const IndentReportPage: React.FC = () => {
                         <td>{indent.departmentName || '-'}</td>
                         <td>{indent.employeeName || '-'}</td>
                         <td>{indent.deliveryDate || '-'}</td>
-                        <td><Badge bg="secondary" className="text-nowrap">{indent.statusName || '-'}</Badge></td>
+                        <td><Badge bg={INDENT_STATUS_COLORS[indent.displayStatus ?? indent.statusName ?? ''] ?? 'secondary'} className="text-nowrap">{indent.displayStatus || indent.statusName || '-'}</Badge></td>
                         <td className="text-center">{indent.detailsCount ?? '-'}</td>
                       </tr>
                     ))

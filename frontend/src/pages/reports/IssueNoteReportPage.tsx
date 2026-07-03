@@ -7,6 +7,7 @@ import { PageHeader } from '../../components/common';
 import { departmentsApi, getErrorMessage } from '../../api';
 import apiClient from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -166,7 +167,7 @@ const IssueNoteReportPage: React.FC = () => {
                         <td>{note.issueDate ? format(new Date(note.issueDate), 'dd MMM yyyy') : '-'}</td>
                         <td>{note.departmentId || '-'}</td>
                         <td>{note.issuedTo || '-'}</td>
-                        <td><Badge bg={statusBadgeColor(note.status)} className="text-nowrap">{note.statusDescription || '-'}</Badge></td>
+                        <td><Badge bg={INDENT_STATUS_COLORS[note.statusDescription ?? ''] ?? statusBadgeColor(note.status)} className="text-nowrap">{note.statusDescription || '-'}</Badge></td>
                         <td className="text-center">{note.detailCount ?? '-'}</td>
                         <td className="text-end">{note.totalAmount != null ? `₹${Number(note.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-'}</td>
                       </tr>
