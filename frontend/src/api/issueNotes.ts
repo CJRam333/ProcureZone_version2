@@ -153,22 +153,24 @@ export const issueNotesApi = {
         return response.data;
     },
 
+    // Single-entity endpoints wrap the body in { success, [message,] data }.
+    // Axios response.data is that envelope — the issue note lives at response.data.data.
     getById: async (id: number): Promise<IssueNote> => {
-        const response = await apiClient.get<IssueNote>(`/issue-notes/${id}`);
-        return response.data;
+        const response = await apiClient.get<{ data: IssueNote }>(`/issue-notes/${id}`);
+        return response.data.data;
     },
 
     getByNumber: async (issueNoteNumber: string): Promise<IssueNote> => {
-        const response = await apiClient.get<IssueNote>(
+        const response = await apiClient.get<{ data: IssueNote }>(
             `/issue-notes/by-number`,
             { params: { issueNoteNumber } }
         );
-        return response.data;
+        return response.data.data;
     },
 
     create: async (data: IssueNoteCreateRequest): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>("/issue-notes", data);
-        return response.data;
+        const response = await apiClient.post<{ data: IssueNote }>("/issue-notes", data);
+        return response.data.data;
     },
 
     update: async (
@@ -183,12 +185,14 @@ export const issueNotesApi = {
     },
 
     submit: async (id: number): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>(
+        const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/submit`
         );
-        return response.data;
+        return response.data.data;
     },
 
+    // DEPRECATED — manager-stage endpoint returns 410 GONE (flow is User→RM→Stores).
+    // Kept only for backwards compatibility; use rmApprove instead.
     approve: async (
         id: number,
         data?: {
@@ -203,6 +207,7 @@ export const issueNotesApi = {
         return response.data;
     },
 
+    // DEPRECATED — manager-stage endpoint returns 410 GONE. Use rmReject instead.
     reject: async (
         id: number,
         data: { reason: string }
@@ -225,11 +230,11 @@ export const issueNotesApi = {
             remarks?: string;
         }
     ): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>(
+        const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/issue`,
             data || {}
         );
-        return response.data;
+        return response.data.data;
     },
 
     // Return materials to stores (status 8→10)
@@ -237,20 +242,20 @@ export const issueNotesApi = {
         id: number,
         data: ReturnIssueNoteRequest
     ): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>(
+        const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/return`,
             data
         );
-        return response.data;
+        return response.data.data;
     },
 
     // Cancel issue note (only when status = 1 or 2)
     cancel: async (id: number, reason: string): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>(
+        const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/cancel`,
             { reason }
         );
-        return response.data;
+        return response.data.data;
     },
 
     // --- Additional backend endpoints ---
@@ -260,11 +265,11 @@ export const issueNotesApi = {
         id: number,
         data: { reason: string }
     ): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>(
+        const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/reject-stores`,
             data
         );
-        return response.data;
+        return response.data.data;
     },
 
     // RM Approval (status 2 → 3, skipped if supervisorBypass)
@@ -272,11 +277,11 @@ export const issueNotesApi = {
         id: number,
         data: { remarks: string }
     ): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>(
+        const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/rm-approve`,
             data
         );
-        return response.data;
+        return response.data.data;
     },
 
     // RM Rejection (status 2 → 5)
@@ -284,11 +289,11 @@ export const issueNotesApi = {
         id: number,
         data: { reason: string }
     ): Promise<IssueNote> => {
-        const response = await apiClient.post<IssueNote>(
+        const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/rm-reject`,
             data
         );
-        return response.data;
+        return response.data.data;
     },
 
     delete: async (id: number): Promise<void> => {

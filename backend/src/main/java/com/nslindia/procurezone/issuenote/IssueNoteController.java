@@ -63,7 +63,7 @@ public class IssueNoteController {
          * Authorized: REQUESTER, EMPLOYEE, ADMIN
          */
         @PostMapping
-        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR')")
+        @PreAuthorize("hasAnyRole('USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> createIssueNote(
                         @Valid @RequestBody CreateIssueNoteRequest request,
                         Authentication authentication) {

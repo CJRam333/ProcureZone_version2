@@ -4,6 +4,61 @@
 
 ## 2026-07-04
 
+### Issue Note Detail Response Envelope Unwrap + Create-Button Roles + Card Heading
+
+**Root cause of "detail page shows N/A + flowchart shows default data" (looked like a stale
+deploy, was not):** rebuilding the committed frontend reproduced the exact deployed bundle hash
+(`index-BaXK1G_W.js`), proving the deployed frontend was current — no cache/deploy/duplicate-
+component problem. The real bug: `GET /issue-notes/{id}` wraps its body as
+`{ success: true, data: {...} }`, but `issueNotesApi.getById()` returned axios `response.data`
+(the envelope) instead of `response.data.data` (the issue note). So the detail page read
+`issueNote.employeeName` etc. as `undefined` → "N/A", and `issueNote.approvedStatus ?? 1`
+defaulted to 1 → the 3-stage flowchart rendered its structure (new labels visible) but every
+stage showed its first/pending state. This predates the enrichment work — the old page read
+`requestedByName` off the same envelope and got the same blanks, which is why the enrichment
+"didn't appear." The list page was unaffected because `GET /issue-notes` returns a raw `Page`.
+
+**FIX 1 — envelope unwrap (`api/issueNotes.ts`):**
+
+Audited every issue note endpoint. Envelope usage:
+
+| Shape | Endpoints |
+|---|---|
+| `{ success, [message,] data }` (entity nested under `data`) | create, getById, getByNumber, submit, rm-approve, rm-reject, issue, reject-stores, cancel, return |
+| Flat `Page<>` (no envelope) | GET `/issue-notes` (list) |
+| `{ content, currentPage, totalItems, totalPages }` map | pending-rm-approval, pending-issue, by-department, my-issue-notes |
+| `{ success:false, message }` (410 GONE, **no data**) | approve, reject (deprecated manager stage) |
+
+Unwrapped to `response.data.data`: `getById`, `getByNumber`, `create`, `submit`, `issue`,
+`return`, `cancel`, `storesReject`, `rmApprove`, `rmReject`. **`create` was also a latent bug** —
+the form's "Save & Submit" reads `created.id` to chain the submit call; against the envelope
+that was `undefined`, so the second step used a bad id. Left the two deprecated 410 endpoints
+(`approve`/`reject`) flat — they carry no `data` and axios throws on 4xx before the return runs.
+The `{content,...}` paginated maps are a different shape used by secondary queues and were left
+as-is (out of scope; the primary list uses the flat `Page`).
+
+**FIX 2 — create-button + endpoint + route-guard roles aligned** to
+`USER, SUPERVISOR, DEPTHEAD, ADMIN, SUPERADMIN`:
+- `IssueNotesListPage.tsx` create button: was `['ADMIN', 'ISSUECONFIRM']` (stores staff, wrong —
+  they *issue* goods, they don't *raise* notes; USER/SUPERVISOR/DEPTHEAD saw no button at all).
+- Backend `POST /issue-notes` `@PreAuthorize`: was `USER, ADMIN, SUPERADMIN, SUPERVISOR` → added
+  DEPTHEAD. (ISSUECONFIRM was not present, so nothing to remove.)
+- `router.tsx` `/issue-notes/new` **and** `/issue-notes/:id/edit` guards: were
+  `SUPERADMIN, ADMIN, USER, SUPERVISOR` → added DEPTHEAD. All three now match exactly.
+
+**FIX 3 — card heading** in `IssueNoteFormPage.tsx`: "Issue Note Information" → "Issue Details"
+(the card now only wraps the Company/Plant/Department/Section dropdowns; the employee strip was
+removed 2026-07-04 earlier).
+
+**Note (not fixed, out of scope):** no `PUT`/`DELETE` endpoint exists on the controller, so the
+frontend `update`/`delete` methods target nothing — the issue note *edit* flow is non-functional
+server-side. Flagged for a future task.
+
+**Build:** `mvn compile` clean; `tsc -b && vite build` clean. **New bundle hash
+`index-D3NXf63A.js`** (was `index-BaXK1G_W.js`) — confirms the frontend change compiled in.
+
+---
+
 ### Issue Note Indent-Parity — Enrichment, Status Display, Flowchart, Visibility, Creation Card
 
 Brings Issue Notes to the same standard as Indents. Flow: **User → RM → Stores** (no Dept

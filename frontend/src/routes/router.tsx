@@ -283,7 +283,7 @@ const router = createBrowserRouter([
           {
             path: 'new',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'SUPERVISOR', 'DEPTHEAD']}>
                 <IssueNoteFormPage />
               </ProtectedRoute>
             ),
@@ -299,7 +299,7 @@ const router = createBrowserRouter([
           {
             path: ':id/edit',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'SUPERVISOR', 'DEPTHEAD']}>
                 <IssueNoteFormPage />
               </ProtectedRoute>
             ),

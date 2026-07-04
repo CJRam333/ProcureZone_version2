@@ -345,7 +345,7 @@ const IssueNoteFormPage: React.FC = () => {
         {/* Basic Information */}
         <Card className="mb-4">
           <Card.Header>
-            <h5 className="mb-0">Issue Note Information</h5>
+            <h5 className="mb-0">Issue Details</h5>
           </Card.Header>
           <Card.Body>
             {/* Employee/year/number info is auto-captured at creation and shown on the

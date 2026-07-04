@@ -181,7 +181,7 @@ const IssueNotesListPage: React.FC = () => {
           { label: 'Issue Notes' },
         ]}
         actions={
-          hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
+          hasAnyRole(['USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN']) && (
             <Button variant="primary" onClick={() => navigate('/issue-notes/new')}>
               <FaPlus className="me-2" /> Create Issue Note
             </Button>
