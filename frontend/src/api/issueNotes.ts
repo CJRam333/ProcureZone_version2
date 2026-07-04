@@ -3,66 +3,54 @@ import { PageRequest, PageResponse } from "./materials";
 
 // ============== Types ==============
 
-// Response matching backend IssueNoteResponse (with optional enriched fields for UI)
+// Response matching backend IssueNoteResponse — enriched with resolved names
 export interface IssueNote {
     id: number;
     issueNoteNumber: string;
     issueDate: string;
     companyId: number;
+    companyName?: string;
     departmentId: number;
+    departmentName?: string;
     sectionId?: number;
+    sectionName?: string;
     plantId: number;
-    issuedTo: string;
+    plantName?: string;
+    issuedTo?: string;
     purpose?: string;
     comments?: string;
-    remarks?: string; // alias for comments
     createdBy: number;
+    employeeNumber?: number;   // creator emp number (= createdBy)
+    employeeName?: string;     // resolved creator name
     approvedBy?: number;
     approvedByDate?: string;
     storesBy?: number;
     storesByDate?: string;
+    issuedByName?: string;     // resolved from storesBy
     status: number;
     statusDescription: string;
+    displayStatus?: string;    // derived from two-column model
     approvedStatus?: number;
     storesByStatus?: number;
     lastModifiedDate: string;
     lastModifiedBy: number;
     details: IssueNoteDetail[];
     totalAmount: number;
-    // Optional enriched fields for UI display
-    issueNumber?: string; // alias for issueNoteNumber (for legacy UI compatibility)
-    requestedByName?: string;
-    departmentName?: string;
-    plantName?: string;
-    statusName?: string; // alias for statusDescription
-    issuedByName?: string;
-    createdAt?: string; // alias for issueDate
-    items?: IssueNoteDetail[]; // alias for details (for legacy UI compatibility)
 }
 
-// Response matching backend IssueNoteDetailResponse (with optional enriched fields for UI)
+// Response matching backend IssueNoteDetailResponse — enriched with material/UOM codes
 export interface IssueNoteDetail {
     id: number;
     materialId: number;
+    materialCode?: string;
+    materialName?: string;
     unitOfMeasureId: number;
+    uomCode?: string;
     quantity: number;
     rate?: number;
     amount?: number;
     purpose?: string;
     status: number;
-    // Optional enriched fields for UI display
-    materialCode?: string;
-    materialDescription?: string;
-    materialName?: string;
-    uomId?: number; // alias for unitOfMeasureId
-    uomCode?: string;
-    uomName?: string;
-    requestedQuantity?: number; // alias for quantity
-    approvedQuantity?: number;
-    issuedQuantity?: number;
-    returnedQuantity?: number;
-    batchNumber?: string;
-    remarks?: string; // alias for purpose
 }
 
 // Backend Issue Note status values (1-based, from issue_note_status column)
@@ -101,7 +89,7 @@ export interface IssueNoteCreateRequest {
     departmentId: number;
     sectionId?: number;
     plantId: number;
-    issuedTo: string;
+    issuedTo?: string; // optional — no legacy equivalent; creator is the requester of record
     purpose?: string;
     comments?: string;
     lineItems: IssueNoteLineItemCreateRequest[];

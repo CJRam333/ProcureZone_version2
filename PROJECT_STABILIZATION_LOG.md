@@ -2,6 +2,110 @@
 
 ---
 
+## 2026-07-04
+
+### Issue Note Indent-Parity — Enrichment, Status Display, Flowchart, Visibility, Creation Card
+
+Brings Issue Notes to the same standard as Indents. Flow: **User → RM → Stores** (no Dept
+Head stage). Two status columns: `issue_note_approved_status` (1=pending, 2=rejected,
+3=approved) × `issue_note_storesby_status` (1=pending, 2=rejected, 11=issued).
+
+**PART 1 — IssueNoteResponse enrichment (prerequisite):**
+
+The DTO returned only raw IDs; the detail page rendered `requestedByName`, `issueNumber`,
+`createdAt`, `departmentName` etc. — fields that never existed on the payload, so the page
+showed blanks/N-A. Added resolved names: `employeeName`/`employeeNumber` (from
+`issue_note_createdby`), `companyName`, `departmentName`, `sectionName`, `plantName`,
+`issuedByName` (from `issue_note_storesby`), `displayStatus`, plus `materialCode`/
+`materialName`/`uomCode` on line items (the items table had the same blank-fields disease).
+
+**Resolution pattern:** IndentService resolves names through JPA `@ManyToOne` entity
+relationships (`indent.getCompany().getName()`). IssueNote stores raw FK integers with no
+entity relationships, so the identical outcome is achieved via null-guarded repository
+lookups (`companyRepository.findById(...).map(Company::getName)` etc.) in `mapToResponse()`.
+Frontend types cleaned: stale aliases (`issueNumber`, `requestedByName`, `createdAt`,
+`statusName`, `items`, `remarks`) removed and all consumers rewired to real field names.
+
+**Write-path corruption fix (same disease as the indent l2Approve bug):**
+
+`createIssueNote()` never set the two workflow columns (both NULL) and `rmApprove()`/
+`rmReject()` set only the `issue_note_rm_status` audit column — never
+`issue_note_approved_status`. Every new-app issue note therefore derived its display from
+`(null, null)` and stayed "Pending RM Approval" forever, and the stores queue check
+(`approved=3, stores=1`) could never fire for new notes. Fixed:
+- `createIssueNote()` → `approvedStatus = 1` (or 3 with DEPTHEAD bypass), `storesByStatus = 1`
+- `rmApprove()` → `approvedStatus = 3` (keeps rm_status audit write)
+- `rmReject()` → `approvedStatus = 2`
+- `issueGoods()` / `rejectByStores()` already set `storesByStatus` 11 / 2 correctly.
+Legacy-migrated rows already carry correct values; only new-app rows created before this fix
+(if any) may have NULL columns — they display as "Pending RM Approval" (safe default).
+
+**PART 2 — deriveIssueNoteDisplayStatus():** function already existed and covered the
+production combinations; label "Pending" renamed to "Pending RM Approval" and visibility
+widened to package-private for `DeriveIssueNoteDisplayStatusTest` (new, 3/3 green):
+(3,11)→Goods Issued ×2,213 · (3,2)→Stores Rejected ×45 · (2,1)→RM Rejected ×26 ·
+(3,1)→RM Approved ×3 · (1,1)→Pending RM Approval ×2 · null-safe.
+
+**PART 3 — Three-stage flowchart** (Submitted → RM Review → Stores) on the detail page,
+driven purely by the two-column model, never the Spring status (legacy rows carry status=1
+as an active flag). Submitted always green; RM ✓/✗/amber per approvedStatus; Stores
+✓ (issued 11) / ✗ (rejected 2) / amber (pending 1, once RM approved). Rejection terminates
+the flow; a level-specific rejection alert shows below.
+
+**Detail-page action wiring fix (found during investigation):** the Approve/Reject buttons
+called `issueNotesApi.approve`/`reject` → the deprecated manager-stage endpoints which now
+return **410 GONE** — RM approval from the detail page was broken. Rewired to
+`rmApprove`/`rmReject`, gated on `status=2 AND approvedStatus=1`, label "Approve (RM Review)".
+
+**PART 4 — Role visibility:** already implemented in `getAll()` (USER own; SUPERVISOR own +
+subordinates; DEPTHEAD/PLANTMANAGER department; ISSUECONFIRM/PROCUREMENT/ADMIN/SUPERADMIN
+global) with `issueDate DESC` ordering, and the list page title was already dynamic. Added the
+missing active-row filter to both filter queries. **Deviation from spec:** the task said
+"always filter issue_note_status = 1" — implemented as `status <> 0` instead, because the new
+app reuses the Spring column for workflow (2=submitted, 3=RM approved, 8=issued…); filtering
+=1 would hide every in-flight new-app note. `0` is the cancel/soft-delete value in both eras.
+
+**PART 5 — True-draft gating:** `createIssueNote()` sets Spring `status=1` (Draft; 3 with
+DEPTHEAD bypass) and now `(1,1)` two-column state; `submitForApproval()` moves status to 2.
+Gate: `isTrueDraft = status===1 && approvedStatus===1 && storesByStatus===1` on detail-page
+Submit/Edit and the list-page Edit button (which previously compared integer `status` to the
+string `'DRAFT'` — never rendered; same for the Return button vs `'ISSUED'`, now `status===8`).
+Residual ambiguity: legacy `(1,1)` rows with status=1 are indistinguishable from new drafts
+(2 rows in production) — same accepted trade-off as indents.
+
+**PART 6 — Creation page:** removed the read-only employee strip (Employee, Financial Year,
+Date, Issue Note No. preview) — this data is auto-captured at creation and now displays on the
+detail page. Also removed the "Issued To" field (no legacy equivalent; investigation 2026-07-04);
+backend `@NotBlank` on `issuedTo` relaxed to optional — **DB column retained**. The editable
+Company/Plant/Department/Section dropdowns remain (legacy-faithful).
+
+**PART 7 — Colors:** all five issue note labels already present and unique in
+`INDENT_STATUS_COLORS`: Pending RM Approval=warning, RM Rejected=danger, RM Approved=info,
+Stores Rejected=pink, Goods Issued=dark-green. List-page filter option renamed
+"Pending" → "Pending RM Approval".
+
+**PART 8 — Stores buttons:** "Goods Issued" / "Reject (Stores)" preserved with the two-column
+gate (`approved=3 AND stores=1`, ISSUECONFIRM/ADMIN/SUPERADMIN) and confirmed against the
+enriched response; the issue-confirmation modal now lists items by material code.
+
+**Files changed:**
+- `backend/.../issuenote/dto/IssueNoteResponse.java` — enriched (names + displayStatus + line-item codes)
+- `backend/.../issuenote/dto/IssueNoteSummaryResponse.java` — + approvedStatus/storesByStatus
+- `backend/.../issuenote/dto/CreateIssueNoteRequest.java` — issuedTo optional
+- `backend/.../issuenote/IssueNoteService.java` — name resolution, write-path two-column fixes, label rename
+- `backend/.../issuenote/IssueNoteRepository.java` — `status <> 0` active filter on both filter queries
+- `backend/src/test/.../issuenote/DeriveIssueNoteDisplayStatusTest.java` — new, 3/3 green
+- `frontend/src/api/issueNotes.ts` — types match enriched DTO; stale aliases removed
+- `frontend/src/pages/issue-notes/IssueNoteDetailPage.tsx` — info card, flowchart, gating, RM wiring
+- `frontend/src/pages/issue-notes/IssueNoteFormPage.tsx` — info strip + Issued To removed
+- `frontend/src/pages/issue-notes/IssueNotesListPage.tsx` — filter label, edit/return button fixes
+- `frontend/src/pages/issue-notes/IssueNoteApprovalPage.tsx` — rewired to real field names
+
+**Build:** `mvn compile` clean; `mvn test -Dtest=DeriveIssueNoteDisplayStatusTest` 3/3 green;
+`tsc -b && vite build` clean.
+
+---
+
 ## 2026-07-03
 
 ### Procurement UI Fixes + Unique Status Colors + Approval Flowchart Correction

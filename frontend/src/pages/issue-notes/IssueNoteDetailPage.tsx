@@ -30,7 +30,7 @@ import {
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
-import { IssueNoteStatus } from '../../api/issueNotes';
+import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 const IssueNoteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -65,8 +65,9 @@ const IssueNoteDetailPage: React.FC = () => {
     onError: (err) => setError(getErrorMessage(err)),
   });
 
-  const approveMutation = useMutation({
-    mutationFn: () => issueNotesApi.approve(Number(id), { remarks: approvalComments }),
+  // RM approval — the only approval stage (flow: User → RM → Stores)
+  const rmApproveMutation = useMutation({
+    mutationFn: () => issueNotesApi.rmApprove(Number(id), { remarks: approvalComments }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['issue-note', id] });
       queryClient.invalidateQueries({ queryKey: ['issue-notes'] });
@@ -76,8 +77,8 @@ const IssueNoteDetailPage: React.FC = () => {
     onError: (err) => setError(getErrorMessage(err)),
   });
 
-  const rejectMutation = useMutation({
-    mutationFn: () => issueNotesApi.reject(Number(id), { reason: rejectionReason }),
+  const rmRejectMutation = useMutation({
+    mutationFn: () => issueNotesApi.rmReject(Number(id), { reason: rejectionReason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['issue-note', id] });
       queryClient.invalidateQueries({ queryKey: ['issue-notes'] });
@@ -109,37 +110,13 @@ const IssueNoteDetailPage: React.FC = () => {
     onError: (err) => setError(getErrorMessage(err)),
   });
 
-  // Permissions based on status enum (backend 1-based, 10 statuses)
-  const canEdit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
-  const canSubmit = issueNote?.status === IssueNoteStatus.CREATED && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
-  const canApprove = (issueNote?.status === IssueNoteStatus.PENDING_RM_APPROVAL || issueNote?.status === IssueNoteStatus.RM_APPROVED) && hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD', 'SUPERVISOR']);
-  // Two-column check: approvedStatus=3 (RM approved) AND storesByStatus=1 (pending store issue)
-  const canIssue = issueNote?.approvedStatus === 3 && issueNote?.storesByStatus === 1 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
-
-  // Status color mapping based on backend enum values (1-10)
-  const getStatusVariant = (status: IssueNoteStatus): string => {
-    const variants: Record<number, string> = {
-      [IssueNoteStatus.CREATED]: 'secondary',
-      [IssueNoteStatus.PENDING_RM_APPROVAL]: 'warning',
-      [IssueNoteStatus.RM_APPROVED]: 'info',
-      [IssueNoteStatus.APPROVED_BY_MANAGER]: 'primary',
-      [IssueNoteStatus.REJECTED_BY_RM]: 'danger',
-      [IssueNoteStatus.REJECTED_BY_MANAGER]: 'danger',
-      [IssueNoteStatus.PENDING_STORE_ISSUE]: 'warning',
-      [IssueNoteStatus.ISSUED]: 'success',
-      [IssueNoteStatus.REJECTED_BY_STORES]: 'danger',
-      [IssueNoteStatus.RETURNED]: 'info',
-    };
-    return variants[status] || 'secondary';
-  };
-
   // Safe date formatter
   const formatDate = (dateStr: string | null | undefined): string => {
     if (!dateStr) return 'N/A';
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return 'N/A';
-      return format(date, 'PPP');
+      return format(date, 'dd MMM yyyy');
     } catch {
       return 'N/A';
     }
@@ -162,31 +139,38 @@ const IssueNoteDetailPage: React.FC = () => {
     );
   }
 
-  const getStatusName = (status: IssueNoteStatus): string => {
-    const names: Record<number, string> = {
-      [IssueNoteStatus.CREATED]: 'Created',
-      [IssueNoteStatus.PENDING_RM_APPROVAL]: 'Pending RM Approval',
-      [IssueNoteStatus.RM_APPROVED]: 'RM Approved',
-      [IssueNoteStatus.APPROVED_BY_MANAGER]: 'Manager Approved',
-      [IssueNoteStatus.REJECTED_BY_RM]: 'Rejected by RM',
-      [IssueNoteStatus.REJECTED_BY_MANAGER]: 'Rejected by Manager',
-      [IssueNoteStatus.PENDING_STORE_ISSUE]: 'Pending Store Issue',
-      [IssueNoteStatus.ISSUED]: 'Issued',
-      [IssueNoteStatus.REJECTED_BY_STORES]: 'Rejected by Stores',
-      [IssueNoteStatus.RETURNED]: 'Returned',
-    };
-    return names[status] || 'Unknown';
-  };
+  // Two-column workflow state (User → RM → Stores; no Dept Head stage):
+  // approvedStatus: 1=pending RM, 2=RM rejected, 3=RM approved
+  // storesByStatus: 1=pending stores, 2=stores rejected, 11=goods issued
+  const approvedStatusId = issueNote.approvedStatus ?? 1;
+  const storesByStatusId = issueNote.storesByStatus ?? 1;
+  const displayStatus = issueNote.displayStatus ?? issueNote.statusDescription ?? 'Unknown';
+
+  // True unsubmitted draft: Spring status=1 (Draft) AND no workflow progress in the
+  // two-column model. Migrated legacy rows also carry status=1 (legacy active flag),
+  // so the two-column check hides Edit/Submit on legacy rows already in the workflow.
+  const isTrueDraft = issueNote.status === 1 && approvedStatusId === 1 && storesByStatusId === 1;
+
+  const canEdit = isTrueDraft && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
+  const canSubmit = isTrueDraft && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
+  // RM stage: submitted (status=2) and RM decision still pending
+  const canRmAct = issueNote.status === 2 && approvedStatusId === 1
+    && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR']);
+  // Stores stage: RM approved, stores action pending
+  const canIssue = approvedStatusId === 3 && storesByStatusId === 1
+    && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
+
+  const details = issueNote.details ?? [];
 
   return (
     <div>
       <PageHeader
-        title={`Issue Note ${issueNote.issueNumber || issueNote.issueNoteNumber || 'N/A'}`}
-        subtitle={`Requested by ${issueNote.requestedByName || 'N/A'} on ${formatDate(issueNote.createdAt)}`}
+        title={`Issue Note ${issueNote.issueNoteNumber || 'N/A'}`}
+        subtitle={`Requested by ${issueNote.employeeName || 'N/A'} on ${formatDate(issueNote.issueDate)}`}
         breadcrumbs={[
           { label: 'Dashboard', path: '/dashboard' },
           { label: 'Issue Notes', path: '/issue-notes' },
-          { label: issueNote.issueNumber || issueNote.issueNoteNumber || 'Detail' },
+          { label: issueNote.issueNoteNumber || 'Detail' },
         ]}
         actions={
           <div className="d-flex flex-wrap gap-2">
@@ -217,8 +201,8 @@ const IssueNoteDetailPage: React.FC = () => {
           <div className="d-flex flex-wrap gap-3 align-items-center">
             <div>
               <small className="text-muted d-block">Status</small>
-              <Badge bg={getStatusVariant(issueNote.status)} className="fs-6">
-                {issueNote.statusName || getStatusName(issueNote.status)}
+              <Badge bg={INDENT_STATUS_COLORS[displayStatus] || 'secondary'} className="fs-6">
+                {displayStatus}
               </Badge>
             </div>
             <div className="vr d-none d-sm-block" />
@@ -234,7 +218,7 @@ const IssueNoteDetailPage: React.FC = () => {
             <div className="vr d-none d-sm-block" />
             <div>
               <small className="text-muted d-block">Total Items</small>
-              <strong className="text-primary fs-5">{issueNote.items?.length || 0}</strong>
+              <strong className="text-primary fs-5">{details.length}</strong>
             </div>
           </div>
 
@@ -253,10 +237,10 @@ const IssueNoteDetailPage: React.FC = () => {
                 Submit for Approval
               </Button>
             )}
-            {canApprove && (
+            {canRmAct && (
               <>
                 <Button variant="success" onClick={() => setShowApproveModal(true)}>
-                  <FaCheck className="me-2" /> Approve
+                  <FaCheck className="me-2" /> Approve (RM Review)
                 </Button>
                 <Button variant="danger" onClick={() => setShowRejectModal(true)}>
                   <FaTimes className="me-2" /> Reject
@@ -281,7 +265,8 @@ const IssueNoteDetailPage: React.FC = () => {
         {/* Details Tab */}
         <Tab eventKey="details" title={<><FaFileAlt className="me-2" />Details</>}>
           <Row className="g-4">
-            {/* Basic Info */}
+            {/* Basic Info — the raising employee's information lives here now
+                (removed from the creation form; auto-captured at creation) */}
             <Col lg={8}>
               <Card className="h-100">
                 <Card.Header>
@@ -292,7 +277,7 @@ const IssueNoteDetailPage: React.FC = () => {
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Issue Note Number</small>
-                        <strong>{issueNote.issueNumber}</strong>
+                        <strong>{issueNote.issueNoteNumber}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>
@@ -304,34 +289,60 @@ const IssueNoteDetailPage: React.FC = () => {
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Requested By</small>
-                        <strong>{issueNote.requestedByName}</strong>
+                        <strong>{issueNote.employeeName || 'N/A'}</strong>
+                        {issueNote.employeeNumber != null && (
+                          <small className="text-muted ms-2">(#{issueNote.employeeNumber})</small>
+                        )}
                       </div>
                     </Col>
                     <Col sm={6}>
                       <div className="mb-3">
-                        <small className="text-muted d-block">Created Date</small>
-                        <strong>{formatDate(issueNote.createdAt)}</strong>
+                        <small className="text-muted d-block">Company</small>
+                        <strong>{issueNote.companyName || 'N/A'}</strong>
                       </div>
                     </Col>
-                    <Col sm={12}>
+                    <Col sm={6}>
                       <div className="mb-3">
-                        <small className="text-muted d-block">Purpose</small>
-                        <p className="mb-0">{issueNote.purpose}</p>
+                        <small className="text-muted d-block">Department</small>
+                        <strong>{issueNote.departmentName || 'N/A'}</strong>
                       </div>
                     </Col>
-                    {issueNote.remarks && (
-                      <Col sm={12}>
-                        <div>
-                          <small className="text-muted d-block">Remarks</small>
-                          <p className="mb-0">{issueNote.remarks}</p>
-                        </div>
-                      </Col>
-                    )}
+                    <Col sm={6}>
+                      <div className="mb-3">
+                        <small className="text-muted d-block">Section</small>
+                        <strong>{issueNote.sectionName || 'N/A'}</strong>
+                      </div>
+                    </Col>
+                    <Col sm={6}>
+                      <div className="mb-3">
+                        <small className="text-muted d-block">Plant</small>
+                        <strong>{issueNote.plantName || 'N/A'}</strong>
+                      </div>
+                    </Col>
                     {issueNote.issuedByName && (
                       <Col sm={6}>
                         <div className="mb-3">
-                          <small className="text-muted d-block">Issued By</small>
+                          <small className="text-muted d-block">Issued By (Stores)</small>
                           <strong>{issueNote.issuedByName}</strong>
+                          {issueNote.storesByDate && (
+                            <small className="text-muted ms-2">on {formatDate(issueNote.storesByDate)}</small>
+                          )}
+                        </div>
+                      </Col>
+                    )}
+                    {issueNote.purpose && (
+                      <Col sm={12}>
+                        <div className="mb-3">
+                          <small className="text-muted d-block">Purpose</small>
+                          <p className="mb-0">{issueNote.purpose}</p>
+                        </div>
+                      </Col>
+                    )}
+                    {issueNote.comments && (
+                      <Col sm={12}>
+                        <div>
+                          <small className="text-muted d-block">Comments</small>
+                          <p className="mb-0" style={{ whiteSpace: 'pre-line' }}>{issueNote.comments}</p>
                         </div>
                       </Col>
                     )}
@@ -340,94 +351,91 @@ const IssueNoteDetailPage: React.FC = () => {
               </Card>
             </Col>
 
-            {/* Status Info */}
+            {/* Workflow Status — three stages driven PURELY by the two-column model */}
             <Col lg={4}>
               <Card className="h-100">
                 <Card.Header>
                   <h5 className="mb-0">Workflow Status</h5>
                 </Card.Header>
                 <Card.Body>
-                  <div className="workflow-timeline">
-                    {/* Draft/Created */}
-                    <div className="d-flex mb-3">
-                      <div
-                        className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${issueNote.status >= IssueNoteStatus.CREATED ? 'bg-success' : 'bg-secondary'
-                          }`}
-                        style={{ width: 32, height: 32, minWidth: 32 }}
-                      >
-                        <FaCheck className="text-white" size={12} />
-                      </div>
-                      <div className="flex-grow-1">
-                        <strong>Created</strong>
-                        <div className="small text-muted">
-                          {issueNote.requestedByName} on {formatDate(issueNote.createdAt)}
-                        </div>
-                      </div>
-                    </div>
+                  {(() => {
+                    // Stage states from the two-column workflow model — never from the
+                    // Spring single-column status (legacy rows carry status=1 as an active flag):
+                    // RM Review: approvedStatus 1=pending, 3=approved, 2=rejected
+                    // Stores:    storesByStatus 11=issued, 2=rejected, 1=pending (once RM approved)
+                    const rmApproved = approvedStatusId === 3;
+                    const rmRejected = approvedStatusId === 2;
+                    const rmPending = approvedStatusId === 1;
+                    const storesIssued = rmApproved && storesByStatusId === 11;
+                    const storesRejected = rmApproved && storesByStatusId === 2;
+                    const storesPending = rmApproved && storesByStatusId === 1;
 
-                    {/* Pending RM Approval */}
-                    <div className="d-flex mb-3">
-                      <div
-                        className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${issueNote.status >= IssueNoteStatus.PENDING_RM_APPROVAL
-                          ? issueNote.status === IssueNoteStatus.PENDING_RM_APPROVAL
-                            ? 'bg-warning'
-                            : 'bg-success'
-                          : 'bg-secondary'
-                          }`}
-                        style={{ width: 32, height: 32, minWidth: 32 }}
-                      >
-                        {issueNote.status >= IssueNoteStatus.RM_APPROVED ? (
-                          <FaCheck className="text-white" size={12} />
-                        ) : (
-                          <span className="text-white">2</span>
-                        )}
-                      </div>
-                      <div className="flex-grow-1">
-                        <strong>RM Approval</strong>
-                        <div className="small text-muted">
-                          {issueNote.status === IssueNoteStatus.PENDING_RM_APPROVAL
-                            ? 'Pending'
-                            : issueNote.status >= IssueNoteStatus.RM_APPROVED
-                              ? 'Approved'
-                              : 'Waiting'}
-                        </div>
-                      </div>
-                    </div>
+                    type StageState = 'done' | 'rejected' | 'pending' | 'unreached';
+                    const stages: { label: string; state: StageState; detail?: React.ReactNode }[] = [
+                      {
+                        // Any persisted issue note has entered the workflow.
+                        label: 'Submitted',
+                        state: 'done',
+                        detail: (
+                          <span className="text-muted">
+                            {issueNote.employeeName || 'N/A'} on {formatDate(issueNote.issueDate)}
+                          </span>
+                        ),
+                      },
+                      {
+                        label: 'RM Review',
+                        state: rmRejected ? 'rejected' : rmApproved ? 'done' : rmPending ? 'pending' : 'unreached',
+                        detail: rmRejected
+                          ? <span className="text-danger">Rejected</span>
+                          : rmApproved
+                          ? <span className="text-success">Approved</span>
+                          : <span className="text-warning">Pending</span>,
+                      },
+                      {
+                        label: 'Stores',
+                        state: storesIssued ? 'done' : storesRejected ? 'rejected' : storesPending ? 'pending' : 'unreached',
+                        detail: storesIssued
+                          ? <span className="text-success">
+                              Goods Issued{issueNote.issuedByName ? ` by ${issueNote.issuedByName}` : ''}
+                            </span>
+                          : storesRejected
+                          ? <span className="text-danger">Rejected by Stores</span>
+                          : storesPending
+                          ? <span className="text-warning">Awaiting Stores Issue</span>
+                          : undefined,
+                      },
+                    ];
 
-                    {/* Issued */}
-                    <div className="d-flex mb-3">
-                      <div
-                        className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${issueNote.status >= IssueNoteStatus.ISSUED
-                          ? 'bg-success'
-                          : issueNote.status === IssueNoteStatus.APPROVED_BY_MANAGER || issueNote.status === IssueNoteStatus.PENDING_STORE_ISSUE
-                            ? 'bg-warning'
-                            : 'bg-secondary'
-                          }`}
-                        style={{ width: 32, height: 32, minWidth: 32 }}
-                      >
-                        {issueNote.status >= IssueNoteStatus.ISSUED ? (
-                          <FaCheck className="text-white" size={12} />
-                        ) : (
-                          <span className="text-white">3</span>
-                        )}
+                    return (
+                      <div className="workflow-timeline">
+                        {stages.map((stage, i) => (
+                          <div className="d-flex mb-3" key={stage.label}>
+                            <div
+                              className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
+                                stage.state === 'done' ? 'bg-success'
+                                : stage.state === 'rejected' ? 'bg-danger'
+                                : stage.state === 'pending' ? 'bg-warning'
+                                : 'bg-secondary'
+                              }`}
+                              style={{ width: 32, height: 32, minWidth: 32 }}
+                            >
+                              {stage.state === 'done' ? <FaCheck className="text-white" size={12} />
+                                : stage.state === 'rejected' ? <FaTimes className="text-white" size={12} />
+                                : <span className="text-white">{i + 1}</span>}
+                            </div>
+                            <div className="flex-grow-1">
+                              <strong className={stage.state === 'unreached' ? 'text-muted' : undefined}>{stage.label}</strong>
+                              {stage.detail && <div className="small">{stage.detail}</div>}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex-grow-1">
-                        <strong>Issue Materials</strong>
-                        <div className="small text-muted">
-                          {issueNote.status >= IssueNoteStatus.ISSUED
-                            ? `Issued${issueNote.issuedByName ? ` by ${issueNote.issuedByName}` : ''}`
-                            : issueNote.status === IssueNoteStatus.APPROVED_BY_MANAGER || issueNote.status === IssueNoteStatus.PENDING_STORE_ISSUE
-                              ? 'Ready for issue'
-                              : 'Waiting'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
-                  {(issueNote.status === IssueNoteStatus.REJECTED_BY_RM || issueNote.status === IssueNoteStatus.REJECTED_BY_MANAGER || issueNote.status === IssueNoteStatus.REJECTED_BY_STORES) && (
+                  {(approvedStatusId === 2 || (approvedStatusId === 3 && storesByStatusId === 2)) && (
                     <Alert variant="danger" className="mt-3 mb-0">
-                      <strong>Rejected</strong>
-                      <div className="mt-2">This issue note has been rejected.</div>
+                      <strong>{approvedStatusId === 2 ? 'Rejected by RM' : 'Rejected by Stores'}</strong>
                     </Alert>
                   )}
                 </Card.Body>
@@ -438,7 +446,7 @@ const IssueNoteDetailPage: React.FC = () => {
             <Col xs={12}>
               <Card>
                 <Card.Header>
-                  <h5 className="mb-0">Items ({issueNote.items?.length || 0})</h5>
+                  <h5 className="mb-0">Items ({details.length})</h5>
                 </Card.Header>
                 <Card.Body className="p-0">
                   <div className="table-responsive">
@@ -449,49 +457,35 @@ const IssueNoteDetailPage: React.FC = () => {
                           <th>Material Code</th>
                           <th>Description</th>
                           <th>UOM</th>
-                          <th className="text-end">Requested Qty</th>
-                          <th className="text-end">Approved Qty</th>
-                          <th className="text-end">Issued Qty</th>
-                          <th>Batch #</th>
-                          <th>Remarks</th>
+                          <th className="text-end">Quantity</th>
+                          <th>Purpose</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {issueNote.items?.map((item, index) => (
-                          <tr key={item.id}>
-                            <td>{index + 1}</td>
-                            <td>
-                              <code>{item.materialCode}</code>
-                            </td>
-                            <td>{item.materialDescription}</td>
-                            <td>
-                              <Badge bg="secondary">{item.uomCode}</Badge>
-                            </td>
-                            <td className="text-end">{item.requestedQuantity}</td>
-                            <td className="text-end">{item.approvedQuantity || '-'}</td>
-                            <td className="text-end fw-medium">
-                              {item.issuedQuantity || '-'}
-                            </td>
-                            <td>{item.batchNumber || '-'}</td>
-                            <td>{item.remarks || '-'}</td>
+                        {details.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="text-center text-muted py-4">No items found</td>
                           </tr>
-                        ))}
+                        ) : (
+                          details.map((item, index) => (
+                            <tr key={item.id}>
+                              <td>{index + 1}</td>
+                              <td><code>{item.materialCode || 'N/A'}</code></td>
+                              <td>{item.materialName || 'N/A'}</td>
+                              <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
+                              <td className="text-end fw-medium">{item.quantity}</td>
+                              <td>{item.purpose || '-'}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                       <tfoot className="bg-light">
                         <tr>
-                          <td colSpan={4} className="text-end fw-bold">
-                            Totals:
-                          </td>
+                          <td colSpan={4} className="text-end fw-bold">Total Quantity:</td>
                           <td className="text-end fw-bold">
-                            {issueNote.items?.reduce((sum, item) => sum + (item.requestedQuantity ?? item.quantity ?? 0), 0) || 0}
+                            {details.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}
                           </td>
-                          <td className="text-end fw-bold">
-                            {issueNote.items?.reduce((sum, item) => sum + (item.approvedQuantity || 0), 0) || '-'}
-                          </td>
-                          <td className="text-end fw-bold text-primary">
-                            {issueNote.items?.reduce((sum, item) => sum + (item.issuedQuantity || 0), 0) || '-'}
-                          </td>
-                          <td colSpan={2}></td>
+                          <td></td>
                         </tr>
                       </tfoot>
                     </Table>
@@ -512,30 +506,30 @@ const IssueNoteDetailPage: React.FC = () => {
                   <div className="timeline-content">
                     <strong>Created</strong>
                     <p className="text-muted mb-0">
-                      {issueNote.requestedByName} created this issue note on{' '}
-                      {formatDate(issueNote.createdAt)}
+                      {issueNote.employeeName || 'N/A'} created this issue note on{' '}
+                      {formatDate(issueNote.issueDate)}
                     </p>
                   </div>
                 </div>
-                {issueNote.status >= IssueNoteStatus.PENDING_RM_APPROVAL && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-warning"></div>
-                    <div className="timeline-content">
-                      <strong>Submitted for Approval</strong>
-                      <p className="text-muted mb-0">Awaiting approval</p>
-                    </div>
-                  </div>
-                )}
-                {issueNote.status >= IssueNoteStatus.APPROVED_BY_MANAGER && issueNote.status !== IssueNoteStatus.REJECTED_BY_RM && issueNote.status !== IssueNoteStatus.REJECTED_BY_MANAGER && (
+                {approvedStatusId === 3 && (
                   <div className="timeline-item">
                     <div className="timeline-marker bg-success"></div>
                     <div className="timeline-content">
-                      <strong>Approved</strong>
-                      <p className="text-muted mb-0">Issue note approved</p>
+                      <strong>RM Approved</strong>
+                      <p className="text-muted mb-0">Approved by reporting manager</p>
                     </div>
                   </div>
                 )}
-                {issueNote.status === IssueNoteStatus.ISSUED && (
+                {approvedStatusId === 2 && (
+                  <div className="timeline-item">
+                    <div className="timeline-marker bg-danger"></div>
+                    <div className="timeline-content">
+                      <strong>Rejected by RM</strong>
+                      <p className="text-muted mb-0">Issue note was rejected at RM review</p>
+                    </div>
+                  </div>
+                )}
+                {approvedStatusId === 3 && storesByStatusId === 11 && (
                   <div className="timeline-item">
                     <div className="timeline-marker bg-info"></div>
                     <div className="timeline-content">
@@ -544,16 +538,17 @@ const IssueNoteDetailPage: React.FC = () => {
                         {issueNote.issuedByName
                           ? `Issued by ${issueNote.issuedByName}`
                           : 'Materials have been issued'}
+                        {issueNote.storesByDate && ` on ${formatDate(issueNote.storesByDate)}`}
                       </p>
                     </div>
                   </div>
                 )}
-                {(issueNote.status === IssueNoteStatus.REJECTED_BY_RM || issueNote.status === IssueNoteStatus.REJECTED_BY_MANAGER || issueNote.status === IssueNoteStatus.REJECTED_BY_STORES) && (
+                {approvedStatusId === 3 && storesByStatusId === 2 && (
                   <div className="timeline-item">
                     <div className="timeline-marker bg-danger"></div>
                     <div className="timeline-content">
-                      <strong>Rejected</strong>
-                      <p className="text-muted mb-0">Issue note was rejected</p>
+                      <strong>Rejected by Stores</strong>
+                      <p className="text-muted mb-0">Materials could not be issued from stores</p>
                     </div>
                   </div>
                 )}
@@ -563,13 +558,13 @@ const IssueNoteDetailPage: React.FC = () => {
         </Tab>
       </Tabs>
 
-      {/* Approve Modal */}
+      {/* RM Approve Modal */}
       <Modal show={showApproveModal} onHide={() => setShowApproveModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Approve Issue Note</Modal.Title>
+          <Modal.Title>Approve Issue Note (RM Review)</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Are you sure you want to approve issue note <strong>{issueNote.issueNumber}</strong>?</p>
+          <p>Are you sure you want to approve issue note <strong>{issueNote.issueNoteNumber}</strong>?</p>
           <Form.Group>
             <Form.Label>Comments (Optional)</Form.Label>
             <Form.Control
@@ -587,10 +582,10 @@ const IssueNoteDetailPage: React.FC = () => {
           </Button>
           <Button
             variant="success"
-            onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending}
+            onClick={() => rmApproveMutation.mutate()}
+            disabled={rmApproveMutation.isPending}
           >
-            {approveMutation.isPending && (
+            {rmApproveMutation.isPending && (
               <Spinner as="span" animation="border" size="sm" className="me-2" />
             )}
             Approve
@@ -598,13 +593,13 @@ const IssueNoteDetailPage: React.FC = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Reject Modal */}
+      {/* RM Reject Modal */}
       <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Reject Issue Note</Modal.Title>
+          <Modal.Title>Reject Issue Note (RM Review)</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Are you sure you want to reject issue note <strong>{issueNote.issueNumber}</strong>?</p>
+          <p>Are you sure you want to reject issue note <strong>{issueNote.issueNoteNumber}</strong>?</p>
           <Form.Group>
             <Form.Label>Rejection Reason <span className="text-danger">*</span></Form.Label>
             <Form.Control
@@ -623,10 +618,10 @@ const IssueNoteDetailPage: React.FC = () => {
           </Button>
           <Button
             variant="danger"
-            onClick={() => rejectMutation.mutate()}
-            disabled={rejectMutation.isPending || !rejectionReason.trim()}
+            onClick={() => rmRejectMutation.mutate()}
+            disabled={rmRejectMutation.isPending || !rejectionReason.trim()}
           >
-            {rejectMutation.isPending && (
+            {rmRejectMutation.isPending && (
               <Spinner as="span" animation="border" size="sm" className="me-2" />
             )}
             Reject
@@ -637,16 +632,16 @@ const IssueNoteDetailPage: React.FC = () => {
       {/* Issue Modal */}
       <Modal show={showIssueModal} onHide={() => setShowIssueModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Issue Materials</Modal.Title>
+          <Modal.Title>Goods Issued</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>You are about to issue materials for <strong>{issueNote.issueNumber}</strong>.</p>
+          <p>You are about to issue materials for <strong>{issueNote.issueNoteNumber}</strong>.</p>
           <Alert variant="info">
             <strong>Items to Issue:</strong>
             <ul className="mb-0 mt-2">
-              {issueNote.items?.map((item) => (
+              {details.map((item) => (
                 <li key={item.id}>
-                  {item.materialCode}: {item.approvedQuantity || item.requestedQuantity} {item.uomCode}
+                  {item.materialCode || `Material #${item.materialId}`}: {item.quantity} {item.uomCode || ''}
                 </li>
               ))}
             </ul>
@@ -674,7 +669,7 @@ const IssueNoteDetailPage: React.FC = () => {
             {issueMutation.isPending && (
               <Spinner as="span" animation="border" size="sm" className="me-2" />
             )}
-            <FaBoxOpen className="me-2" /> Issue Materials
+            <FaBoxOpen className="me-2" /> Goods Issued
           </Button>
         </Modal.Footer>
       </Modal>
@@ -685,7 +680,7 @@ const IssueNoteDetailPage: React.FC = () => {
           <Modal.Title>Reject (Stores)</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Reject issue note <strong>{issueNote.issueNumber}</strong> — materials cannot be issued from stores?</p>
+          <p>Reject issue note <strong>{issueNote.issueNoteNumber}</strong> — materials cannot be issued from stores?</p>
           <Form.Group>
             <Form.Label>Rejection Reason <span className="text-danger">*</span></Form.Label>
             <Form.Control

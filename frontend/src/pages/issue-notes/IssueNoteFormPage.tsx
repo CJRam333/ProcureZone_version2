@@ -19,7 +19,6 @@ import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch } from 're
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, materialsApi, companiesApi, departmentsApi, plantsApi, sectionsApi, uomApi, getErrorMessage } from '../../api';
 import type { MaterialDropdownItem } from '../../api/materials';
-import type { IssueNoteFormMeta } from '../../api/issueNotes';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Validation schema - updated to match backend DTO
@@ -38,7 +37,6 @@ const issueNoteFormSchema = z.object({
   departmentId: z.number().min(1, 'Department is required'),
   sectionId: z.number().optional(),
   plantId: z.number().min(1, 'Plant is required'),
-  issuedTo: z.string().min(1, 'Issued To is required'),
   purpose: z.string().optional(),
   comments: z.string().optional(),
   lineItems: z.array(issueNoteLineItemSchema).min(1, 'At least one item is required'),
@@ -61,7 +59,6 @@ const IssueNoteFormPage: React.FC = () => {
   const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
   type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
   const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
-  const [formMeta, setFormMeta] = useState<IssueNoteFormMeta | null>(null);
   const [showPlant, setShowPlant] = useState(true);
 
   // Form setup - updated for new schema
@@ -81,7 +78,6 @@ const IssueNoteFormPage: React.FC = () => {
       departmentId: 0,
       sectionId: undefined,
       plantId: 0,
-      issuedTo: '',
       purpose: '',
       comments: '',
       lineItems: [{ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, purpose: '' }],
@@ -164,7 +160,6 @@ const IssueNoteFormPage: React.FC = () => {
         departmentId: existingIssueNote.departmentId,
         sectionId: existingIssueNote.sectionId,
         plantId: existingIssueNote.plantId,
-        issuedTo: existingIssueNote.issuedTo || '',
         purpose: existingIssueNote.purpose || '',
         comments: existingIssueNote.comments || '',
         lineItems: existingIssueNote.details?.map((item) => ({
@@ -183,10 +178,8 @@ const IssueNoteFormPage: React.FC = () => {
   // Auto-fill form fields from meta on create mode
   useEffect(() => {
     if (!isEdit && metaData) {
-      setFormMeta(metaData);
       if (metaData.departmentId) setValue('departmentId', metaData.departmentId);
       if (metaData.defaultCompanyId) setValue('companyId', metaData.defaultCompanyId);
-      if (metaData.empName) setValue('issuedTo', metaData.empName);
     }
   }, [isEdit, metaData, setValue]);
 
@@ -246,7 +239,6 @@ const IssueNoteFormPage: React.FC = () => {
       departmentId: data.departmentId,
       sectionId: data.sectionId || undefined,
       plantId: data.plantId,
-      issuedTo: data.issuedTo,
       purpose: data.purpose,
       comments: data.comments,
       lineItems: data.lineItems.map((item, index) => ({
@@ -276,7 +268,6 @@ const IssueNoteFormPage: React.FC = () => {
         departmentId: data.departmentId,
         sectionId: data.sectionId || undefined,
         plantId: data.plantId,
-        issuedTo: data.issuedTo,
         purpose: data.purpose,
         comments: data.comments,
         lineItems: data.lineItems.map((item, index) => ({
@@ -357,29 +348,8 @@ const IssueNoteFormPage: React.FC = () => {
             <h5 className="mb-0">Issue Note Information</h5>
           </Card.Header>
           <Card.Body>
-            {/* Read-only reference info — only shown when creating a new issue note */}
-            {!isEdit && formMeta && (
-              <Row className="g-3 mb-3 pb-3" style={{ borderBottom: '1px solid #dee2e6' }}>
-                <Col md={4}>
-                  <small className="text-muted d-block fw-semibold">Employee</small>
-                  <span className="fw-bold">{formMeta.empName}</span>
-                  <small className="text-muted ms-2">({formMeta.empId || formMeta.empNumber})</small>
-                </Col>
-                <Col md={2}>
-                  <small className="text-muted d-block fw-semibold">Financial Year</small>
-                  <span className="fw-bold text-primary">{formMeta.financialYear}</span>
-                </Col>
-                <Col md={2}>
-                  <small className="text-muted d-block fw-semibold">Date</small>
-                  <span className="fw-bold">{formMeta.date}</span>
-                </Col>
-                <Col md={4}>
-                  <small className="text-muted d-block fw-semibold">Issue Note No. (Preview)</small>
-                  <span className="fw-bold text-success">{formMeta.nextIssueNoteNumber}</span>
-                  <small className="text-muted ms-1">(auto-assigned on save)</small>
-                </Col>
-              </Row>
-            )}
+            {/* Employee/year/number info is auto-captured at creation and shown on the
+                detail page — not repeated here (matches indent creation form). */}
             <Row className="g-3">
               {/* Company */}
               <Col md={6}>
@@ -463,22 +433,6 @@ const IssueNoteFormPage: React.FC = () => {
                       </option>
                     ))}
                   </Form.Select>
-                </Form.Group>
-              </Col>
-
-              {/* Issued To */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Issued To <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="text"
-                    {...register('issuedTo')}
-                    isInvalid={!!errors.issuedTo}
-                    placeholder="Person/Department receiving materials..."
-                  />
-                  <Form.Control.Feedback type="invalid">
-                    {errors.issuedTo?.message}
-                  </Form.Control.Feedback>
                 </Form.Group>
               </Col>
 

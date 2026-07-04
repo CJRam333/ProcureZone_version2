@@ -7,6 +7,12 @@ import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.inventory.InventoryService;
 import com.nslindia.procurezone.issuenote.dto.*;
+import com.nslindia.procurezone.masterdata.PlantRepository;
+import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
+import com.nslindia.procurezone.masterdata.repository.DepartmentRepository;
+import com.nslindia.procurezone.masterdata.repository.MaterialRepository;
+import com.nslindia.procurezone.masterdata.repository.SectionRepository;
+import com.nslindia.procurezone.masterdata.repository.UnitOfMeasureRepository;
 import com.nslindia.procurezone.notification.service.EmailService;
 import com.nslindia.procurezone.repository.EmployeeReportingRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +52,12 @@ public class IssueNoteService {
     private final EmailService emailService;
     private final EmployeeRepository employeeRepository;
     private final EmployeeReportingRepository employeeReportingRepository;
+    private final CompanyRepository companyRepository;
+    private final DepartmentRepository departmentRepository;
+    private final SectionRepository sectionRepository;
+    private final PlantRepository plantRepository;
+    private final MaterialRepository materialRepository;
+    private final UnitOfMeasureRepository unitOfMeasureRepository;
 
     private static final String ENTITY_TYPE = "Issue Note";
     private static final String ERROR_NOT_FOUND = "Issue Note not found with ID: ";
@@ -54,12 +66,15 @@ public class IssueNoteService {
      * Derives user-visible display status from the two-column issue note workflow:
      * approvedStatus = RM approval (1=pending, 2=rejected, 3=approved)
      * storesByStatus = Stores action  (1=pending, 2=rejected, 11=issued)
+     * Covers every combination in production data: (3,11) (3,2) (2,1) (3,1) (1,1).
+     * "In Progress" is a true fallback and should be extremely rare.
+     * Package-private for DeriveIssueNoteDisplayStatusTest.
      */
-    private static String deriveIssueNoteDisplayStatus(Integer approvedStatusId, Integer storesByStatusId) {
-        if (approvedStatusId == null || approvedStatusId == 1) return "Pending";
+    static String deriveIssueNoteDisplayStatus(Integer approvedStatusId, Integer storesByStatusId) {
+        if (approvedStatusId == null || approvedStatusId == 1) return "Pending RM Approval";
         if (approvedStatusId == 2) return "RM Rejected";
         if (approvedStatusId == 3) {
-            if (storesByStatusId == null || storesByStatusId == 1) return "RM Approved";
+            if (storesByStatusId == null || storesByStatusId == 1) return "RM Approved"; // awaiting stores
             if (storesByStatusId == 2)  return "Stores Rejected";
             if (storesByStatusId == 11) return "Goods Issued";
         }
@@ -93,6 +108,11 @@ public class IssueNoteService {
                 .comments(request.comments())
                 .createdBy(userId)
                 .status(isDeptHead ? 3 : 1) // DEPTHEAD skips RM, goes directly to stores
+                // Two-column workflow model (legacy convention, same as production data):
+                // approvedStatus 1=pending RM, 3=RM approved; storesByStatus 1=pending stores.
+                // DEPTHEAD bypass lands directly in the stores queue as (3,1).
+                .approvedStatus(isDeptHead ? 3 : 1)
+                .storesByStatus(1)
                 .supervisorBypass(isDeptHead)
                 .lastModifiedDate(LocalDateTime.now())
                 .lastModifiedBy(userId)
@@ -244,7 +264,8 @@ public class IssueNoteService {
         issueNote.setStatus(3); // RM Approved
         issueNote.setRmApprovedBy(userId);
         issueNote.setRmApprovedByDate(LocalDateTime.now());
-        issueNote.setRmApprovedStatus(1); // Approved
+        issueNote.setRmApprovedStatus(1); // Approved (legacy rm_status audit column)
+        issueNote.setApprovedStatus(3);   // two-column model: 3 = RM approved (drives displayStatus)
         issueNote.setRmApprovedRemarks(request.remarks());
         issueNote.setComments((issueNote.getComments() != null ? issueNote.getComments() : "") +
                 "\nRM approval remarks: " + request.remarks());
@@ -291,7 +312,8 @@ public class IssueNoteService {
         issueNote.setStatus(5); // Rejected by RM
         issueNote.setRmApprovedBy(userId);
         issueNote.setRmApprovedByDate(LocalDateTime.now());
-        issueNote.setRmApprovedStatus(6); // Rejected
+        issueNote.setRmApprovedStatus(6); // Rejected (legacy rm_status audit column)
+        issueNote.setApprovedStatus(2);   // two-column model: 2 = RM rejected (drives displayStatus)
         issueNote.setRmApprovedRemarks(request.reason());
         issueNote.setComments((issueNote.getComments() != null ? issueNote.getComments() : "") +
                 "\nRM rejection reason: " + request.reason());
@@ -727,40 +749,73 @@ public class IssueNoteService {
         return generateIssueNoteNumber();
     }
 
+    /** Null-safe repository name lookup helpers (IssueNote stores raw FK integers,
+     *  unlike Indent which has entity relationships — so names resolve via repositories). */
+    private String resolveEmployeeName(Integer empNumber) {
+        if (empNumber == null) return null;
+        return employeeRepository.findById(empNumber).map(Employee::getEmpName).orElse(null);
+    }
+
     private IssueNoteResponse mapToResponse(IssueNote issueNote) {
         List<IssueNoteResponse.IssueNoteDetailResponse> detailResponses = issueNote.getDetails().stream()
-                .map(d -> new IssueNoteResponse.IssueNoteDetailResponse(
-                        d.getId(),
-                        d.getMaterialId(),
-                        d.getUnitOfMeasureId(),
-                        d.getQuantity(),
-                        d.getRate(),
-                        d.getAmount(),
-                        d.getPurpose(),
-                        d.getStatus()))
+                .map(d -> {
+                    var material = d.getMaterialId() != null
+                            ? materialRepository.findById(d.getMaterialId()).orElse(null) : null;
+                    var uom = d.getUnitOfMeasureId() != null
+                            ? unitOfMeasureRepository.findById(d.getUnitOfMeasureId()).orElse(null) : null;
+                    return new IssueNoteResponse.IssueNoteDetailResponse(
+                            d.getId(),
+                            d.getMaterialId(),
+                            material != null ? material.getCode() : null,
+                            material != null ? material.getName() : null,
+                            d.getUnitOfMeasureId(),
+                            uom != null ? uom.getCode() : null,
+                            d.getQuantity(),
+                            d.getRate(),
+                            d.getAmount(),
+                            d.getPurpose(),
+                            d.getStatus());
+                })
                 .collect(Collectors.toList());
 
         BigDecimal totalAmount = issueNote.getDetails().stream()
                 .map(d -> d.getAmount() != null ? d.getAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        String companyName = issueNote.getCompanyId() != null
+                ? companyRepository.findById(issueNote.getCompanyId()).map(c -> c.getName()).orElse(null) : null;
+        String departmentName = issueNote.getDepartmentId() != null
+                ? departmentRepository.findById(issueNote.getDepartmentId()).map(dpt -> dpt.getName()).orElse(null) : null;
+        String sectionName = issueNote.getSectionId() != null
+                ? sectionRepository.findById(issueNote.getSectionId()).map(s -> s.getName()).orElse(null) : null;
+        String plantName = issueNote.getPlantId() != null
+                ? plantRepository.findById(issueNote.getPlantId()).map(p -> p.getName()).orElse(null) : null;
+
         return new IssueNoteResponse(
                 issueNote.getId(),
                 issueNote.getIssueNoteNumber(),
                 issueNote.getIssueDate(),
                 issueNote.getCompanyId(),
+                companyName,
                 issueNote.getDepartmentId(),
+                departmentName,
                 issueNote.getSectionId(),
+                sectionName,
                 issueNote.getPlantId(),
+                plantName,
                 issueNote.getIssuedTo(),
                 issueNote.getPurpose(),
                 issueNote.getComments(),
                 issueNote.getCreatedBy(),
+                issueNote.getCreatedBy(),
+                resolveEmployeeName(issueNote.getCreatedBy()),
                 issueNote.getApprovedBy(),
                 issueNote.getApprovedByDate(),
                 issueNote.getStoresBy(),
                 issueNote.getStoresByDate(),
+                resolveEmployeeName(issueNote.getStoresBy()),
                 issueNote.getStatus(),
+                deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),
                 deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),
                 issueNote.getApprovedStatus(),
                 issueNote.getStoresByStatus(),
@@ -783,6 +838,8 @@ public class IssueNoteService {
                 issueNote.getIssuedTo(),
                 issueNote.getStatus(),
                 deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),
+                issueNote.getApprovedStatus(),
+                issueNote.getStoresByStatus(),
                 totalAmount,
                 issueNote.getDetails().size());
     }

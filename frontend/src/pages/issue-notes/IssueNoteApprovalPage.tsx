@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Card,
@@ -303,24 +303,24 @@ const IssueNoteApprovalPage: React.FC = () => {
                                                     className="p-0 text-decoration-none"
                                                     onClick={() => navigate(`/issue-notes/${note.id}`)}
                                                 >
-                                                    {note.issueNumber}
+                                                    {note.issueNoteNumber}
                                                 </Button>
                                             </td>
-                                            <td>{note.requestedByName}</td>
+                                            <td>{note.employeeName}</td>
                                             <td>{note.departmentName}</td>
                                             <td className="text-truncate" style={{ maxWidth: 200 }}>
                                                 {note.purpose}
                                             </td>
                                             <td>
                                                 <Badge bg={getStatusVariant(note.status)}>
-                                                    {note.statusName || getStatusName(note.status)}
+                                                    {note.displayStatus || getStatusName(note.status)}
                                                 </Badge>
                                             </td>
                                             <td>
-                                                <Badge bg="secondary">{note.items?.length || 0}</Badge>
+                                                <Badge bg="secondary">{note.details?.length || 0}</Badge>
                                             </td>
                                             <td>
-                                                {format(new Date(note.issueDate || note.createdAt || new Date()), 'dd MMM yyyy')}
+                                                {format(new Date(note.issueDate || new Date()), 'dd MMM yyyy')}
                                             </td>
                                             <td>
                                                 <ButtonGroup size="sm">
@@ -409,9 +409,9 @@ const IssueNoteApprovalPage: React.FC = () => {
                     {selectedNote && (
                         <>
                             <Alert variant="info" className="mb-3">
-                                <strong>Issue Note:</strong> {selectedNote.issueNumber}
+                                <strong>Issue Note:</strong> {selectedNote.issueNoteNumber}
                                 <br />
-                                <strong>Requester:</strong> {selectedNote.requestedByName}
+                                <strong>Requester:</strong> {selectedNote.employeeName}
                                 <br />
                                 <strong>Purpose:</strong> {selectedNote.purpose}
                             </Alert>
@@ -457,9 +457,9 @@ const IssueNoteApprovalPage: React.FC = () => {
                     {selectedNote && (
                         <>
                             <Alert variant="warning" className="mb-3">
-                                <strong>Issue Note:</strong> {selectedNote.issueNumber}
+                                <strong>Issue Note:</strong> {selectedNote.issueNoteNumber}
                                 <br />
-                                <strong>Requester:</strong> {selectedNote.requestedByName}
+                                <strong>Requester:</strong> {selectedNote.employeeName}
                                 <br />
                                 <small className="text-muted">
                                     This will update inventory and mark materials as issued.
@@ -507,9 +507,9 @@ const IssueNoteApprovalPage: React.FC = () => {
                     {selectedNote && (
                         <>
                             <Alert variant="warning" className="mb-3">
-                                <strong>Issue Note:</strong> {selectedNote.issueNumber}
+                                <strong>Issue Note:</strong> {selectedNote.issueNoteNumber}
                                 <br />
-                                <strong>Requester:</strong> {selectedNote.requestedByName}
+                                <strong>Requester:</strong> {selectedNote.employeeName}
                             </Alert>
                             <Form.Group>
                                 <Form.Label>

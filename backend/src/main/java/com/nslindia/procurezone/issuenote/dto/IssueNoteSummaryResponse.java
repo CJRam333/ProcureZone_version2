@@ -17,6 +17,8 @@ public record IssueNoteSummaryResponse(
         String issuedTo,
         Integer status,
         String statusDescription,
+        Integer approvedStatus,
+        Integer storesByStatus,
         BigDecimal totalAmount,
         Integer lineItemCount) {
 }

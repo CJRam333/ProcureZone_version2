@@ -1,7 +1,6 @@
 package com.nslindia.procurezone.issuenote.dto;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -24,7 +23,9 @@ public record CreateIssueNoteRequest(
 
         @NotNull(message = "Plant ID is required") Integer plantId,
 
-        @NotBlank(message = "Issued to is required") String issuedTo,
+        // Optional — the legacy creation form has no "Issued To" field; the creator
+        // (issue_note_createdby) is the requester of record. Column retained in DB.
+        String issuedTo,
 
         String purpose,
 

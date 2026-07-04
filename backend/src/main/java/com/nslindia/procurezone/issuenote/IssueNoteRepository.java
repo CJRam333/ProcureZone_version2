@@ -136,7 +136,8 @@ public interface IssueNoteRepository extends JpaRepository<IssueNote, Integer> {
          */
         @Query("""
                 SELECT i FROM IssueNote i WHERE
-                    (:search IS NULL OR LOWER(i.issueNoteNumber) LIKE LOWER(CONCAT('%', :search, '%')))
+                    i.status <> 0
+                    AND (:search IS NULL OR LOWER(i.issueNoteNumber) LIKE LOWER(CONCAT('%', :search, '%')))
                     AND (:approvedStatus IS NULL OR i.approvedStatus = :approvedStatus)
                     AND (:storesByStatus IS NULL OR i.storesByStatus = :storesByStatus)
                     AND (:departmentId   IS NULL OR i.departmentId   = :departmentId)
@@ -154,7 +155,8 @@ public interface IssueNoteRepository extends JpaRepository<IssueNote, Integer> {
          */
         @Query("""
                 SELECT i FROM IssueNote i WHERE
-                    i.createdBy IN :empNumbers
+                    i.status <> 0
+                    AND i.createdBy IN :empNumbers
                     AND (:search IS NULL OR LOWER(i.issueNoteNumber) LIKE LOWER(CONCAT('%', :search, '%')))
                     AND (:approvedStatus IS NULL OR i.approvedStatus = :approvedStatus)
                     AND (:storesByStatus IS NULL OR i.storesByStatus = :storesByStatus)

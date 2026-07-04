@@ -130,7 +130,10 @@ const IssueNotesListPage: React.FC = () => {
           >
             <FaEye />
           </Button>
-          {row.status === 'DRAFT' && hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
+          {/* Edit only for true unsubmitted drafts: Spring status=1 AND no two-column
+              workflow progress (legacy rows carry status=1 as an active flag) */}
+          {row.status === 1 && row.approvedStatus === 1 && row.storesByStatus === 1
+            && hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
             <Button
               variant="outline-secondary"
               size="sm"
@@ -140,7 +143,8 @@ const IssueNotesListPage: React.FC = () => {
               <FaEdit />
             </Button>
           )}
-          {row.status === 'ISSUED' && row.type !== 'RETURN' && hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
+          {/* Return only for notes issued through the new app (backend requires status=8) */}
+          {row.status === 8 && hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
             <Button
               variant="outline-success"
               size="sm"
@@ -211,7 +215,7 @@ const IssueNotesListPage: React.FC = () => {
                   }}
                 >
                   <option value="">All Statuses</option>
-                  <option value="1">Pending</option>
+                  <option value="1">Pending RM Approval</option>
                   <option value="2">RM Rejected</option>
                   <option value="3_1">RM Approved</option>
                   <option value="3_11">Goods Issued</option>
