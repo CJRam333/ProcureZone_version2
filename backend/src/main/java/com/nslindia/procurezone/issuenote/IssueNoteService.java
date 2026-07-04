@@ -98,6 +98,10 @@ public class IssueNoteService {
         // Build issue note entity
         IssueNote issueNote = IssueNote.builder()
                 .issueNoteNumber(issueNoteNumber)
+                // issue_note_year is NOT NULL in the DB and must never depend on the
+                // frontend payload — computed server-side (India FY, e.g. "2026-27"),
+                // same helper the indent flow uses.
+                .issueNoteYear(com.nslindia.procurezone.indent.IndentService.getCurrentFinancialYear())
                 .issueDate(LocalDateTime.now())
                 .companyId(request.companyId())
                 .departmentId(request.departmentId())
