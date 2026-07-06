@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-07-06
+
+### Company/Plant/Section/Location Fully Optional — Never Block Creation + Plant≠Location Resolved
+
+Company, plant, section, location and department are optional, informational employee metadata.
+Missing any of them must never prevent creating an indent or issue note.
+
+**PART 1 — migration V51 (next number after V50).** Made the remaining NOT NULL geo columns
+nullable (V50 already did plant/section):
+
+| Table | Column | Was | Now |
+|---|---|---|---|
+| tbl_issue_note | issue_note_company | NOT NULL | NULL |
+| tbl_issue_note | issue_note_dept | NOT NULL | NULL |
+| tbl_indent_master | indent_company | NOT NULL (legacy) | NULL |
+| tbl_indent_master | indent_dept | NOT NULL (legacy) | NULL |
+
+Full geo picture across both tables after V50+V51: company, department, plant, section all nullable.
+`createdby`, document number, date, status and the audit `lmd/lmu` columns stay NOT NULL (genuinely
+required / server-set) — not geo, correctly left alone.
+
+**PART 2 — constraints removed.** `IssueNote` entity: dropped `nullable=false` from
+`issue_note_company`, `issue_note_dept`, and a stale `issue_note_plant` (missed in V50's code side).
+Indent uses `@JoinColumn` (no entity-level NOT NULL — nothing to change). Request DTOs already had
+`@NotNull` removed from company/department/plant/section (and indent employeeId) in the prior commit;
+TS request types already optional.
+
+**PART 3 — resilient server-side capture.** `createIssueNote` and `createIndent` now:
+company ← first `tbl_map_company_emp` row wrapped in try/catch (missing/error → null, logged, never
+throws); department ← `emp_department` else null; plant/section ← null unless a client explicitly
+supplies one. Each still honours an explicit request value as a fallback. Creation proceeds no matter
+how much employee metadata is absent.
+
+**PART 5 — plant vs location: DISTINCT masters.** `tbl_plant_master` and `tbl_location_master` are
+separate tables, and `Employee` carries both `emp_location` (Integer location id) and `emp_plant`
+(String name) as distinct fields — so plant ≠ location. **Reverted** the prior commit's
+`plant ← emp_location` assignment in both services: writing a location id into a plant column would
+have made the detail page's plant-name lookup resolve the wrong master. `*_plant` now stays null
+(no employee→plant-id source exists). `emp_location` has no target column on either entity, so
+location is not stored. (Business owner can still confirm with the row-count queries, but the code
+evidence is conclusive.)
+
+**PART 4 — null geo renders as "—".** Both detail pages now show a clean em-dash for null
+company/department/plant/section instead of "N/A". The backend name lookups were already null-safe
+(`getXxxId() != null ? repo.findById(...) : null`), so a null id never hits the repository.
+
+**Build:** `mvn compile` clean; `tsc -b && vite build` clean. Migration **V51**. New bundle hash
+**`index-BF1ljrKI.js`**.
+
+---
+
 ## 2026-07-04
 
 ### Issue Note Creation 500 (audit column) + Legacy Number Sequence + RM Approver + Card Removal

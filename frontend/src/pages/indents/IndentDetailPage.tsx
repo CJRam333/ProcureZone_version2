@@ -430,25 +430,25 @@ const IndentDetailPage: React.FC = () => {
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Company</small>
-                        <strong>{companyName || 'N/A'}</strong>
+                        <strong>{companyName || '—'}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Department</small>
-                        <strong>{departmentName || 'N/A'}</strong>
+                        <strong>{departmentName || '—'}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Plant</small>
-                        <strong>{plantName || 'N/A'}</strong>
+                        <strong>{plantName || '—'}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Section</small>
-                        <strong>{sectionName || 'N/A'}</strong>
+                        <strong>{sectionName || '—'}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>

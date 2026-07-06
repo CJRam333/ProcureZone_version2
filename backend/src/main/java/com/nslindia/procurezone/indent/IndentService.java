@@ -176,21 +176,31 @@ public class IndentService {
                 Employee currentUser = employeeRepository.findByEmail(username)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
 
-                // Capture company/department/plant server-side from the creating employee's record —
-                // these are employee attributes, so the creation form no longer collects them.
-                //   company    ← tbl_map_company_emp (primary/first mapped company)
-                //   department  ← emp_department
-                //   plant       ← emp_location (no employee→plant-id exists; location is the best
-                //                 available proxy — indent_plant is now nullable so null is safe)
-                // Each falls back to the request value if the employee record can't supply it, so
-                // older clients still posting these fields keep working.
-                List<Integer> creatorCompanyIds =
-                        companyEmployeeRepository.findCompanyIdsByEmpNumber(currentUser.getEmpNumber());
-                Integer resolvedCompanyId = !creatorCompanyIds.isEmpty() ? creatorCompanyIds.get(0) : request.companyId();
+                // Capture optional geo metadata server-side from the creating employee's record. These
+                // are informational only and must NEVER block creation — every lookup is null-safe and
+                // any missing value simply stays null (the columns are all nullable).
+                //   company    ← tbl_map_company_emp (primary/first mapped company), else null
+                //   department  ← emp_department, else null
+                //   plant       ← NOT set from the employee: emp_location is a LOCATION id and plant is
+                //                 a distinct master (tbl_plant_master vs tbl_location_master), so we must
+                //                 not write a location id into the plant column. No employee→plant-id
+                //                 exists, so plant stays null unless a client explicitly supplies one.
+                //   section     ← no employee source; null unless supplied.
+                // Each still honours an explicit request value as a fallback so older clients keep working.
+                Integer resolvedCompanyId = request.companyId();
+                try {
+                        List<Integer> creatorCompanyIds =
+                                companyEmployeeRepository.findCompanyIdsByEmpNumber(currentUser.getEmpNumber());
+                        if (creatorCompanyIds != null && !creatorCompanyIds.isEmpty()) {
+                                resolvedCompanyId = creatorCompanyIds.get(0);
+                        }
+                } catch (Exception e) {
+                        logger.warn("Company lookup failed for employee {}; leaving company null",
+                                        currentUser.getEmpNumber(), e);
+                }
                 Integer resolvedDepartmentId = currentUser.getDepartmentId() != null
                         ? currentUser.getDepartmentId() : request.departmentId();
-                Integer resolvedPlantId = currentUser.getLocationId() != null
-                        ? currentUser.getLocationId() : request.plantId();
+                Integer resolvedPlantId = request.plantId(); // never from emp_location (distinct master)
 
                 // Create indent entity
                 Indent indent = new Indent();

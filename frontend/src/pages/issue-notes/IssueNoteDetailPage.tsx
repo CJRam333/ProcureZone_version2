@@ -208,12 +208,12 @@ const IssueNoteDetailPage: React.FC = () => {
             <div className="vr d-none d-sm-block" />
             <div>
               <small className="text-muted d-block">Department</small>
-              <strong>{issueNote.departmentName || 'N/A'}</strong>
+              <strong>{issueNote.departmentName || '—'}</strong>
             </div>
             <div className="vr d-none d-sm-block" />
             <div>
               <small className="text-muted d-block">Plant</small>
-              <strong>{issueNote.plantName || 'N/A'}</strong>
+              <strong>{issueNote.plantName || '—'}</strong>
             </div>
             <div className="vr d-none d-sm-block" />
             <div>
@@ -298,25 +298,25 @@ const IssueNoteDetailPage: React.FC = () => {
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Company</small>
-                        <strong>{issueNote.companyName || 'N/A'}</strong>
+                        <strong>{issueNote.companyName || '—'}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Department</small>
-                        <strong>{issueNote.departmentName || 'N/A'}</strong>
+                        <strong>{issueNote.departmentName || '—'}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Section</small>
-                        <strong>{issueNote.sectionName || 'N/A'}</strong>
+                        <strong>{issueNote.sectionName || '—'}</strong>
                       </div>
                     </Col>
                     <Col sm={6}>
                       <div className="mb-3">
                         <small className="text-muted d-block">Plant</small>
-                        <strong>{issueNote.plantName || 'N/A'}</strong>
+                        <strong>{issueNote.plantName || '—'}</strong>
                       </div>
                     </Col>
                     {issueNote.issuedByName && (

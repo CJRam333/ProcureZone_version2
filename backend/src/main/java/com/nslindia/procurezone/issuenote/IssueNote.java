@@ -55,16 +55,17 @@ public class IssueNote {
     @Column(name = "issue_note_date", nullable = false)
     private LocalDateTime issueDate;
 
-    @Column(name = "issue_note_company", nullable = false)
+    // Optional geo metadata — captured server-side when available, else null; never blocks creation.
+    @Column(name = "issue_note_company")
     private Integer companyId;
 
-    @Column(name = "issue_note_dept", nullable = false)
+    @Column(name = "issue_note_dept")
     private Integer departmentId;
 
     @Column(name = "issue_note_sec")
     private Integer sectionId;
 
-    @Column(name = "issue_note_plant", nullable = false)
+    @Column(name = "issue_note_plant")
     private Integer plantId;
 
     @Column(name = "issue_note_issued_to", length = 200)
