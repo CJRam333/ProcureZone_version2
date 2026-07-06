@@ -4,6 +4,78 @@
 
 ## 2026-07-04
 
+### Issue Note Creation Blockers + Material Dropdown Catalogue + Dropdown Scroll + Detail Gaps
+
+**PART 1 — `issue_note_lmd` data-truncation (blocker) + all varchar date columns.**
+Root cause: the legacy `tbl_issue_note` / `tbl_issue_note_details` audit-date columns are
+`varchar(20)`, but the entities map them as `LocalDateTime`. Binding a `LocalDateTime` sends a
+value with fractional seconds (`2026-07-04 07:25:17.738893`, 26+ chars) → MySQL truncation on
+INSERT. (Indents are unaffected — their `indent_*` date columns are real `datetime`, proven by
+indents creating fine with the identical mapping.) Fix: new
+`common/persistence/VarcharDateTimeConverter` (JPA `AttributeConverter<LocalDateTime,String>`)
+writing a fixed 19-char `yyyy-MM-dd HH:mm:ss` and reading tolerantly. Applied via `@Convert` to
+the audit-date fields **not** used in JPQL range/sort:
+
+| Column | Width | Code wrote (before) | Chars | After |
+|---|---|---|---|---|
+| `issue_note_lmd` | varchar(20) | `LocalDateTime.now()` → `2026-07-04 07:25:17.738893` | 26+ | `2026-07-04 07:25:17` (19) |
+| `issue_note_details_lmd` | varchar(20) | same | 26+ | 19-char |
+| `issue_note_storesby_date` | varchar(20) | same (on goods-issue) | 26+ | 19-char |
+| `issue_note_approvedby_date` | varchar(20) | same | 26+ | 19-char |
+| `issue_note_rm_approvedby_date` | varchar(20) | same (on RM approve) | 26+ | 19-char |
+| `issue_note_year` | varchar(45) | `"2026-27"` | 7 | unchanged (fine) |
+| `issue_note_created_date` | varchar(20) | never written (String field) | — | unchanged |
+| `issue_note_date` | datetime | `LocalDateTime` | — | **left native** (used in `Sort`/`BETWEEN`) |
+| `tbl_indent_master.*` dates | datetime | `LocalDateTime` | — | unchanged (real datetime, works) |
+
+The 19-char format also inserts cleanly into a real `datetime` column, so the converter is safe
+regardless of the exact column type. `issue_note_lmd` was only the first to fail; `details_lmd`
+and `storesby_date` would have blocked the next steps — all fixed in one pass.
+
+**PART 2 — material dropdown limited to ~30-40 for non-USER/ADMIN roles.**
+`MaterialController /dropdown` set `adminView = ADMIN||SUPERADMIN` and passed the caller's
+`companyIds`; non-admin callers hit `searchForDropdownByCompanies`, whose
+`AND (co.id IS NULL OR co.id IN :companyIds)` filter dropped every material mapped only to other
+companies. USER appeared full only because its `companyIds` is empty (fell through to the
+all-companies branch); SUPERVISOR/DEPTHEAD/PROCUREMENT have mappings → scoped subset. Fix:
+`searchMaterialsForDropdown(search)` now always calls `searchForDropdownAllCompanies` — the
+catalogue is stock context, not a permission boundary. Controller simplified (dropped
+`adminView`/`companyIds`), all authenticated roles get the full list.
+
+**PART 3 — dropdown detached from input on scroll.**
+The material search dropdown is `position: fixed` (so it escapes the card's `overflow`). Fixed
+elements don't scroll with the page, so it floated away. Fix (applied to both `IndentFormPage`
+and `IssueNoteFormPage` — they each have their own inline dropdown, no shared component): store a
+ref to the anchor input; a `useEffect` gated on `showMaterialSearch` adds capture-phase `scroll`
++ `resize` listeners that recompute `{top,left,width}` from the input's live bounding rect, so the
+dropdown tracks the input continuously and still overlays outside the card.
+
+**PART 4 — issue note detail line items (qty/purpose/total).** No code change needed — the
+table already renders material code/name, UOM, quantity, purpose and a total-quantity footer, and
+`IssueNoteResponse.IssueNoteDetailResponse` already carries `quantity`/`purpose`. The fields were
+blank only because the **response-envelope bug** (fixed in fd5de25) left `issueNote.details`
+undefined; with the unwrap deployed they populate. Verified the table + DTO are correct.
+
+**PART 5 — RM approver in flowchart.** Added `rmApprovedBy` / `rmApprovedByName` /
+`rmApprovedByDate` to `IssueNoteResponse` (name resolved from `issue_note_rm_approvedby` via the
+existing employee lookup). The RM Review stage now reads "Approved by {name} on {date}".
+
+**PART 6 — remove "Issue Details" card & capture server-side: NOT DONE (reported, by design).**
+The premise doesn't hold against the schema. `tbl_emp_master` has only `emp_department` (Integer)
+and `emp_location` (Integer); there is **no `emp_company`, no `emp_section`, and `emp_plant` is a
+`varchar(100)` name — not the Integer plant FK** that `issue_note_plant` (NOT NULL) requires.
+Company is only derivable via the company↔employee mapping table (and defaults to the first of
+possibly several); section has no employee source at all; plant has no integer source. Removing
+the card would break creation (no plant id, possible null company/department). So the card was
+**kept** (heading already renamed "Issue Details" in fd5de25) with its pre-filled, working
+dropdowns. Recommend the business owner confirm `emp_*` completeness before any future removal;
+even then, plant needs a resolvable employee→plant-id source that doesn't currently exist.
+
+**Build:** `mvn compile` clean; `tsc -b && vite build` clean. New bundle hash
+**`index-CqjkQo48.js`** (was `index-D3NXf63A.js`).
+
+---
+
 ### Issue Note Detail Response Envelope Unwrap + Create-Button Roles + Card Heading
 
 **Root cause of "detail page shows N/A + flowchart shows default data" (looked like a stale

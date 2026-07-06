@@ -1,5 +1,6 @@
 package com.nslindia.procurezone.issuenote;
 
+import com.nslindia.procurezone.common.persistence.VarcharDateTimeConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -94,7 +95,8 @@ public class IssueNote {
     @Column(name = "issue_note_rm_approvedby")
     private Integer rmApprovedBy;
 
-    @Column(name = "issue_note_rm_approvedby_date")
+    @Column(name = "issue_note_rm_approvedby_date", length = 20)
+    @Convert(converter = VarcharDateTimeConverter.class)
     private LocalDateTime rmApprovedByDate;
 
     @Column(name = "issue_note_rm_approvedby_remarks", columnDefinition = "TEXT")
@@ -106,7 +108,8 @@ public class IssueNote {
     @Column(name = "issue_note_approvedby")
     private Integer approvedBy;
 
-    @Column(name = "issue_note_approvedby_date")
+    @Column(name = "issue_note_approvedby_date", length = 20)
+    @Convert(converter = VarcharDateTimeConverter.class)
     private LocalDateTime approvedByDate;
 
     /**
@@ -119,7 +122,8 @@ public class IssueNote {
     @Column(name = "issue_note_storesby")
     private Integer storesBy;
 
-    @Column(name = "issue_note_storesby_date")
+    @Column(name = "issue_note_storesby_date", length = 20)
+    @Convert(converter = VarcharDateTimeConverter.class)
     private LocalDateTime storesByDate;
 
     /**
@@ -154,7 +158,8 @@ public class IssueNote {
     @Column(name = "issue_note_storesby_status")
     private Integer storesByStatus;
 
-    @Column(name = "issue_note_lmd", nullable = false)
+    @Column(name = "issue_note_lmd", nullable = false, length = 20)
+    @Convert(converter = VarcharDateTimeConverter.class)
     private LocalDateTime lastModifiedDate;
 
     @Column(name = "issue_note_lmu", nullable = false)

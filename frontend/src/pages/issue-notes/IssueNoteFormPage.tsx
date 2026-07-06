@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Form,
@@ -55,7 +55,10 @@ const IssueNoteFormPage: React.FC = () => {
   const [materialSearch, setMaterialSearch] = useState('');
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
-  const [dropdownAnchor, setDropdownAnchor] = useState<{ top: number; left: number } | null>(null);
+  const [dropdownAnchor, setDropdownAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
+  // Element the open dropdown is anchored to — used to re-track its position on scroll/resize
+  // so the fixed-position dropdown stays glued to the input instead of floating away.
+  const dropdownInputRef = useRef<HTMLElement | null>(null);
   const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
   type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
   const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
@@ -88,6 +91,25 @@ const IssueNoteFormPage: React.FC = () => {
     control,
     name: 'lineItems',
   });
+
+  // Keep the fixed-position material dropdown attached to its input while the page (or any
+  // nested scroll container) scrolls or the window resizes. Capture-phase listener catches
+  // scrolls on ancestor containers, not just window.
+  useEffect(() => {
+    if (!showMaterialSearch) return;
+    const reposition = () => {
+      const el = dropdownInputRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setDropdownAnchor({ top: rect.bottom, left: rect.left, width: rect.width });
+    };
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+    return () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+    };
+  }, [showMaterialSearch]);
 
   const watchLineItems = watch('lineItems');
 
@@ -514,15 +536,17 @@ const IssueNoteFormPage: React.FC = () => {
                                 placeholder="Search material..."
                                 value={selectedItemIndex === index ? materialSearch : ''}
                                 onChange={(e) => {
+                                  dropdownInputRef.current = e.currentTarget;
                                   const rect = e.currentTarget.getBoundingClientRect();
-                                  setDropdownAnchor({ top: rect.bottom, left: rect.left });
+                                  setDropdownAnchor({ top: rect.bottom, left: rect.left, width: rect.width });
                                   setMaterialSearch(e.target.value);
                                   setSelectedItemIndex(index);
                                   setShowMaterialSearch(true);
                                 }}
                                 onFocus={(e) => {
+                                  dropdownInputRef.current = e.currentTarget;
                                   const rect = e.currentTarget.getBoundingClientRect();
-                                  setDropdownAnchor({ top: rect.bottom, left: rect.left });
+                                  setDropdownAnchor({ top: rect.bottom, left: rect.left, width: rect.width });
                                   setSelectedItemIndex(index);
                                   setShowMaterialSearch(true);
                                 }}
@@ -544,7 +568,7 @@ const IssueNoteFormPage: React.FC = () => {
                           {showMaterialSearch && selectedItemIndex === index && dropdownAnchor && (
                             <div
                               className="bg-white border rounded shadow-lg"
-                              style={{ position: 'fixed', top: dropdownAnchor.top, left: dropdownAnchor.left, minWidth: '360px', maxHeight: '250px', overflowY: 'auto', zIndex: 9999 }}
+                              style={{ position: 'fixed', top: dropdownAnchor.top, left: dropdownAnchor.left, width: dropdownAnchor.width, minWidth: '360px', maxHeight: '250px', overflowY: 'auto', zIndex: 9999 }}
                             >
                               {dropdownMaterials && dropdownMaterials.length > 0 ? (
                                 dropdownMaterials.map((item) => (

@@ -1,5 +1,6 @@
 package com.nslindia.procurezone.issuenote;
 
+import com.nslindia.procurezone.common.persistence.VarcharDateTimeConverter;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -55,7 +56,8 @@ public class IssueNoteDetails {
     @Column(name = "issue_note_details_status", nullable = false)
     private Integer status;
 
-    @Column(name = "issue_note_details_lmd", nullable = false)
+    @Column(name = "issue_note_details_lmd", nullable = false, length = 20)
+    @Convert(converter = VarcharDateTimeConverter.class)
     private LocalDateTime lastModifiedDate;
 
     @Column(name = "issue_note_details_lmu", nullable = false)

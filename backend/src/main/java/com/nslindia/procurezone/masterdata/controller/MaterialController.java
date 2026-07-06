@@ -23,7 +23,6 @@ import com.nslindia.procurezone.security.UserPrincipal;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
-import java.util.Set;
 
 /**
  * REST Controller for Material master data management.
@@ -96,13 +95,9 @@ public class MaterialController {
     @GetMapping("/dropdown")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<MaterialDropdownResponse>> getMaterialsForDropdown(
-            @RequestParam(required = false) String search,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        Set<String> roles = principal.roles();
-        boolean adminView = roles.contains("SUPERADMIN") || roles.contains("ADMIN");
-        List<MaterialDropdownResponse> result = materialService.searchMaterialsForDropdown(
-                search, adminView, principal.companyIds());
-        return ResponseEntity.ok(result);
+            @RequestParam(required = false) String search) {
+        // Full catalogue for all authenticated roles — see MaterialService for rationale.
+        return ResponseEntity.ok(materialService.searchMaterialsForDropdown(search));
     }
 
     /**

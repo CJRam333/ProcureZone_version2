@@ -388,7 +388,10 @@ const IssueNoteDetailPage: React.FC = () => {
                         detail: rmRejected
                           ? <span className="text-danger">Rejected</span>
                           : rmApproved
-                          ? <span className="text-success">Approved</span>
+                          ? <span className="text-success">
+                              Approved{issueNote.rmApprovedByName ? ` by ${issueNote.rmApprovedByName}` : ''}
+                              {issueNote.rmApprovedByDate ? ` on ${formatDate(issueNote.rmApprovedByDate)}` : ''}
+                            </span>
                           : <span className="text-warning">Pending</span>,
                       },
                       {

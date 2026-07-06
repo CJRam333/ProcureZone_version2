@@ -27,6 +27,9 @@ export interface IssueNote {
     storesBy?: number;
     storesByDate?: string;
     issuedByName?: string;     // resolved from storesBy
+    rmApprovedBy?: number;
+    rmApprovedByName?: string; // resolved RM approver name
+    rmApprovedByDate?: string;
     status: number;
     statusDescription: string;
     displayStatus?: string;    // derived from two-column model

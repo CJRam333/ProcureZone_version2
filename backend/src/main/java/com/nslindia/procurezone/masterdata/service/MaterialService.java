@@ -136,13 +136,16 @@ public class MaterialService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.List<MaterialDropdownResponse> searchMaterialsForDropdown(
-            String search, boolean adminView, java.util.List<Integer> companyIds) {
+    public java.util.List<MaterialDropdownResponse> searchMaterialsForDropdown(String search) {
         String term = (search == null) ? "" : search.trim();
-        if (adminView || companyIds == null || companyIds.isEmpty()) {
-            return companyPlantMaterialMapRepository.searchForDropdownAllCompanies(term);
-        }
-        return companyPlantMaterialMapRepository.searchForDropdownByCompanies(term, companyIds);
+        // Full material catalogue for EVERY role. A material's company/plant mapping is
+        // stock context, not a permission boundary — anyone raising an indent or issue note
+        // may request any catalogue material. Previously company-scoped roles (SUPERVISOR,
+        // DEPTHEAD, PROCUREMENT, …) hit searchForDropdownByCompanies, whose
+        // "co.id IN :companyIds" filter dropped every material not mapped to their own
+        // company, so they saw only ~30-40 of the hundreds available. USER/ADMIN/SUPERADMIN
+        // already saw the full list, so this aligns all roles to that same path.
+        return companyPlantMaterialMapRepository.searchForDropdownAllCompanies(term);
     }
 
     /**
