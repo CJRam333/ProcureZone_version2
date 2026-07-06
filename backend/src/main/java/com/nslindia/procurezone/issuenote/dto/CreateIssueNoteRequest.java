@@ -15,13 +15,16 @@ import java.util.List;
  * @version 1.0
  */
 public record CreateIssueNoteRequest(
-        @NotNull(message = "Company ID is required") Integer companyId,
+        // company / department / plant are captured server-side from the creating employee's
+        // record (see IssueNoteService.createIssueNote), so they are optional in the payload.
+        // A value is still honoured as a fallback if the employee record can't supply it.
+        Integer companyId,
 
-        @NotNull(message = "Department ID is required") Integer departmentId,
+        Integer departmentId,
 
         Integer sectionId,
 
-        @NotNull(message = "Plant ID is required") Integer plantId,
+        Integer plantId,
 
         // Optional — the legacy creation form has no "Issued To" field; the creator
         // (issue_note_createdby) is the requester of record. Column retained in DB.

@@ -37,10 +37,12 @@ const indentItemSchema = z.object({
 });
 
 const indentFormSchema = z.object({
-  companyId: z.number().min(1, 'Company is required'),
-  departmentId: z.number().min(1, 'Department is required'),
-  sectionId: z.number().min(0),
-  plantId: z.number().min(1, 'Plant is required'),
+  // company / department / plant / section are captured server-side from the employee record —
+  // no longer collected on the form, so they are optional here.
+  companyId: z.number().optional(),
+  departmentId: z.number().optional(),
+  sectionId: z.number().optional(),
+  plantId: z.number().optional(),
   comments: z.string().optional(),
   deliveryDate: z.string().optional(),
   items: z.array(indentItemSchema).min(1, 'At least one item is required'),
@@ -236,12 +238,14 @@ const IndentFormPage: React.FC = () => {
   const transformFormData = (data: IndentFormData) => {
     // Get employeeId from user context - it might be stored as string
     const employeeId = user?.employeeNumber || (typeof user?.employeeId === 'string' ? parseInt(user.employeeId, 10) : user?.employeeId) || 0;
-    
+
     return {
-      companyId: data.companyId,
-      departmentId: data.departmentId,
-      sectionId: data.sectionId,
-      plantId: data.plantId,
+      // company / department / plant / section are captured server-side from the employee
+      // record; sent only as an optional fallback (never 0).
+      companyId: data.companyId || undefined,
+      departmentId: data.departmentId || undefined,
+      sectionId: data.sectionId || undefined,
+      plantId: data.plantId || undefined,
       employeeId: employeeId,
       comments: data.comments || '',
       deliveryDate: data.deliveryDate || null,
@@ -395,120 +399,15 @@ const IndentFormPage: React.FC = () => {
       )}
 
       <Form onSubmit={handleSubmit(onSubmit)}>
-        {/* Basic Information */}
-        <Card className="mb-4 shadow-sm">
-          <Card.Header className="bg-light">
-            <h5 className="mb-0">
-              <FaEdit className="me-2 text-primary" />
-              Basic Information
-            </h5>
-          </Card.Header>
-          <Card.Body>
-            {/* Read-only reference info — only shown when creating a new indent */}
-            {!isEdit && formMeta && (
-              <Row className="g-3 mb-3 pb-3" style={{ borderBottom: '1px solid #dee2e6' }}>
-                <Col md={4}>
-                  <small className="text-muted d-block fw-semibold">Employee</small>
-                  <span className="fw-bold">{formMeta.empName}</span>
-                  <small className="text-muted ms-2">({formMeta.empId || formMeta.empNumber})</small>
-                </Col>
-                <Col md={2}>
-                  <small className="text-muted d-block fw-semibold">Financial Year</small>
-                  <span className="fw-bold text-primary">{formMeta.financialYear}</span>
-                </Col>
-                <Col md={2}>
-                  <small className="text-muted d-block fw-semibold">Date</small>
-                  <span className="fw-bold">{formMeta.date}</span>
-                </Col>
-                <Col md={4}>
-                  <small className="text-muted d-block fw-semibold">Indent No. (Preview)</small>
-                  <span className="fw-bold text-success">{formMeta.nextIndentNumber}</span>
-                  <small className="text-muted ms-1">(auto-assigned on save)</small>
-                </Col>
-              </Row>
-            )}
-            <Row className="g-3">
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Company <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    {...register('companyId', { valueAsNumber: true })}
-                    isInvalid={!!errors.companyId}
-                  >
-                    <option value={0}>Select Company...</option>
-                    {companiesData?.content?.map((company) => (
-                      <option key={company.id} value={company.id}>
-                        {company.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.companyId?.message}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Department <span className="text-danger">*</span></Form.Label>
-                  <Form.Select 
-                    {...register('departmentId', { valueAsNumber: true })} 
-                    isInvalid={!!errors.departmentId}
-                  >
-                    <option value={0}>Select Department...</option>
-                    {departmentsData?.content?.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.departmentId?.message}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-              {showPlant && (
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Plant <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    {...register('plantId', { valueAsNumber: true })}
-                    isInvalid={!!errors.plantId}
-                  >
-                    <option value={0}>Select Plant...</option>
-                    {plantsData?.content?.map((plant) => (
-                      <option key={plant.id} value={plant.id}>
-                        {plant.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.plantId?.message}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-              )}
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Section <span className="text-danger">*</span></Form.Label>
-                  <Form.Select 
-                    {...register('sectionId', { valueAsNumber: true })} 
-                    isInvalid={!!errors.sectionId}
-                  >
-                    <option value={0}>Select Section...</option>
-                    {sectionsData?.content?.map((section) => (
-                      <option key={section.id} value={section.id}>
-                        {section.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.sectionId?.message}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
+        {/* Minimal reference line — company/department/plant/section are captured server-side
+            from the employee record, so no dropdowns here. Just show FY, date and the next number. */}
+        {!isEdit && formMeta && (
+          <div className="text-muted small mb-3">
+            <strong>Indent No:</strong> {formMeta.nextIndentNumber}
+            {' · '}<strong>Date:</strong> {formMeta.date}
+            {' · '}<strong>FY:</strong> {formMeta.financialYear}
+          </div>
+        )}
 
         {/* Items */}
         <Card className="mb-4 shadow-sm">

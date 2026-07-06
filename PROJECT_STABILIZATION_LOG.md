@@ -4,6 +4,66 @@
 
 ## 2026-07-04
 
+### Issue Note Creation 500 (audit column) + Legacy Number Sequence + RM Approver + Card Removal
+
+**PART 1 — creation 500 `Unknown column 'log_created_date'`.** The issue note was created, but the
+post-create email notification saved an `EmailLog` (`tbl_email_log`) whose entity maps
+`log_created_date` — a column missing from the deployed table. `EmailService.sendEmailFromTemplate`
+was `@Transactional` with default propagation, so it **joined** `createIssueNote`'s transaction; the
+failed INSERT marked it rollback-only and reverted the issue note even though the caller caught the
+exception. Two fixes: (1) both `sendEmailFromTemplate` and `sendEmail` are now
+`@Transactional(propagation = REQUIRES_NEW)` — email/audit logging runs in its own transaction and a
+failure can never roll back a business operation again; (2) migration **V49** adds the missing
+`log_created_date DATETIME NULL` column so logging actually works. Audit entity: `EmailLog` →
+`tbl_email_log`; mismatch was the single missing `log_created_date` column.
+
+**PART 1 Step 4 — issue note number format.** Generator produced `IN/2026/00001`; the real legacy
+sequence is a continuous 13-digit numeric (…988, …989, …). Indent generation
+(`generateLegacyNumericIndentNumber`) takes the latest `indent_no` (ORDER BY id DESC), `parseLong+1`,
+with a MAX-numeric fallback for stray non-numeric rows. Rewrote `generateIssueNoteNumber` to mirror it
+exactly — added `findLatestIssueNoteNumbers` + `findMaxNumericIssueNoteNumber` (native
+`MAX(CAST(... AS UNSIGNED)) WHERE issue_note_no REGEXP '^[0-9]+$'`) to `IssueNoteRepository`. The
+MAX-numeric fallback deliberately ignores the stray `IN/2026/00001` so the sequence resumes from the
+real max. Both the `/meta` preview (`previewNextIssueNoteNumber`) and creation call
+`generateIssueNoteNumber`, so both are consistent.
+
+**PART 5 — RM approver name not showing.** The previous commit resolved the name from
+`issue_note_rm_approvedby` only. Legacy flow was always User→RM→Stores with no manager stage, so
+legacy rows recorded the RM in `issue_note_approvedby`, while new-app `rmApprove()` writes
+`issue_note_rm_approvedby`. Fixed by coalescing in `mapToResponse`: RM approver id/date =
+`rmApprovedBy`/`rmApprovedByDate` if present, else `approvedBy`/`approvedByDate`. Frontend already
+reads `rmApprovedByName`/`rmApprovedByDate`; the RM Review stage shows "Approved by {name} on {date}".
+
+**PART 6 — remove creation cards, capture data server-side, make plant/section nullable.**
+Confirmed available employee data: `emp_department` (`tbl_emp_master`), `emp_location`
+(`tbl_emp_master`), company via `tbl_map_company_emp`. NOT available: section, and no employee→plant-id.
+- **Backend:** `createIssueNote` and `createIndent` now resolve company (first of
+  `companyEmployeeRepository.findCompanyIdsByEmpNumber`), department (`emp_department`), and plant
+  (`emp_location` — best available proxy) server-side, each **falling back to the request value** if
+  the employee record can't supply it (older clients keep working). Indent employee = creator when the
+  form omits it.
+- **Migration V50** makes `issue_note_plant`, `issue_note_sec`, `indent_plant`, `indent_sec` nullable
+  (no reliable plant/section source, so creation must tolerate NULL).
+- **DTOs:** `@NotNull` removed from company/department/plant (and indent employeeId); TS request types
+  made these optional.
+- **Frontend:** removed the "Basic Information" card (indent) and "Issue Details" card (issue note)
+  entirely — with their company/plant/department/section dropdowns, related master-data queries,
+  auto-select effects, and the zod `min(1)` validators. Payloads send these only as an optional
+  fallback (never `0`). Added a minimal read-only header line to both creation forms:
+  `Indent/Issue Note No: {preview} · Date: {today} · FY: {year}`.
+
+> **Caveat flagged for the business owner:** `plant` is populated from the employee's `emp_location`
+> (a location id), because no employee→plant-id mapping exists. If the plant and location masters are
+> distinct, the stored `*_plant` value is really a location id and the detail page's plant-name lookup
+> may show the wrong name or blank. Confirm whether location==plant in this deployment; if not, we
+> should add a dedicated location column rather than reuse plant. Company creation still requires a
+> `tbl_map_company_emp` row for every creator (company columns remain NOT NULL) — verify completeness.
+
+**Build:** `mvn compile` clean; `tsc -b && vite build` clean. Migrations added: **V49** (email log
+column), **V50** (plant/section nullable). New bundle hash **`index-BN8cCzXC.js`**.
+
+---
+
 ### Issue Note Creation Blockers + Material Dropdown Catalogue + Dropdown Scroll + Detail Gaps
 
 **PART 1 — `issue_note_lmd` data-truncation (blocker) + all varchar date columns.**

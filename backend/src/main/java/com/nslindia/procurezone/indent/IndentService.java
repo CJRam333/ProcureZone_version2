@@ -136,6 +136,7 @@ public class IndentService {
         private final EmployeeRoleRepository employeeRoleRepository;
         private final SectionRepository sectionRepository;
         private final EmployeeReportingRepository employeeReportingRepository;
+        private final com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository;
 
         @PersistenceContext
         private EntityManager entityManager;
@@ -150,7 +151,8 @@ public class IndentService {
                         ReportingHierarchyService reportingHierarchyService,
                         EmployeeRoleRepository employeeRoleRepository,
                         SectionRepository sectionRepository,
-                        EmployeeReportingRepository employeeReportingRepository) {
+                        EmployeeReportingRepository employeeReportingRepository,
+                        com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository) {
                 this.indentRepository = indentRepository;
                 this.indentDetailRepository = indentDetailRepository;
                 this.employeeRepository = employeeRepository;
@@ -162,6 +164,7 @@ public class IndentService {
                 this.employeeRoleRepository = employeeRoleRepository;
                 this.sectionRepository = sectionRepository;
                 this.employeeReportingRepository = employeeReportingRepository;
+                this.companyEmployeeRepository = companyEmployeeRepository;
         }
 
         /**
@@ -173,12 +176,32 @@ public class IndentService {
                 Employee currentUser = employeeRepository.findByEmail(username)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
 
+                // Capture company/department/plant server-side from the creating employee's record —
+                // these are employee attributes, so the creation form no longer collects them.
+                //   company    ← tbl_map_company_emp (primary/first mapped company)
+                //   department  ← emp_department
+                //   plant       ← emp_location (no employee→plant-id exists; location is the best
+                //                 available proxy — indent_plant is now nullable so null is safe)
+                // Each falls back to the request value if the employee record can't supply it, so
+                // older clients still posting these fields keep working.
+                List<Integer> creatorCompanyIds =
+                        companyEmployeeRepository.findCompanyIdsByEmpNumber(currentUser.getEmpNumber());
+                Integer resolvedCompanyId = !creatorCompanyIds.isEmpty() ? creatorCompanyIds.get(0) : request.companyId();
+                Integer resolvedDepartmentId = currentUser.getDepartmentId() != null
+                        ? currentUser.getDepartmentId() : request.departmentId();
+                Integer resolvedPlantId = currentUser.getLocationId() != null
+                        ? currentUser.getLocationId() : request.plantId();
+
                 // Create indent entity
                 Indent indent = new Indent();
                 indent.setIndentYear(String.valueOf(Year.now().getValue()));
                 indent.setIndentDate(LocalDateTime.now());
-                indent.setCompany(entityManager.getReference(Company.class, request.companyId()));
-                indent.setDepartment(entityManager.getReference(Department.class, request.departmentId()));
+                if (resolvedCompanyId != null) {
+                        indent.setCompany(entityManager.getReference(Company.class, resolvedCompanyId));
+                }
+                if (resolvedDepartmentId != null) {
+                        indent.setDepartment(entityManager.getReference(Department.class, resolvedDepartmentId));
+                }
 
                 // Resolve section: use provided value if valid, otherwise fall back to first active section
                 Integer sectionId = (request.sectionId() != null && request.sectionId() > 0)
@@ -191,11 +214,14 @@ public class IndentService {
                         indent.setSection(entityManager.getReference(Section.class, sectionId));
                 }
 
-                if (request.plantId() != null) {
-                        indent.setPlant(entityManager.getReference(Plant.class, request.plantId()));
+                if (resolvedPlantId != null) {
+                        indent.setPlant(entityManager.getReference(Plant.class, resolvedPlantId));
                 }
 
-                indent.setEmployee(entityManager.getReference(Employee.class, request.employeeId()));
+                // The creator is the requesting employee (form no longer sends a separate employeeId).
+                Integer indentEmployeeId = request.employeeId() != null
+                        ? request.employeeId() : currentUser.getEmpNumber();
+                indent.setEmployee(entityManager.getReference(Employee.class, indentEmployeeId));
                 indent.setComments(request.comments());
                 indent.setDeliveryDate(request.deliveryDate());
                 indent.setCreatedBy(currentUser);

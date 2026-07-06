@@ -88,10 +88,11 @@ export interface IssueNoteItem {
 }
 
 export interface IssueNoteCreateRequest {
-    companyId: number;
-    departmentId: number;
+    // company / department / plant / section captured server-side from the employee record — optional
+    companyId?: number;
+    departmentId?: number;
     sectionId?: number;
-    plantId: number;
+    plantId?: number;
     issuedTo?: string; // optional — no legacy equivalent; creator is the requester of record
     purpose?: string;
     comments?: string;

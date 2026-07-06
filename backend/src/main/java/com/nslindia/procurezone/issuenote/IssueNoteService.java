@@ -14,6 +14,7 @@ import com.nslindia.procurezone.masterdata.repository.MaterialRepository;
 import com.nslindia.procurezone.masterdata.repository.SectionRepository;
 import com.nslindia.procurezone.masterdata.repository.UnitOfMeasureRepository;
 import com.nslindia.procurezone.notification.service.EmailService;
+import com.nslindia.procurezone.repository.CompanyEmployeeRepository;
 import com.nslindia.procurezone.repository.EmployeeReportingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +52,7 @@ public class IssueNoteService {
     private final EmailService emailService;
     private final EmployeeRepository employeeRepository;
     private final EmployeeReportingRepository employeeReportingRepository;
+    private final CompanyEmployeeRepository companyEmployeeRepository;
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
     private final SectionRepository sectionRepository;
@@ -95,6 +96,23 @@ public class IssueNoteService {
         // Supervisor bypass: DEPTHEAD creators skip RM and go directly to Stores
         boolean isDeptHead = isCreatorDeptHead();
 
+        // Capture company/department/plant server-side from the creating employee's record —
+        // these are employee attributes, so the creation form no longer collects them.
+        //   company    ← tbl_map_company_emp (primary/first mapped company)
+        //   department  ← emp_department
+        //   plant       ← emp_location (no employee→plant-id exists; location is the best available
+        //                 proxy — issue_note_plant is now nullable so a null here is safe)
+        // Each falls back to the request value if the employee record can't supply it, so older
+        // clients still posting these fields keep working.
+        Employee creator = employeeRepository.findById(userId).orElse(null);
+        List<Integer> creatorCompanyIds = companyEmployeeRepository.findCompanyIdsByEmpNumber(userId);
+        Integer resolvedCompanyId = !creatorCompanyIds.isEmpty() ? creatorCompanyIds.get(0) : request.companyId();
+        Integer resolvedDepartmentId = (creator != null && creator.getDepartmentId() != null)
+                ? creator.getDepartmentId() : request.departmentId();
+        Integer resolvedPlantId = (creator != null && creator.getLocationId() != null)
+                ? creator.getLocationId() : request.plantId();
+        Integer resolvedSectionId = request.sectionId(); // no employee source; nullable
+
         // Build issue note entity
         IssueNote issueNote = IssueNote.builder()
                 .issueNoteNumber(issueNoteNumber)
@@ -103,10 +121,10 @@ public class IssueNoteService {
                 // same helper the indent flow uses.
                 .issueNoteYear(com.nslindia.procurezone.indent.IndentService.getCurrentFinancialYear())
                 .issueDate(LocalDateTime.now())
-                .companyId(request.companyId())
-                .departmentId(request.departmentId())
-                .sectionId(request.sectionId())
-                .plantId(request.plantId())
+                .companyId(resolvedCompanyId)
+                .departmentId(resolvedDepartmentId)
+                .sectionId(resolvedSectionId)
+                .plantId(resolvedPlantId)
                 .issuedTo(request.issuedTo())
                 .purpose(request.purpose())
                 .comments(request.comments())
@@ -729,22 +747,30 @@ public class IssueNoteService {
                 .anyMatch(a -> "ROLE_DEPTHEAD".equals(a.getAuthority()));
     }
 
+    /**
+     * Generate the next issue note number by continuing the legacy 13-digit numeric sequence
+     * (e.g. 1100202000988 → 1100202000989). Mirrors IndentService.generateLegacyNumericIndentNumber():
+     *   1. take the most recent issue_note_no (ORDER BY issue_note_id DESC), parse as Long, +1;
+     *   2. if that value is non-numeric (e.g. a stray "IN/2026/00001" from an earlier deployment),
+     *      fall back to MAX of all purely numeric issue_note_no values, +1;
+     *   3. if no numeric records exist at all, start from 1.
+     */
     private String generateIssueNoteNumber() {
-        String year = String.valueOf(LocalDate.now().getYear());
-        IssueNote lastIssueNote = issueNoteRepository.findTopByOrderByIdDesc().orElse(null);
-
-        int nextNumber = 1;
-        if (lastIssueNote != null && lastIssueNote.getIssueNoteNumber() != null &&
-                lastIssueNote.getIssueNoteNumber().startsWith("IN/" + year)) {
+        java.util.List<String> latest =
+                issueNoteRepository.findLatestIssueNoteNumbers(PageRequest.of(0, 1));
+        if (!latest.isEmpty() && latest.get(0) != null) {
             try {
-                String lastNumber = lastIssueNote.getIssueNoteNumber().split("/")[2];
-                nextNumber = Integer.parseInt(lastNumber) + 1;
-            } catch (Exception e) {
-                log.warn("Error parsing last issue note number, starting from 1", e);
+                return String.valueOf(Long.parseLong(latest.get(0).trim()) + 1);
+            } catch (NumberFormatException e) {
+                log.warn("Latest issue_note_no '{}' is non-numeric; falling back to MAX numeric scan",
+                        latest.get(0));
             }
         }
-
-        return String.format("IN/%s/%05d", year, nextNumber);
+        Long maxNumeric = issueNoteRepository.findMaxNumericIssueNoteNumber();
+        if (maxNumeric != null && maxNumeric > 0) {
+            return String.valueOf(maxNumeric + 1);
+        }
+        return "1";
     }
 
     /** Read-only preview of what the next issue note number will be (does not consume the number). */
@@ -795,6 +821,14 @@ public class IssueNoteService {
         String plantName = issueNote.getPlantId() != null
                 ? plantRepository.findById(issueNote.getPlantId()).map(p -> p.getName()).orElse(null) : null;
 
+        // RM approver: new-app notes write issue_note_rm_approvedby via rmApprove(); legacy notes
+        // (flow was always User→RM→Stores, no manager stage) recorded the RM in issue_note_approvedby.
+        // Coalesce so the RM Review stage shows the approver's name for both data eras.
+        Integer rmApproverId = issueNote.getRmApprovedBy() != null
+                ? issueNote.getRmApprovedBy() : issueNote.getApprovedBy();
+        LocalDateTime rmApproverDate = issueNote.getRmApprovedByDate() != null
+                ? issueNote.getRmApprovedByDate() : issueNote.getApprovedByDate();
+
         return new IssueNoteResponse(
                 issueNote.getId(),
                 issueNote.getIssueNoteNumber(),
@@ -818,9 +852,9 @@ public class IssueNoteService {
                 issueNote.getStoresBy(),
                 issueNote.getStoresByDate(),
                 resolveEmployeeName(issueNote.getStoresBy()),
-                issueNote.getRmApprovedBy(),
-                resolveEmployeeName(issueNote.getRmApprovedBy()),
-                issueNote.getRmApprovedByDate(),
+                rmApproverId,
+                resolveEmployeeName(rmApproverId),
+                rmApproverDate,
                 issueNote.getStatus(),
                 deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),
                 deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),

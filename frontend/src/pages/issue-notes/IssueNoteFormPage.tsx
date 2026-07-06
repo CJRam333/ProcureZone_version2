@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
-import { issueNotesApi, materialsApi, companiesApi, departmentsApi, plantsApi, sectionsApi, uomApi, getErrorMessage } from '../../api';
+import { issueNotesApi, materialsApi, uomApi, getErrorMessage } from '../../api';
 import type { MaterialDropdownItem } from '../../api/materials';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -33,10 +33,12 @@ const issueNoteLineItemSchema = z.object({
 });
 
 const issueNoteFormSchema = z.object({
-  companyId: z.number().min(1, 'Company is required'),
-  departmentId: z.number().min(1, 'Department is required'),
+  // company / department / plant / section are captured server-side from the employee record —
+  // no longer collected on the form, so they are optional here.
+  companyId: z.number().optional(),
+  departmentId: z.number().optional(),
   sectionId: z.number().optional(),
-  plantId: z.number().min(1, 'Plant is required'),
+  plantId: z.number().optional(),
   purpose: z.string().optional(),
   comments: z.string().optional(),
   lineItems: z.array(issueNoteLineItemSchema).min(1, 'At least one item is required'),
@@ -62,7 +64,6 @@ const IssueNoteFormPage: React.FC = () => {
   const [stockByIndex, setStockByIndex] = useState<Record<number, number | null>>({});
   type ItemCompanyInfo = { companyId: number; companyName: string; plantId: number; plantName: string; stock: number | null };
   const [itemCompanyMap, setItemCompanyMap] = useState<Record<number, ItemCompanyInfo>>({});
-  const [showPlant, setShowPlant] = useState(true);
 
   // Form setup - updated for new schema
   const {
@@ -118,34 +119,9 @@ const IssueNoteFormPage: React.FC = () => {
     return stock !== null && stock !== undefined && item.quantity > stock;
   });
 
-  const watchCompanyId = watch('companyId');
-  const watchDepartmentId = watch('departmentId');
-  const watchPlantId = watch('plantId');
-
-  // Fetch master data for dropdowns
-  const { data: companiesData } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companiesApi.getAll(0, 100),
-  });
-
-  const { data: departmentsData } = useQuery({
-    queryKey: ['departments', watchCompanyId],
-    queryFn: () => departmentsApi.getAll(0, 100),
-    enabled: watchCompanyId > 0,
-  });
-
-  const { data: plantsData } = useQuery({
-    queryKey: ['plants', watchCompanyId],
-    queryFn: () => plantsApi.getAll(0, 100),
-    enabled: watchCompanyId > 0,
-  });
-
-  const { data: sectionsData } = useQuery({
-    queryKey: ['sections', watchDepartmentId],
-    queryFn: () => sectionsApi.getAll(0, 100),
-    enabled: watchDepartmentId > 0,
-  });
-
+  // company/department/plant/section are captured server-side from the employee record now —
+  // no dropdowns on this form, so the related master-data queries were removed. Only UOM
+  // (used by line items) remains.
   const { data: uomData } = useQuery({
     queryKey: ['uom'],
     queryFn: () => uomApi.getAll(0, 100),
@@ -197,31 +173,14 @@ const IssueNoteFormPage: React.FC = () => {
     }
   }, [existingIssueNote, reset]);
 
-  // Auto-fill form fields from meta on create mode
+  // Optional fallback only: seed company/department from meta if present, so the backend has a
+  // hint if the employee record can't resolve them. The fields aren't shown on the form.
   useEffect(() => {
     if (!isEdit && metaData) {
       if (metaData.departmentId) setValue('departmentId', metaData.departmentId);
       if (metaData.defaultCompanyId) setValue('companyId', metaData.defaultCompanyId);
     }
   }, [isEdit, metaData, setValue]);
-
-  // Auto-fill first section when sections load
-  useEffect(() => {
-    if (!isEdit && sectionsData?.content?.length) {
-      setValue('sectionId', sectionsData.content[0].id);
-    }
-  }, [isEdit, sectionsData, setValue]);
-
-  // Auto-select plant if only one available; hide field if none
-  useEffect(() => {
-    if (isEdit || !plantsData?.content) return;
-    const plants = plantsData.content;
-    if (plants.length === 0) {
-      setShowPlant(false);
-    } else if (plants.length === 1) {
-      setValue('plantId', plants[0].id);
-    }
-  }, [isEdit, plantsData, setValue]);
 
   // Create/Update mutations
   const createMutation = useMutation({
@@ -257,10 +216,11 @@ const IssueNoteFormPage: React.FC = () => {
   const onSubmit = async (data: IssueNoteFormData) => {
     setError(null);
     const formData = {
-      companyId: data.companyId,
-      departmentId: data.departmentId,
+      // Captured server-side from the employee record; sent only as an optional fallback (never 0).
+      companyId: data.companyId || undefined,
+      departmentId: data.departmentId || undefined,
       sectionId: data.sectionId || undefined,
-      plantId: data.plantId,
+      plantId: data.plantId || undefined,
       purpose: data.purpose,
       comments: data.comments,
       lineItems: data.lineItems.map((item, index) => ({
@@ -286,10 +246,11 @@ const IssueNoteFormPage: React.FC = () => {
       let issueNoteId = Number(id);
 
       const formData = {
-        companyId: data.companyId,
-        departmentId: data.departmentId,
+        // Captured server-side from the employee record; sent only as an optional fallback (never 0).
+        companyId: data.companyId || undefined,
+        departmentId: data.departmentId || undefined,
         sectionId: data.sectionId || undefined,
-        plantId: data.plantId,
+        plantId: data.plantId || undefined,
         purpose: data.purpose,
         comments: data.comments,
         lineItems: data.lineItems.map((item, index) => ({
@@ -364,103 +325,15 @@ const IssueNoteFormPage: React.FC = () => {
       )}
 
       <Form onSubmit={handleSubmit(onSubmit)}>
-        {/* Basic Information */}
-        <Card className="mb-4">
-          <Card.Header>
-            <h5 className="mb-0">Issue Details</h5>
-          </Card.Header>
-          <Card.Body>
-            {/* Employee/year/number info is auto-captured at creation and shown on the
-                detail page — not repeated here (matches indent creation form). */}
-            <Row className="g-3">
-              {/* Company */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Company <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    {...register('companyId', { valueAsNumber: true })}
-                    isInvalid={!!errors.companyId}
-                  >
-                    <option value={0}>Select Company</option>
-                    {companiesData?.content?.map((company) => (
-                      <option key={company.id} value={company.id}>
-                        {company.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.companyId?.message}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-
-              {/* Plant */}
-              {showPlant && (
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Plant <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    {...register('plantId', { valueAsNumber: true })}
-                    isInvalid={!!errors.plantId}
-                    disabled={!watchCompanyId}
-                  >
-                    <option value={0}>Select Plant</option>
-                    {plantsData?.content?.map((plant) => (
-                      <option key={plant.id} value={plant.id}>
-                        {plant.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.plantId?.message}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-              )}
-
-              {/* Department */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Department <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    {...register('departmentId', { valueAsNumber: true })}
-                    isInvalid={!!errors.departmentId}
-                    disabled={!watchCompanyId}
-                  >
-                    <option value={0}>Select Department</option>
-                    {departmentsData?.content?.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Control.Feedback type="invalid">
-                    {errors.departmentId?.message}
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Col>
-
-              {/* Section (Optional) */}
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Section</Form.Label>
-                  <Form.Select
-                    {...register('sectionId', { valueAsNumber: true })}
-                    disabled={!watchDepartmentId}
-                  >
-                    <option value={0}>Select Section (Optional)</option>
-                    {sectionsData?.content?.map((section) => (
-                      <option key={section.id} value={section.id}>
-                        {section.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-
-            </Row>
-          </Card.Body>
-        </Card>
+        {/* Minimal reference line — company/department/plant/section are captured server-side
+            from the employee record, so no dropdowns here. Just show FY, date and the next number. */}
+        {!isEdit && metaData && (
+          <div className="text-muted small mb-3">
+            <strong>Issue Note No:</strong> {metaData.nextIssueNoteNumber}
+            {' · '}<strong>Date:</strong> {metaData.date}
+            {' · '}<strong>FY:</strong> {metaData.financialYear}
+          </div>
+        )}
 
         {/* Line Items */}
         <Card className="mb-4">

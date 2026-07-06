@@ -99,9 +99,10 @@ export interface IndentItem {
 }
 
 export interface IndentCreateRequest {
-    companyId: number;
-    departmentId: number;
-    plantId: number;
+    // company / department / plant / section captured server-side from the employee record — optional
+    companyId?: number;
+    departmentId?: number;
+    plantId?: number;
     employeeId: number;
     sectionId?: number;
     comments?: string;

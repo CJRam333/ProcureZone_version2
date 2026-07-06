@@ -5,21 +5,23 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 
 /**
  * DTO for creating a new indent.
  */
 public record CreateIndentRequest(
-        @NotNull(message = "Company ID is required") Integer companyId,
+        // company / department / plant / employee are captured server-side from the creating
+        // employee's record (see IndentService.createIndent), so they are optional in the payload.
+        // A value is still honoured as a fallback if the employee record can't supply it.
+        Integer companyId,
 
-        @NotNull(message = "Department ID is required") Integer departmentId,
+        Integer departmentId,
 
         Integer sectionId,
 
-        @NotNull(message = "Plant ID is required") Integer plantId,
+        Integer plantId,
 
-        @NotNull(message = "Employee ID is required") Integer employeeId,
+        Integer employeeId,
 
         String comments,
 

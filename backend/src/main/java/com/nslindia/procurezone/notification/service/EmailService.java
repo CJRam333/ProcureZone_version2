@@ -21,6 +21,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -51,7 +52,10 @@ public class EmailService {
     /**
      * Send email using template code
      */
-    @Transactional
+    // REQUIRES_NEW: email notification + audit-log write run in their own transaction so a
+    // logging/mail failure can NEVER mark a caller's business transaction (e.g. issue note
+    // creation) rollback-only. Callers already swallow the propagated exception.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean sendEmailFromTemplate(String templateCode, Map<String, Object> variables,
             String toAddress) {
         EmailTemplate template = emailTemplateRepository.findByCode(templateCode)
@@ -75,7 +79,7 @@ public class EmailService {
     /**
      * Send email with multiple recipients and attachments
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean sendEmail(EmailRequest request) {
         EmailLog emailLog = null;
 
