@@ -15,6 +15,8 @@ public record IssueNoteSummaryResponse(
         LocalDateTime issueDate,
         Integer departmentId,
         String issuedTo,
+        Integer createdBy,
+        String employeeName,
         Integer status,
         String statusDescription,
         Integer approvedStatus,

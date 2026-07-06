@@ -4,6 +4,41 @@
 
 ## 2026-07-06
 
+### Stores Buttons Visible to PROCUREMENT + "Created By" Column for Elevated Roles
+
+**PART 1 — stores Goods Issued / Reject (Stores) buttons not showing.** The status check was
+correct and read the unwrapped fields fine; the bug was the **role list**. Before/after:
+
+```
+// before
+const canIssue = approvedStatusId === 3 && storesByStatusId === 1
+  && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
+// after
+const canIssue = approvedStatusId === 3 && storesByStatusId === 1
+  && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'PROCUREMENT']);
+```
+
+PROCUREMENT fills the stores role in this deployment but was absent from the check, so the
+stores/procurement user saw the note with no action buttons. Also added PROCUREMENT to the matching
+backend `@PreAuthorize` on `POST /issue-notes/{id}/issue` and `/reject-stores` — otherwise the
+now-visible buttons would 403 on click. Endpoints confirmed wired: Green "Goods Issued" →
+`issueNotesApi.issue` → `/issue` → storesByStatus=11; Red "Reject (Stores)" →
+`issueNotesApi.storesReject` → `/reject-stores` (with reason) → storesByStatus=2. Both frontend
+methods already unwrap the `{success,data}` envelope (returning `response.data.data`).
+
+**PART 2 — "Created By" column, elevated roles only.** The list DTO (`IssueNoteSummaryResponse`)
+**did not** carry the creator name — it had neither `createdBy` nor a resolved name. Added
+`createdBy` + `employeeName` to the DTO and resolved the name in `mapToSummaryResponse` via the same
+`resolveEmployeeName(createdBy)` the detail response uses. Frontend: added a "Created By" column to
+`IssueNotesListPage`, rendered only when
+`hasAnyRole(['SUPERVISOR','DEPTHEAD','PROCUREMENT','ISSUECONFIRM','ADMIN','SUPERADMIN'])` (spread into
+the columns array so it's fully absent for a plain USER, who only ever sees their own notes). Null
+creator renders as "—".
+
+**Build:** `mvn compile` clean; `tsc -b && vite build` clean. New bundle hash **`index-HSNw8zic.js`**.
+
+---
+
 ### Company/Plant/Section/Location Fully Optional — Never Block Creation + Plant≠Location Resolved
 
 Company, plant, section, location and department are optional, informational employee metadata.

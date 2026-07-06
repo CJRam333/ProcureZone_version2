@@ -156,9 +156,10 @@ const IssueNoteDetailPage: React.FC = () => {
   // RM stage: submitted (status=2) and RM decision still pending
   const canRmAct = issueNote.status === 2 && approvedStatusId === 1
     && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR']);
-  // Stores stage: RM approved, stores action pending
+  // Stores stage: RM approved, stores action pending. PROCUREMENT fills the stores role in this
+  // deployment, so it must see the Goods Issued / Reject (Stores) buttons alongside ISSUECONFIRM.
   const canIssue = approvedStatusId === 3 && storesByStatusId === 1
-    && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM']);
+    && hasAnyRole(['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'PROCUREMENT']);
 
   const details = issueNote.details ?? [];
 

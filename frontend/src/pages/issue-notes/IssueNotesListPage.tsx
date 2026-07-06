@@ -89,6 +89,10 @@ const IssueNotesListPage: React.FC = () => {
     }
   };
 
+  // "Created By" is only meaningful to roles that see other people's issue notes —
+  // a plain USER only ever sees their own, so the column is redundant for them.
+  const showCreatorColumn = hasAnyRole(['SUPERVISOR', 'DEPTHEAD', 'PROCUREMENT', 'ISSUECONFIRM', 'ADMIN', 'SUPERADMIN']);
+
   // Table columns
   const columns = [
     {
@@ -103,6 +107,11 @@ const IssueNotesListPage: React.FC = () => {
         </div>
       ),
     },
+    ...(showCreatorColumn ? [{
+      key: 'employeeName',
+      label: 'Created By',
+      render: (row: any) => <span>{row.employeeName || '—'}</span>,
+    }] : []),
     {
       key: 'statusDescription',
       label: 'Status',

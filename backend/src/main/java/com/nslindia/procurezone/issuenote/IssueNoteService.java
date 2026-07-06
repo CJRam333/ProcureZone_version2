@@ -887,6 +887,8 @@ public class IssueNoteService {
                 issueNote.getIssueDate(),
                 issueNote.getDepartmentId(),
                 issueNote.getIssuedTo(),
+                issueNote.getCreatedBy(),
+                resolveEmployeeName(issueNote.getCreatedBy()),
                 issueNote.getStatus(),
                 deriveIssueNoteDisplayStatus(issueNote.getApprovedStatus(), issueNote.getStoresByStatus()),
                 issueNote.getApprovedStatus(),

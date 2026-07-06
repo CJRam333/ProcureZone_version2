@@ -251,7 +251,7 @@ public class IssueNoteController {
          * Updates inventory balances
          */
         @PostMapping("/{id}/issue")
-        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'PROCUREMENT', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> issueGoods(
                         @PathVariable Integer id,
                         @Valid @RequestBody IssueGoodsRequest request,
@@ -277,7 +277,7 @@ public class IssueNoteController {
          * Changes status from 7 (Pending Store Issue) to 9 (Rejected by Stores)
          */
         @PostMapping("/{id}/reject-stores")
-        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('ISSUECONFIRM', 'PROCUREMENT', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> rejectByStores(
                         @PathVariable Integer id,
                         @Valid @RequestBody RejectIssueNoteRequest request,
