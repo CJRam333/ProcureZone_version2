@@ -63,57 +63,81 @@ public class LdapAuthService {
             return false;
         }
 
+        // [DIAG] Stage logging at WARN so it surfaces without changing log config. No passwords logged.
+        log.warn("LDAP-DIAG step1: email='{}' → domain='{}'", email, domain);
+
         Optional<LdapConfig> configOpt = lookupConfig(domain);
         if (configOpt.isEmpty()) {
-            log.warn("LDAP login attempted for domain '{}' but no LDAP config exists", domain);
+            log.warn("LDAP-DIAG step2: NO config row found for domain '{}' — failing", domain);
             return false;
         }
         LdapConfig config = configOpt.get();
+        log.warn("LDAP-DIAG step2: config found id={} for domain '{}' (url='{}')",
+                config.getId(), domain, config.getUrl());
 
         // Rows with an "N/A" / blank service password cannot service-bind — fail cleanly, never
         // attempt a bind with the literal "N/A".
         String servicePwd = config.getPwd();
         if (servicePwd == null || servicePwd.isBlank() || "N/A".equalsIgnoreCase(servicePwd.trim())) {
-            log.warn("LDAP not configured for domain '{}' (service password is blank/N/A)", domain);
+            log.warn("LDAP-DIAG step2: config id={} has blank/N/A service password — failing", config.getId());
             return false;
         }
         if (config.getUrl() == null || config.getUrl().isBlank()
                 || config.getPrinc() == null || config.getPrinc().isBlank()
                 || config.getUser() == null || config.getUser().isBlank()) {
-            log.warn("LDAP config for domain '{}' is incomplete (url/user/princ missing)", domain);
+            log.warn("LDAP-DIAG step2: config id={} incomplete (url/user/princ missing) — failing", config.getId());
             return false;
         }
 
-        String serviceBindDn = "uid=" + config.getUser() + "," + config.getPrinc();
+        // Normalize DN whitespace: config_princ values carry spaces after commas
+        // (e.g. "ou=people, dc=ashaagrisciences, dc=com"). ldapsearch tolerates them, but JNDI's
+        // DN parser can reject/misparse them, so collapse ", " → "," before building any DN or
+        // using it as a search base.
+        String rawPrinc = config.getPrinc();
+        String princ = normalizeDn(rawPrinc);
+        String serviceBindDn = "uid=" + config.getUser().trim() + "," + princ;
+        if (!rawPrinc.equals(princ)) {
+            log.warn("LDAP-DIAG step3: normalized config_princ whitespace: '{}' → '{}'", rawPrinc, princ);
+        }
+        log.warn("LDAP-DIAG step3: service-bind DN='{}' url='{}' auth=simple", serviceBindDn, config.getUrl());
 
         DirContext serviceCtx = null;
         DirContext userCtx = null;
         try {
             serviceCtx = new InitialDirContext(buildEnv(config.getUrl(), serviceBindDn, servicePwd));
+            log.warn("LDAP-DIAG step4: service-bind SUCCEEDED for config id={}", config.getId());
 
-            String userDn = findUserDn(serviceCtx, config.getPrinc(), email);
+            String userDn = findUserDn(serviceCtx, princ, email);
             if (userDn == null) {
-                log.debug("LDAP: no directory entry with mail='{}' under '{}'", email, config.getPrinc());
+                log.warn("LDAP-DIAG step5: (mail={}) search under base '{}' returned NO entry — failing",
+                        email, princ);
                 return false; // user not found — generic failure
             }
+            log.warn("LDAP-DIAG step5: search found user DN='{}'", userDn);
 
             // Second bind AS THE USER with the typed password — this is the actual credential check.
             userCtx = new InitialDirContext(buildEnv(config.getUrl(), userDn, password));
-            log.debug("LDAP authentication succeeded for {}", email);
+            log.warn("LDAP-DIAG step6: user-bind SUCCEEDED — authenticated {}", email);
             return true;
         } catch (AuthenticationException e) {
-            // Wrong password (or service-bind rejected) — generic failure, no detail leaked.
-            log.debug("LDAP authentication failed for {}: {}", email, e.getMessage());
+            // Wrong password OR service-bind rejected — generic failure to the client, detail here.
+            log.warn("LDAP-DIAG FAIL (auth) for {} at bind: {}: {}",
+                    email, e.getClass().getName(), e.getMessage());
             return false;
         } catch (NamingException e) {
-            // Unreachable/misconfigured server, timeout, etc. Isolated to this domain — other
-            // domains and local login are unaffected.
-            log.warn("LDAP error for domain '{}' ({}): {}", domain, config.getUrl(), e.getMessage());
+            // Unreachable/misconfigured server, timeout, DN-parse error, etc. Isolated to this domain.
+            log.warn("LDAP-DIAG FAIL (naming) for domain '{}' url='{}': {}: {}",
+                    domain, config.getUrl(), e.getClass().getName(), e.getMessage());
             return false;
         } finally {
             closeQuietly(userCtx);
             closeQuietly(serviceCtx);
         }
+    }
+
+    /** Collapse whitespace after DN component separators: ", " (and ",  ") → ",". */
+    private String normalizeDn(String dn) {
+        return dn == null ? null : dn.replaceAll(",\\s+", ",").trim();
     }
 
     /**

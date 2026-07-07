@@ -4,6 +4,43 @@
 
 ## 2026-07-07
 
+### LDAP Login Diagnostics — stage logging + config_princ DN whitespace normalization
+
+`janakirama.c@ashaagrisciences.com` fails with the generic "Invalid username or password", but the
+`ldapsearch` CLI with the same user + service account succeeds — so the server/bind/search/user-bind
+all work; something in the Java path differs. Added server-side-only diagnostics (client still gets
+the generic error) and applied the most likely fix.
+
+**Stage logging (WARN level, so it shows without changing log config; no passwords ever logged):**
+`LdapAuthService.authenticate()` now logs, in order:
+- step1: email → extracted domain
+- step2: whether a config row was found (logs `config.id` + url, never pwd) / blank-N-A / incomplete
+- step3: the constructed service-bind DN + url + `auth=simple`
+- step4: service-bind succeeded
+- step5: whether the `(mail=…)` search returned an entry, and the DN found (or NO entry)
+- step6: user-bind succeeded → authenticated
+- FAIL branches log `e.getClass().getName()` + `e.getMessage()` for both `AuthenticationException`
+  (bind) and `NamingException` (communication/DN-parse/timeout), tagged `LDAP-DIAG FAIL`.
+
+**DN whitespace normalization (applied — strong suspected root cause):** `config_princ` rows carry
+spaces after commas, e.g. `ou=people, dc=ashaagrisciences, dc=com`. `ldapsearch` tolerates/normalizes
+these; JNDI's RFC-2253 DN parser can reject or misparse them. Added
+`normalizeDn(dn) = dn.replaceAll(",\\s+", ",").trim()`, applied to **both** the service-bind DN and
+the `(mail=…)` search base. The service-bind `config_user` is also trimmed. A WARN line logs the
+before/after when normalization changes the value, so the log confirms whether this was the issue.
+
+Diagnostic-only otherwise: no change to routing, to what the API returns, or to the local login path.
+The step logs will show definitively whether the failure was service-bind, search-returns-nothing, or
+a DN-parse `NamingException` — if normalization already fixed it, step6 will log success.
+
+**Build:** backend `mvn compile` clean; `tsc -b && vite build` clean. Backend-only change — frontend
+bundle unchanged (`index-Xk4l49XY.js`).
+
+**Next:** reproduce the login, then read `app.log` for the `LDAP-DIAG` lines to confirm the stage and
+exception. Once confirmed working, the WARN-level `LDAP-DIAG` lines should be dropped to DEBUG.
+
+---
+
 ### LDAP Authentication — 18 domains, plain JNDI, wired into login (local login unchanged)
 
 Built LDAP (directory) authentication for `@`-containing logins. Local (non-`@`) login is
