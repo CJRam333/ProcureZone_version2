@@ -15,6 +15,7 @@ import org.springframework.util.StringUtils;
 
 import com.nslindia.procurezone.audit.AuditService;
 import com.nslindia.procurezone.auth.dto.AuthenticatedUser;
+import com.nslindia.procurezone.auth.ldap.LdapAuthService;
 import com.nslindia.procurezone.repository.CompanyEmployeeRepository;
 import com.nslindia.procurezone.masterdata.LocationRepository;
 import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
@@ -51,12 +52,13 @@ public class AuthService {
     private final DepartmentRepository departmentRepository;
     private final CompanyRepository companyRepository;
     private final LocationRepository locationRepository;
+    private final LdapAuthService ldapAuthService;
 
     public AuthService(EmployeeRepository employeeRepository, PasswordService passwordService,
             JwtService jwtService, TokenBlacklistService tokenBlacklistService, AuditService auditService,
             CompanyEmployeeRepository companyEmployeeRepository,
             DepartmentRepository departmentRepository, CompanyRepository companyRepository,
-            LocationRepository locationRepository) {
+            LocationRepository locationRepository, LdapAuthService ldapAuthService) {
         this.employeeRepository = employeeRepository;
         this.passwordService = passwordService;
         this.jwtService = jwtService;
@@ -66,6 +68,7 @@ public class AuthService {
         this.departmentRepository = departmentRepository;
         this.companyRepository = companyRepository;
         this.locationRepository = locationRepository;
+        this.ldapAuthService = ldapAuthService;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -93,18 +96,32 @@ public class AuthService {
                 throw new InactiveUserException();
             }
 
-            // Verify password against emp_password (MD5).
-            // Source: tbl_emp_master.emp_password
-            // PasswordService.verifyPassword() detects MD5 vs BCrypt automatically.
-            String storedHash = employee.getLegacyPasswordHash();
-            PasswordVerificationResult verification = passwordService.verifyPassword(request.password(), storedHash);
-            if (!verification.successful()) {
-                auditService.logAuthentication(username, false, ipAddress);
-                log.warn("Invalid password for employee: {}", username);
-                throw new InvalidCredentialsException();
-            }
-            if (verification.legacyMatch()) {
-                log.debug("MD5 password match for employee {}", username);
+            // Password verification. Routing: an '@' in the identifier means an LDAP (directory)
+            // user; anything else uses the unchanged local emp_password path.
+            if (username.contains("@")) {
+                // LDAP path — the directory verifies the password. The employee record (already
+                // loaded above by emp_email, active-checked) supplies ALL authorization data below;
+                // LDAP contributes nothing but a pass/fail on the credentials. An LDAP user with no
+                // tbl_emp_master row already failed the findByEmailIgnoreCase lookup above.
+                boolean ldapOk = ldapAuthService.authenticate(username, request.password());
+                if (!ldapOk) {
+                    auditService.logAuthentication(username, false, ipAddress);
+                    log.warn("LDAP authentication failed for: {}", username);
+                    throw new InvalidCredentialsException();
+                }
+            } else {
+                // Local path — UNCHANGED. Verify against emp_password (MD5 or BCrypt, auto-detected).
+                // Source: tbl_emp_master.emp_password
+                String storedHash = employee.getLegacyPasswordHash();
+                PasswordVerificationResult verification = passwordService.verifyPassword(request.password(), storedHash);
+                if (!verification.successful()) {
+                    auditService.logAuthentication(username, false, ipAddress);
+                    log.warn("Invalid password for employee: {}", username);
+                    throw new InvalidCredentialsException();
+                }
+                if (verification.legacyMatch()) {
+                    log.debug("MD5 password match for employee {}", username);
+                }
             }
 
             // Role aggregation — identical logic, source unchanged: tbl_map_emp_roles + tbl_roles_master

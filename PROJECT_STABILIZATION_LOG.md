@@ -4,6 +4,67 @@
 
 ## 2026-07-07
 
+### LDAP Authentication — 18 domains, plain JNDI, wired into login (local login unchanged)
+
+Built LDAP (directory) authentication for `@`-containing logins. Local (non-`@`) login is
+**completely untouched** — LDAP is a new branch only.
+
+**Tested facts this is built on (verified against the live servers — do not deviate):**
+- Per-domain config in `tbl_ldap_config` (`config_url`, `config_user`, `config_pwd`, `config_princ`).
+- Servers are **Zimbra OpenLDAP (inetOrgPerson), NOT Active Directory**.
+- User DN: `uid=<email-localpart>,<config_princ>` (e.g. `uid=janakirama.c,ou=people,dc=ashaagrisciences,dc=com`).
+- Service-bind DN: `uid=<config_user>,<config_princ>` (uid=, confirmed working).
+- Users searchable by `mail=`; uid = email local-part.
+- Flow: service-bind → search `(mail=<username>)` → get user DN → bind as user DN with typed
+  password → success = authenticated.
+
+**PART 1 — dependency:** none added. `javax.naming` (JNDI, `com.sun.jndi.ldap.LdapCtxFactory`) is
+JDK built-in. Spring LDAP intentionally NOT added (confirmed absent in pom).
+
+**PART 2 — `auth.ldap.LdapConfig` + `LdapConfigRepository`:** read-only entity over
+`tbl_ldap_config` (id, domine, url, user, pwd, princ; lmd/lmu ignored). Repo exposes
+`findByDomine(String)`.
+
+**PART 3 — `auth.ldap.LdapAuthService.authenticate(email, password)`:**
+- **Service-bind DN:** `"uid=" + config.getUser() + "," + config.getPrinc()`.
+- **User-bind DN:** the absolute DN returned by the `(mail=<email>)` subtree search
+  (`SearchResult.getNameInNamespace()`) — not hand-built — then a second `InitialDirContext` binds
+  as that DN with the typed password.
+- Env: `simple` auth, `com.sun.jndi.ldap.connect.timeout=5000` + `read.timeout=5000` so a bad
+  server can never hang login; both contexts closed in `finally`.
+- **Malformed domain-6 (`barracudanslgroup@nslgroup.in`):** `lookupConfig` tries exact
+  `findByDomine` first; on miss, scans all rows and matches on the part **after `@`** in the stored
+  `config_domine`, so a malformed value is still reachable. If still no match → clean failure.
+- **`config_pwd = 'N/A'` / blank:** detected before any bind — returns failure
+  ("LDAP not configured for this domain"), never binds with the literal "N/A". Incomplete
+  url/user/princ rows also fail cleanly.
+- Returns a plain `boolean`. Every failure mode (no config, N/A, user-not-found, wrong password,
+  unreachable/timeout) returns `false` — indistinguishable to the caller; only server-side
+  debug/warn logs carry detail. No stack trace or credential leaves the method.
+
+**PART 4 — `AuthService.login()` routing:** at the password-verification step,
+`if (username.contains("@"))` → `ldapAuthService.authenticate(...)`; else → the **unchanged** local
+`passwordService.verifyPassword` path (verbatim, moved into the `else`). The employee is loaded by
+`emp_email` and active-checked *before* this branch, so an LDAP user with no `tbl_emp_master` row
+fails at lookup with the same generic `InvalidCredentialsException`. On LDAP success the SAME JWT is
+issued via the identical downstream code (roles, `RoleNormalizer`, companyIds, `AuthenticatedUser`)
+— LDAP only verifies the password; the employee record supplies all authorization.
+
+**PART 5 — safety:** no-employee-row → generic fail; timeouts prevent hangs; each domain is
+independent (a failed/unreachable domain returns false for that login only — other domains and
+local login are unaffected); API surfaces only "invalid credentials", no detail.
+
+**Build:** backend `mvn compile` clean; `tsc -b && vite build` clean. **No frontend change** —
+LDAP is backend-only, so the bundle hash is unchanged (`index-Xk4l49XY.js`); the login form already
+posts username/password.
+
+**Business-owner verification after deploy:** log in with an `@`-email whose domain has a valid
+(non-N/A) `tbl_ldap_config` row **and** a matching `tbl_emp_master.emp_email`; confirm local
+(non-`@`) logins still work unchanged. Ensure the app server (172.16.9.158) can reach each
+`config_url` host:port (see `docs/ldap-investigation.md` section 5).
+
+---
+
 ### Restrict Plant Indent Module to ADMIN/SUPERADMIN (not in active use)
 
 Plant Indent is not currently used. Locked down to ADMIN/SUPERADMIN at every layer — **no code
