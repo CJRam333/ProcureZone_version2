@@ -100,6 +100,9 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       label: 'Plant Indent',
       icon: <FaSeedling />,
       moduleCode: 'PLANT_INDENTS',
+      // Plant Indent is not in active use — restricted to ADMIN/SUPERADMIN only (re-enable later
+      // by widening this list). Was previously unrestricted (gated by module access only).
+      roles: ['ADMIN', 'SUPERADMIN'],
     },
     {
       path: '/purchase-orders',

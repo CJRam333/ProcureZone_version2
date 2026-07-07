@@ -412,13 +412,15 @@ const router = createBrowserRouter([
         ],
       },
       // ==================== PLANT INDENT ROUTES ====================
+      // Plant Indent is not in active use — every route restricted to ADMIN/SUPERADMIN only.
+      // Re-enable for other roles later by widening these roles arrays.
       {
         path: 'plant-indent',
         children: [
           {
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
                 <PlantIndentListPage />
               </ProtectedRoute>
             ),
@@ -426,7 +428,7 @@ const router = createBrowserRouter([
           {
             path: 'new',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
                 <PlantIndentFormPage />
               </ProtectedRoute>
             ),
@@ -434,7 +436,7 @@ const router = createBrowserRouter([
           {
             path: ':id',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
                 <PlantIndentDetailPage />
               </ProtectedRoute>
             ),
@@ -442,7 +444,7 @@ const router = createBrowserRouter([
           {
             path: ':id/edit',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
                 <PlantIndentFormPage />
               </ProtectedRoute>
             ),

@@ -2,6 +2,50 @@
 
 ---
 
+## 2026-07-07
+
+### Restrict Plant Indent Module to ADMIN/SUPERADMIN (not in active use)
+
+Plant Indent is not currently used. Locked down to ADMIN/SUPERADMIN at every layer — **no code
+deleted**, so it can be re-enabled later by widening the role lists.
+
+**PART 1 — Sidebar (`Sidebar.tsx`).** The Plant Indent nav item had **no `roles` array** (visible
+to anyone with module access, gated only by `moduleCode: 'PLANT_INDENTS'`). Added
+`roles: ['ADMIN', 'SUPERADMIN']`.
+
+**PART 2 — Routes (`router.tsx`).** All four Plant Indent routes tightened:
+
+| Route | Before | After |
+|---|---|---|
+| `plant-indent` (index) | `['SUPERADMIN','ADMIN','PLANTMANAGER','FLOORINCHARGE','SUPERVISOR']` | `['ADMIN','SUPERADMIN']` |
+| `plant-indent/new` | `['SUPERADMIN','ADMIN','PLANTMANAGER','SUPERVISOR']` | `['ADMIN','SUPERADMIN']` |
+| `plant-indent/:id` | `['SUPERADMIN','ADMIN','PLANTMANAGER','FLOORINCHARGE','SUPERVISOR']` | `['ADMIN','SUPERADMIN']` |
+| `plant-indent/:id/edit` | `['SUPERADMIN','ADMIN','PLANTMANAGER','SUPERVISOR']` | `['ADMIN','SUPERADMIN']` |
+
+**PART 3 — Backend (`PlantIndentController.java`) — the real enforcement.** All **24**
+`@PreAuthorize` annotations were normalized to `hasAnyRole('SUPERADMIN', 'ADMIN')`. Previous values
+varied widely and included PLANTMANAGER, FLOORINCHARGE, USER, VIEWER, SUPERVISOR, QUALITYMANAGER,
+DEPTHEAD across CRUD, workflow (submit / deo-approve / manager-approve / start-processing /
+complete / resubmit) and queue/dashboard endpoints. Every one is now ADMIN/SUPERADMIN only.
+
+**PART 4 — Module access (migration V52, next after V51).**
+`UPDATE tbl_module_master SET module_default_roles = 'ADMIN,SUPERADMIN' WHERE module_code = 'PLANT_INDENTS'`.
+(Confirmed table/column names against V43/V46: `tbl_module_master.module_default_roles`,
+`module_code`.)
+
+> **Note on `module_default_roles` format:** used the task's literal `'ADMIN,SUPERADMIN'` (role
+> codes). An earlier migration (V46) wrote display names (`'Super Admin,Admin,ROLE_VIEWER'`) into
+> this same column, so the format the module-access check expects is inconsistent in history. Real
+> enforcement here is the backend `@PreAuthorize` + route guards + sidebar `roles` (all use the
+> normalized `ADMIN`/`SUPERADMIN` codes), so the module restriction holds regardless; if the
+> business owner finds the module still seeds for other roles, this value may need to be
+> `'Super Admin,Admin'` to match V46's convention.
+
+**Build:** `mvn compile` clean; `tsc -b && vite build` clean. Migration **V52**. New bundle hash
+**`index-Xk4l49XY.js`**.
+
+---
+
 ## 2026-07-06
 
 ### Stores Buttons Visible to PROCUREMENT + "Created By" Column for Elevated Roles

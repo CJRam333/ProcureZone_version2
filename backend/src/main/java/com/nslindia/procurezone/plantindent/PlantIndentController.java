@@ -37,7 +37,7 @@ public class PlantIndentController {
      * Create a new plant indent with line items and QC parameters
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> createPlantIndent(
             @Valid @RequestBody CreatePlantIndentRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -53,7 +53,7 @@ public class PlantIndentController {
      * Get plant indent by ID with all details and QC parameters
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> getPlantIndentById(@PathVariable Integer id) {
         log.info("Fetching plant indent by ID: {}", id);
         PlantIndentResponse response = plantIndentService.getPlantIndentById(id);
@@ -64,7 +64,7 @@ public class PlantIndentController {
      * Get plant indent by indent number
      */
     @GetMapping("/number/{indentNumber}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> getPlantIndentByNumber(@PathVariable String indentNumber) {
         log.info("Fetching plant indent by number: {}", indentNumber);
         PlantIndentResponse response = plantIndentService.getPlantIndentByNumber(indentNumber);
@@ -76,7 +76,7 @@ public class PlantIndentController {
      * All params are independent and can be combined freely.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> listPlantIndents(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Integer plantId,
@@ -95,7 +95,7 @@ public class PlantIndentController {
      * List plant indents filtered by plant ID
      */
     @GetMapping("/plant/{plantId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> listPlantIndentsByPlant(
             @PathVariable Integer plantId,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -108,7 +108,7 @@ public class PlantIndentController {
      * List plant indents created by a specific employee
      */
     @GetMapping("/employee/{employeeNumber}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> listPlantIndentsByEmployee(
             @PathVariable String employeeNumber,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -121,7 +121,7 @@ public class PlantIndentController {
      * Search plant indents by indent number, crop, or batch
      */
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> searchPlantIndents(
             @RequestParam String query,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -136,7 +136,7 @@ public class PlantIndentController {
      * Update an existing plant indent and its line items
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> updatePlantIndent(
             @PathVariable Integer id,
             @Valid @RequestBody CreatePlantIndentRequest request,
@@ -153,7 +153,7 @@ public class PlantIndentController {
      * Delete a plant indent and all its line items
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Void> deletePlantIndent(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -168,7 +168,7 @@ public class PlantIndentController {
      * Submit plant indent for DEO/QM review (0 -> 1)
      */
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> submitForReview(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -181,7 +181,7 @@ public class PlantIndentController {
      * DEO/QM Approve (1 -> 2)
      */
     @PostMapping("/{id}/deo-approve")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> deoApprove(
             @PathVariable Integer id,
             @RequestParam(required = false) String remarks,
@@ -195,7 +195,7 @@ public class PlantIndentController {
      * DEO/QM Reject (1 -> 4)
      */
     @PostMapping("/{id}/deo-reject")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> deoReject(
             @PathVariable Integer id,
             @RequestParam String remarks,
@@ -209,7 +209,7 @@ public class PlantIndentController {
      * Manager Approve (2 -> 3)
      */
     @PostMapping("/{id}/manager-approve")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> managerApprove(
             @PathVariable Integer id,
             @RequestParam(required = false) String remarks,
@@ -223,7 +223,7 @@ public class PlantIndentController {
      * Manager Reject (2 -> 5)
      */
     @PostMapping("/{id}/manager-reject")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> managerReject(
             @PathVariable Integer id,
             @RequestParam String remarks,
@@ -237,7 +237,7 @@ public class PlantIndentController {
      * Start Processing (3 -> 6)
      */
     @PostMapping("/{id}/start-processing")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> startProcessing(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -250,7 +250,7 @@ public class PlantIndentController {
      * Complete Processing (6 -> 7)
      */
     @PostMapping("/{id}/complete")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> completeProcessing(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -263,7 +263,7 @@ public class PlantIndentController {
      * Resubmit rejected indent (4,5 -> 0)
      */
     @PostMapping("/{id}/resubmit")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<PlantIndentResponse> resubmit(
             @PathVariable Integer id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -278,7 +278,7 @@ public class PlantIndentController {
      * Get DEO/QM approval queue
      */
     @GetMapping("/queue/deo/{plantId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'QUALITYMANAGER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> getDeoQueue(
             @PathVariable Integer plantId,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -291,7 +291,7 @@ public class PlantIndentController {
      * Get Manager approval queue
      */
     @GetMapping("/queue/manager/{plantId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'DEPTHEAD')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> getManagerQueue(
             @PathVariable Integer plantId,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -304,7 +304,7 @@ public class PlantIndentController {
      * Get Processing queue (approved + processing items)
      */
     @GetMapping("/queue/processing/{plantId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> getProcessingQueue(
             @PathVariable Integer plantId,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -317,7 +317,7 @@ public class PlantIndentController {
      * Get rejected items
      */
     @GetMapping("/rejected/{plantId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> getRejectedItems(
             @PathVariable Integer plantId,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -330,7 +330,7 @@ public class PlantIndentController {
      * Get my drafts
      */
     @GetMapping("/my-drafts")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> getMyDrafts(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -349,7 +349,7 @@ public class PlantIndentController {
      * Get indents by status
      */
     @GetMapping("/status/{status}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<Page<PlantIndentResponse>> getByStatus(
             @PathVariable Integer status,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -362,7 +362,7 @@ public class PlantIndentController {
      * Get dashboard counts for a plant
      */
     @GetMapping("/dashboard/{plantId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'FLOORINCHARGE', 'USER', 'VIEWER', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
     public ResponseEntity<java.util.Map<String, Long>> getDashboardCounts(@PathVariable Integer plantId) {
         log.info("Getting dashboard counts for plant {}", plantId);
         java.util.Map<String, Long> counts = plantIndentService.getDashboardCounts(plantId);
