@@ -75,6 +75,10 @@ public class AuthService {
         String username = request.username().trim();
         String ipAddress = RequestUtils.getCurrentClientIpAddress();
 
+        // [DIAG] confirm we entered login() and what identifier arrived (no password logged)
+        log.warn("LDAP-DIAG login() ENTRY username='{}' containsAt={} passwordPresent={}",
+                username, username.contains("@"), StringUtils.hasText(request.password()));
+
         if (!StringUtils.hasText(username)) {
             auditService.logAuthentication(username, false, ipAddress);
             throw new InvalidCredentialsException();
@@ -85,9 +89,14 @@ public class AuthService {
             // Source: tbl_emp_master.emp_email  (replaces tbl_user_master.user_name lookup)
             Employee employee = employeeRepository.findByEmailIgnoreCase(username)
                     .orElseThrow(() -> {
+                        // [DIAG] no tbl_emp_master row for this email — fails HERE, before the LDAP branch
+                        log.warn("LDAP-DIAG login(): NO employee row for emp_email='{}' — failing before branch", username);
                         auditService.logAuthentication(username, false, ipAddress);
                         return new InvalidCredentialsException();
                     });
+            // [DIAG] employee found
+            log.warn("LDAP-DIAG login(): employee loaded empNo={} active={}",
+                    employee.getEmployeeNumber(), employee.isActive());
 
             // Single status check — employee active status only.
             // Source: tbl_emp_master.emp_status == 1
@@ -96,6 +105,10 @@ public class AuthService {
                 throw new InactiveUserException();
             }
 
+            // [DIAG] confirm which branch we take
+            log.warn("LDAP-DIAG pre-branch: containsAt={} employeeLoaded={}",
+                    username.contains("@"), true);
+
             // Password verification. Routing: an '@' in the identifier means an LDAP (directory)
             // user; anything else uses the unchanged local emp_password path.
             if (username.contains("@")) {
@@ -103,6 +116,7 @@ public class AuthService {
                 // loaded above by emp_email, active-checked) supplies ALL authorization data below;
                 // LDAP contributes nothing but a pass/fail on the credentials. An LDAP user with no
                 // tbl_emp_master row already failed the findByEmailIgnoreCase lookup above.
+                log.warn("LDAP-DIAG entering LDAP branch for {}", username);
                 boolean ldapOk = ldapAuthService.authenticate(username, request.password());
                 if (!ldapOk) {
                     auditService.logAuthentication(username, false, ipAddress);

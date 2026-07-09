@@ -55,7 +55,12 @@ public class LdapAuthService {
      *         All failures return false (generic — never leaks the reason to the caller).
      */
     public boolean authenticate(String email, String password) {
+        // [DIAG] log entry BEFORE the guard, so an early guard-reject (e.g. empty password) is
+        // still visible in the log rather than looking like the method was never called.
+        log.warn("LDAP-DIAG authenticate() ENTRY email='{}' passwordPresent={}",
+                email, (password != null && !password.isEmpty()));
         if (email == null || password == null || password.isEmpty() || !email.contains("@")) {
+            log.warn("LDAP-DIAG authenticate() guard rejected (null/empty password or no '@') — returning false");
             return false;
         }
         String domain = email.substring(email.lastIndexOf('@') + 1).trim().toLowerCase();

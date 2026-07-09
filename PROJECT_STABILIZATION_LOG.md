@@ -2,7 +2,51 @@
 
 ---
 
-## 2026-07-07
+## 2026-07-09
+
+### LDAP path never reached — login() entry/branch tracing (ordering was already correct)
+
+Zero `LDAP-DIAG` lines appear after an `@`-login, so `LdapAuthService.authenticate()` seemed never
+called. **Important finding on reading the actual code:** the local password check is ALREADY inside
+the `else` of `if (username.contains("@"))` — it does **not** run for `@` users. So the STEP-4
+hypothesis ("local check runs before/regardless of the branch") does **not** match the current code;
+the branch ordering is already correct and was **not** changed. Fabricating a reorder would have
+masked the real cause.
+
+**Actual current `login()` order (unchanged):** trim username → (guard: blank) → load employee by
+`emp_email` (throws `InvalidCredentialsException` HERE if not found) → active check → **branch**:
+`@` → `ldapAuthService.authenticate()`; else → local `verifyPassword`. → roles/JWT/response.
+
+**Why no `LDAP-DIAG` lines — two candidates the new logs will disambiguate:**
+1. **Employee lookup fails before the branch** (most likely): `findByEmailIgnoreCase('janakirama.c@ashaagrisciences.com')`
+   returns empty → throws at the `orElseThrow` (~7 ms, no network) — the branch is never reached.
+   This happens if no `tbl_emp_master` row has that exact `emp_email`.
+2. **`authenticate()` returned at its pre-`step1` guard** (empty password) — previously produced no
+   log at all because the guard `return false` came before any logging.
+
+**Diagnostics added (WARN, no passwords):**
+- `login()`: `LDAP-DIAG login() ENTRY` (username, containsAt, passwordPresent); a `NO employee row`
+  line inside the `orElseThrow`; an `employee loaded empNo=… active=…` line; a `pre-branch` line; and
+  `entering LDAP branch` as the first line of the `@` branch.
+- `authenticate()`: an `ENTRY` line **before** the guard, plus a `guard rejected` line — so an
+  empty-password/no-`@` early return is now visible instead of silent.
+
+**How to read the next attempt's log (grep `LDAP-DIAG`):**
+- `ENTRY` then `NO employee row` → cause #1: the email isn't in `tbl_emp_master.emp_email` (verify the
+  stored value for emp 4 exactly matches the login email).
+- `ENTRY` → `employee loaded` → `pre-branch` → `entering LDAP branch` → `authenticate() ENTRY` →
+  `guard rejected` → the login password isn't reaching the server (frontend field / DTO).
+- `entering LDAP branch` → `authenticate() ENTRY` → `step1…step6` → shows the real LDAP stage
+  (bind/search/user-bind) as built in the prior entry.
+
+**Ordering fix:** none required — current ordering already matches the task's "correct flow" (load
+employee → fail if missing/inactive → branch, local check only in the non-`@` path).
+
+**Build:** backend `mvn compile` clean; `tsc -b && vite build` clean. Backend-only — frontend bundle
+unchanged (`index-Xk4l49XY.js`). Once the cause is confirmed and fixed, drop the `LDAP-DIAG` WARN
+lines to DEBUG.
+
+---
 
 ### LDAP Login Diagnostics — stage logging + config_princ DN whitespace normalization
 
