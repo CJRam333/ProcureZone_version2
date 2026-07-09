@@ -474,6 +474,10 @@ const router = createBrowserRouter([
         ],
       },
       // ==================== CONFIRMATIONS ROUTES ====================
+      // Placeholder module tied to the dormant Plant Indent flow — every route restricted to
+      // ADMIN/SUPERADMIN only. Re-enable for other roles later by widening these roles arrays.
+      // (The index below is a plain redirect to the now-restricted /confirmations/issue, so a
+      // non-admin landing on /confirmations is forwarded there and then blocked by that guard.)
       {
         path: 'confirmations',
         children: [
@@ -484,7 +488,7 @@ const router = createBrowserRouter([
           {
             path: 'issue',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
                 <IssueConfirmationPage />
               </ProtectedRoute>
             ),
@@ -492,7 +496,7 @@ const router = createBrowserRouter([
           {
             path: 'receipt',
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD', 'USER', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
                 <ReceiptConfirmationPage />
               </ProtectedRoute>
             ),

@@ -4,6 +4,42 @@
 
 ## 2026-07-09
 
+### Restrict Confirmations Module to ADMIN/SUPERADMIN (placeholder tied to dormant Plant Indent)
+
+Confirmations is a placeholder view over Issue Notes + GRN; its one real action ("goods issued")
+already exists on the Issue Note detail page, and it's functionally tied to the now-dormant Plant
+Indent flow. Locked to ADMIN/SUPERADMIN at every layer — **no code deleted**, re-enablable by
+widening the role lists (same treatment as Plant Indent in V52).
+
+**PART 1 — Sidebar (`Sidebar.tsx`).** Confirmations nav item:
+- Before: `['SUPERADMIN','ADMIN','ISSUECONFIRM','RECEIPTCONFIRM','DEPTHEAD','USER','SUPERVISOR']`
+- After: `['ADMIN','SUPERADMIN']`
+
+**PART 2 — Routes (`router.tsx`).**
+
+| Route | Before | After |
+|---|---|---|
+| `confirmations` (index) | plain `<Navigate to="/confirmations/issue">` (no guard) | unchanged — forwards to the now-restricted `issue` route, so a non-admin is redirected then blocked |
+| `confirmations/issue` | `['SUPERADMIN','ADMIN','ISSUECONFIRM','RECEIPTCONFIRM','DEPTHEAD','SUPERVISOR']` | `['ADMIN','SUPERADMIN']` |
+| `confirmations/receipt` | `['SUPERADMIN','ADMIN','ISSUECONFIRM','RECEIPTCONFIRM','DEPTHEAD','USER','SUPERVISOR']` | `['ADMIN','SUPERADMIN']` |
+
+**PART 3 — Backend.** Confirmed there is **no** `ConfirmationController`/service/entity
+(`find -iname "*confirmation*"` → none; no `/api/v1/confirmation*` mapping). The pages call the
+existing `issueNotesApi` and `grnApi`, whose endpoint authorizations serve other working features
+and were **left untouched**. Nothing to restrict on the backend.
+
+**PART 4 — Module access (migration V53, next after V52).**
+`UPDATE tbl_module_master SET module_default_roles = 'ADMIN,SUPERADMIN' WHERE module_code = 'CONFIRMATIONS'`.
+
+> Same `module_default_roles` format caveat noted for V52 applies: value uses role codes
+> (`ADMIN,SUPERADMIN`) while V46 wrote display names. Real enforcement is the route guards +
+> sidebar `roles` (normalized codes), so the restriction holds regardless.
+
+**Build:** backend `mvn compile` clean; `tsc -b && vite build` clean. Migration **V53**. New bundle
+hash **`index-DUpeefxL.js`**.
+
+---
+
 ### LDAP path never reached — login() entry/branch tracing (ordering was already correct)
 
 Zero `LDAP-DIAG` lines appear after an `@`-login, so `LdapAuthService.authenticate()` seemed never

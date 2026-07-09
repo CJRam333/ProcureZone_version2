@@ -139,7 +139,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       path: '/confirmations/issue',
       label: 'Confirmations',
       icon: <FaExclamationTriangle />,
-      roles: ['SUPERADMIN', 'ADMIN', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'DEPTHEAD', 'USER', 'SUPERVISOR'],
+      // Placeholder module tied to the dormant Plant Indent flow — restricted to ADMIN/SUPERADMIN
+      // (re-enable later by widening this list). Was: SUPERADMIN, ADMIN, ISSUECONFIRM,
+      // RECEIPTCONFIRM, DEPTHEAD, USER, SUPERVISOR.
+      roles: ['ADMIN', 'SUPERADMIN'],
       moduleCode: 'CONFIRMATIONS',
     },
     {
