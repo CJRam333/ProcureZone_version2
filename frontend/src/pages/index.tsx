@@ -29,7 +29,7 @@ export { IssueNotesListPage, IssueNoteFormPage, IssueNoteDetailPage, IssueNoteAp
 export { IssueConfirmationPage, ReceiptConfirmationPage } from './confirmations';
 
 // Inventory
-export { InventoryListPage, StockAdjustmentPage, TransactionHistoryPage } from './inventory';
+export { InventoryListPage, InventoryStockPage, StockAdjustmentPage, TransactionHistoryPage } from './inventory';
 
 // Vendors (legacy routes - keep for backward compatibility)
 export { VendorsListPage, VendorFormPage, VendorDetailPage } from './vendors';

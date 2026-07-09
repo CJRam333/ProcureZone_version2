@@ -4,6 +4,57 @@
 
 ## 2026-07-09
 
+### Issue-Note Stock Check Reads Real Stock + Read-Only Inventory Module
+
+**PART 1 — issue-note confirmation "Insufficient stock" bug.**
+`IssueNoteService.issueGoods()` validated stock via `inventoryService.isSufficientStock()` →
+`getAvailableStock()` → `inventoryRepository.findByMaterialIdAndPlantId` → **`tbl_inventory_balance`,
+which is EMPTY in production** → always 0 → every issue failed "Insufficient stock … Available: 0".
+- **Before:** available read from `tbl_inventory_balance` (empty).
+- **After:** available read from `tbl_map_company_plant_material.map_quantity_stores` via
+  `companyPlantMaterialMapRepository.sumQuantityByMaterial(materialId)` — the SAME source and
+  aggregation the material dropdown / issue-note creation use (`SUM(map_quantity_stores)` per
+  material across company/plant, status 0/1). Matched on **material id only** — robust to the
+  now-optional (nullable) issue-note plant/company, and consistent with how creation reads stock.
+  Material 227 now sees 466, not 0.
+- **Decrement (Step 4) — reported + decision flagged, NOT implemented.** The old path also called
+  `inventoryService.deductStock()`, which reads/writes `tbl_inventory_balance` and
+  `orElseThrow(InsufficientStockException("No inventory found …"))` when the row is absent — i.e.
+  once the validation was fixed it would have become the *next* blocker. Since physical inventory
+  is managed in **SAP** and `map_quantity_stores` decrement-on-issue is a pending business decision,
+  the `deductStock` call was **removed** from the issue path: issuing now validates against real
+  stock and records the issue **without decrementing** any stock. No decrement to `map_quantity_stores`
+  was implemented. **Decision needed:** should issuing decrement `map_quantity_stores`, or is stock
+  authoritative in SAP and the app read-only for stock? Flagged here for the business owner.
+
+**PART 2 — read-only Inventory module (built new alongside the existing balance pages).**
+- **Existing state:** `InventoryController` (`/api/v1/inventory`) + `InventoryListPage` read the empty
+  `tbl_inventory_balance` and are scoped to management roles (FLOORINCHARGE/GOODSINCHARGE/…); the
+  sidebar Inventory item was `future: true` (hidden). Those balance/adjust/history pages were **left
+  intact** (separate management concern).
+- **Backend (new, read-only):** `GET /api/v1/inventory/stock-view?search=&page=&size=` →
+  `InventoryService.getStockView()` returns a `Page<MaterialDropdownResponse>` built from the proven
+  `searchForDropdownAllCompanies(search)` query (real `map_quantity_stores`, LEFT JOIN from Material
+  so zero-stock materials still appear, one row per material+company+plant), paginated in memory
+  (catalogue is bounded; avoids a fragile paginated GROUP BY + count). `@PreAuthorize` =
+  USER/SUPERVISOR/DEPTHEAD/ADMIN/SUPERADMIN/PROCUREMENT. No POST/PUT/DELETE added.
+- **Frontend (new):** `InventoryStockPage` at `/inventory` (index) — search + paginated table
+  (Code, Name, Description, Company, Plant, Available Stock), no create/edit/delete. Reuses
+  `MaterialDropdownItem` shape via `inventoryApi.stockView`. The existing adjust/history/movements
+  sub-routes keep their management-role guards.
+- **Sidebar:** Inventory item de-`future`d; roles set to the six operational roles.
+- **Migration V54** (next after V53): activates the seeded-hidden module —
+  `module_status=1, module_is_future=0, module_default_roles='USER,SUPERVISOR,DEPTHEAD,ADMIN,SUPERADMIN,PROCUREMENT'`
+  for `module_code='INVENTORY'`.
+
+> **Migration number note:** the task guessed "likely V53", but V53 was already used (Confirmations
+> restriction, same day) — so this is **V54**.
+
+**Build:** backend `mvn compile` clean; `tsc -b && vite build` clean. Migration **V54**. New bundle
+hash **`index-Dvex2nF9.js`**.
+
+---
+
 ### Restrict Confirmations Module to ADMIN/SUPERADMIN (placeholder tied to dormant Plant Indent)
 
 Confirmations is a placeholder view over Issue Notes + GRN; its one real action ("goods issued")

@@ -1,7 +1,11 @@
 import apiClient from "./client";
-import { PageRequest, PageResponse } from "./materials";
+import { PageRequest, PageResponse, MaterialDropdownItem } from "./materials";
 
 // ============== Types ==============
+
+// One row of the read-only stock view — material + company/plant + available stock from
+// tbl_map_company_plant_material.map_quantity_stores (same source as the material dropdown).
+export type InventoryStockRow = MaterialDropdownItem;
 export interface Inventory {
     id: number;
     plantId: number;
@@ -102,6 +106,18 @@ interface BackendResponse<T> {
 // ============== API Functions ==============
 
 export const inventoryApi = {
+    // Read-only stock view — GET /inventory/stock-view. Returns a Spring Page of material+stock
+    // rows from the REAL stock source (map_quantity_stores), for the operational Inventory module.
+    stockView: async (
+        params: { search?: string; page?: number; size?: number } = {}
+    ): Promise<PageResponse<InventoryStockRow>> => {
+        const response = await apiClient.get<PageResponse<InventoryStockRow>>(
+            "/inventory/stock-view",
+            { params }
+        );
+        return response.data;
+    },
+
     // Main list endpoint - adapts backend response to PageResponse format
     list: async (
         params: InventorySearchParams = {}

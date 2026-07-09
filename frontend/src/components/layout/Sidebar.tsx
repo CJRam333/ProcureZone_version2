@@ -146,12 +146,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       moduleCode: 'CONFIRMATIONS',
     },
     {
+      // Read-only stock view — available to all operational roles. Activated (was future/hidden).
       path: '/inventory',
       label: 'Inventory',
       icon: <FaBoxes />,
-      roles: ['SUPERADMIN', 'ADMIN', 'FLOORINCHARGE', 'GOODSINCHARGE'],
+      roles: ['USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT'],
       moduleCode: 'INVENTORY',
-      future: true,
     },
     {
       path: '/audit-logs',

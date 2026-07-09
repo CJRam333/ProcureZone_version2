@@ -30,6 +30,7 @@ import {
   IssueConfirmationPage,
   ReceiptConfirmationPage,
   InventoryListPage,
+  InventoryStockPage,
   StockAdjustmentPage,
   TransactionHistoryPage,
   VendorsListPage,
@@ -310,10 +311,12 @@ const router = createBrowserRouter([
         path: 'inventory',
         children: [
           {
+            // Read-only stock view — operational roles. The editable inventory-management pages
+            // (adjust/history/movements below) remain restricted to their management roles.
             index: true,
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'GOODSINCHARGE', 'GRNINCHARGE']}>
-                <InventoryListPage />
+              <ProtectedRoute roles={['USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT']}>
+                <InventoryStockPage />
               </ProtectedRoute>
             ),
           },

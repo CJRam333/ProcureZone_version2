@@ -6,6 +6,7 @@ import com.nslindia.procurezone.common.exception.ResourceNotFoundException;
 import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.inventory.InventoryService;
+import com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository;
 import com.nslindia.procurezone.issuenote.dto.*;
 import com.nslindia.procurezone.masterdata.PlantRepository;
 import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
@@ -53,6 +54,7 @@ public class IssueNoteService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeReportingRepository employeeReportingRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
+    private final CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository;
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
     private final SectionRepository sectionRepository;
@@ -432,31 +434,29 @@ public class IssueNoteService {
                     issueNote.getStatusDescription());
         }
 
-        // Check stock availability for all materials
+        // Stock availability check — read the SAME source the creation/dropdown path uses:
+        // tbl_map_company_plant_material.map_quantity_stores (CompanyPlantMaterialMap.quantity),
+        // aggregated per material across company/plant (status 0/1). The old check read
+        // tbl_inventory_balance, which is EMPTY in production, so it always saw 0 and wrongly failed
+        // with "Insufficient stock". Matched on material id only — robust to a null issue-note
+        // plant/company (both are now optional) and consistent with how creation reads stock.
         for (IssueNoteDetails detail : issueNote.getDetails()) {
-            if (!inventoryService.isSufficientStock(detail.getMaterialId(),
-                    issueNote.getPlantId(), detail.getQuantity())) {
-                BigDecimal available = inventoryService.getAvailableStock(
-                        detail.getMaterialId(), issueNote.getPlantId());
+            BigDecimal available = companyPlantMaterialMapRepository
+                    .sumQuantityByMaterial(detail.getMaterialId())
+                    .orElse(BigDecimal.ZERO);
+            if (available.compareTo(detail.getQuantity()) < 0) {
                 throw new IllegalStateException(
                         String.format("Insufficient stock for material %d. Required: %s, Available: %s",
                                 detail.getMaterialId(), detail.getQuantity(), available));
             }
         }
 
-        // Update inventory balances
-        for (IssueNoteDetails detail : issueNote.getDetails()) {
-            inventoryService.deductStock(
-                    detail.getMaterialId(),
-                    issueNote.getPlantId(),
-                    issueNote.getCompanyId(),
-                    detail.getUnitOfMeasureId(),
-                    detail.getQuantity(),
-                    "ISSUE_NOTE",
-                    issueNote.getIssueNoteNumber(),
-                    issueNote.getId(),
-                    "Material issued from stores");
-        }
+        // NOTE (stock decrement): intentionally NOT decrementing here. The old path called
+        // inventoryService.deductStock(), which reads/writes tbl_inventory_balance (empty) and would
+        // now throw "No inventory found …" — a new blocker. Physical inventory is managed in SAP, and
+        // whether the new system should decrement tbl_map_company_plant_material.map_quantity_stores
+        // on issue is a pending business decision (see PROJECT_STABILIZATION_LOG 2026-07-09). For now
+        // issuing validates against real stock and records the issue WITHOUT decrementing.
 
         issueNote.setStatus(8); // Issued
         issueNote.setStoresBy(userId);

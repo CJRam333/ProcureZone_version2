@@ -4,6 +4,8 @@ import com.nslindia.procurezone.dto.inventory.InventoryResponse;
 import com.nslindia.procurezone.dto.inventory.InventoryStatisticsDTO;
 import com.nslindia.procurezone.dto.inventory.InventoryTransactionResponse;
 import com.nslindia.procurezone.dto.inventory.StockAdjustmentRequest;
+import com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse;
+import org.springframework.data.domain.Page;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +64,23 @@ public class InventoryController {
                 response.put("data", inventory);
 
                 return ResponseEntity.ok(response);
+        }
+
+        /**
+         * Read-only stock view for the operational Inventory module.
+         * Paginated, searchable list of materials with their available stock from the REAL source
+         * (tbl_map_company_plant_material.map_quantity_stores) — the same source the material
+         * dropdown and issue-note creation read, NOT the empty tbl_inventory_balance. One row per
+         * material+company+plant combination; materials with no stock row still appear with 0.
+         * View-only — no create/edit/delete.
+         */
+        @GetMapping("/stock-view")
+        @PreAuthorize("hasAnyRole('USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT')")
+        public ResponseEntity<Page<MaterialDropdownResponse>> getStockView(
+                        @RequestParam(required = false) String search,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "20") int size) {
+                return ResponseEntity.ok(inventoryService.getStockView(search, page, size));
         }
 
         /**

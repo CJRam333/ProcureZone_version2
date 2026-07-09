@@ -8,7 +8,9 @@ import com.nslindia.procurezone.dto.inventory.InventoryTransactionResponse;
 import com.nslindia.procurezone.dto.inventory.StockAdjustmentRequest;
 import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
+import com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository;
 import com.nslindia.procurezone.mapping.CompanyPlantMaterialService;
+import com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse;
 import com.nslindia.procurezone.masterdata.Company;
 import com.nslindia.procurezone.masterdata.Material;
 import com.nslindia.procurezone.masterdata.Plant;
@@ -21,6 +23,10 @@ import com.nslindia.procurezone.repository.inventory.InventoryRepository;
 import com.nslindia.procurezone.repository.inventory.InventoryTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +54,28 @@ public class InventoryService {
         private final UnitOfMeasureRepository uomRepository;
         private final EmployeeRepository employeeRepository;
         private final CompanyPlantMaterialService companyPlantMaterialService;
+        private final CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository;
+
+        /**
+         * Read-only stock view for the operational Inventory module. Reads the REAL stock source
+         * (tbl_map_company_plant_material.map_quantity_stores) via the same query the material
+         * dropdown uses, so the numbers always agree with creation/issue. Paginated in memory —
+         * the catalogue is bounded (hundreds–low thousands of rows) and this reuses the proven,
+         * already-filtered/ordered dropdown query rather than a fragile paginated GROUP BY.
+         */
+        @Transactional(readOnly = true)
+        public Page<MaterialDropdownResponse> getStockView(String search, int page, int size) {
+                String term = (search == null) ? "" : search.trim();
+                List<MaterialDropdownResponse> all =
+                                companyPlantMaterialMapRepository.searchForDropdownAllCompanies(term);
+                Pageable pageable = PageRequest.of(Math.max(page, 0), Math.max(size, 1));
+                int from = (int) pageable.getOffset();
+                if (from >= all.size()) {
+                        return new PageImpl<>(List.of(), pageable, all.size());
+                }
+                int to = Math.min(from + pageable.getPageSize(), all.size());
+                return new PageImpl<>(all.subList(from, to), pageable, all.size());
+        }
 
         /**
          * Get or create inventory record
