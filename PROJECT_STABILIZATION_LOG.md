@@ -4,6 +4,56 @@
 
 ## 2026-07-10
 
+### Collation Mismatch (latin1 vs utf8mb4) Breaking SAP Import + Inventory Search — V56 convert
+
+Both failed with `Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and
+(utf8mb4_0900_ai_ci,COERCIBLE)`: legacy tables are `latin1_swedish_ci`, but the JDBC connection and
+string literals are `utf8mb4_0900_ai_ci`, so any `=`/`LIKE` between a latin1 column and a utf8mb4
+value throws (worse for non-latin1 chars like the Greek Mu in `BPW-TIPBOX-200ΜL`, which latin1 can't
+even represent).
+
+**STEP 1 — diagnosis (owner runs the `information_schema` queries; can't from here).** The failing
+comparisons are: SAP import `findByCode` on material/company/plant codes (`=`), and the Inventory
+search `LIKE` on material code/name/description. Those live in `tbl_material_master`,
+`tbl_company_master`, `tbl_plant_master`; `tbl_map_company_plant_material` is joined but only on int
+ids (no string comparison today).
+
+**STEP 2 — migration V56** (next after V55) converts the compared tables to
+`utf8mb4 / utf8mb4_0900_ai_ci`:
+- `tbl_material_master` — Inventory `LIKE` + import `findByCode(material)` — **required** (the actual
+  failing table for both).
+- `tbl_company_master`, `tbl_plant_master` — import `findByCode(code)` equality — **required** for the
+  import path.
+- `tbl_map_company_plant_material` — the stock table joined in both paths (joins on int ids only, no
+  string comparison today); converted for consistency so future string filters can't reintroduce the
+  mismatch. (Converting an already-utf8mb4 table is a harmless no-op, so V56 is safe even if STEP 1
+  shows some are already utf8mb4.)
+
+**Cautions checked & documented in the migration:**
+1. **Data integrity / double-encoding:** `CONVERT TO CHARACTER SET utf8mb4` is lossless for *genuine*
+   latin1 data, but *mangles* any column already holding UTF-8 bytes mislabelled as latin1. The
+   migration includes a `HEX(...) REGEXP '[^ -~]'` check to run first, and the binary round-trip
+   alternative (VARCHAR→VARBINARY→VARCHAR utf8mb4) if double-encoding is found. Most codes are ASCII
+   and unaffected. Flagged for owner verification before prod run.
+2. **Index key length:** utf8mb4 = up to 4 bytes/char; InnoDB prefix limit 3072 bytes (MySQL 8
+   default row format). The relevant varchars are ≤255 chars (≤1020 bytes) — safe. Only an indexed
+   varchar > ~768 chars would be at risk; none in these tables.
+
+**STEP 3 — JDBC charset.** `application.yml` datasource URL:
+`jdbc:mysql://127.0.0.1:3306/seeds_indent?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&socketTimeout=30000&connectTimeout=10000`
+— **no** `useUnicode`/`characterEncoding`/`connectionCollation` params, so Connector/J 8 uses its
+default utf8mb4 connection charset. That default is correct and is exactly the target end-state
+(utf8mb4 tables + utf8mb4 connection); the table conversion is the real fix, so **no URL change** was
+made. (`application-prod.yml` has no datasource override.)
+
+**Build:** backend `mvn compile` clean. SQL-migration-only — no Java/frontend change; bundle unchanged.
+
+**Verify after deploy:** V56 applies in `flyway_schema_history`; re-drop the failing
+`Material(<date>).CSV` → the `BPW-TIPBOX-200ΜL` row imports (no collation error); Inventory search by
+material name/code returns results without the mix-of-collations error.
+
+---
+
 ### SAP Import — duplicate-row tolerance + per-row transaction isolation (3 bad rows no longer revert 562)
 
 The event-driven import updated 562 rows but the whole batch rolled back at commit:
