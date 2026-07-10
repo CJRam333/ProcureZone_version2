@@ -2,6 +2,73 @@
 
 ---
 
+## 2026-07-10
+
+### Event-Driven SAP Stock Import — WatchService, filename-tracked idempotency, authoritative table
+
+Replaced the broken scheduled SAP stock import (wrong path, wrong table) with an event-driven
+filesystem watcher that writes the authoritative stock table.
+
+**PART 5 — import now writes the authoritative table (the core fix).**
+`MaterialImportService.updateCompanyPlantMaterialMapping()`:
+- **Before:** upserted `CompanyPlantMaterial` → **`tbl_pz_map_company_plant_material`** (which nothing
+  reads for stock) via `CompanyPlantMaterialRepository`.
+- **After:** upserts `CompanyPlantMaterialMap` → **`tbl_map_company_plant_material`** (`map_quantity_stores`)
+  via `CompanyPlantMaterialMapRepository.findByCompanyAndPlantAndMaterial(...)` — match on
+  company+plant+material, UPDATE `quantity` (absolute overwrite) if present else INSERT with the
+  company/plant/material entity refs. This is the same table the dropdown, Inventory view and
+  issue-note stock check read.
+
+**PART 1 — `SapMaterialFileWatcher` (`integration/sap/watcher`), replaces the cron job.**
+- `@EventListener(ApplicationReadyEvent)` starts a **daemon thread** running a Java `WatchService`
+  registered on `sap.csv.import.path` (default **`/home/issuenote/issue`**, local XFS) for
+  `ENTRY_CREATE` + `ENTRY_MODIFY`. `@PreDestroy` closes it.
+- **Strict filename filter:** regex `^Material\(\d{4}-\d{2}-\d{2}\)\.CSV$` — matches ONLY
+  `Material(YYYY-MM-DD).CSV`; every other file in the directory (Plant_Indent…, Quality_Info…,
+  PRD-*.CSV) is ignored (DEBUG-logged).
+- The old `SapMaterialImportJob`'s three `@Scheduled` triggers (10:21/10:43/11:55) were **disabled**
+  (annotations removed, code retained + deprecation note); the `@Scheduled` import was dropped.
+
+**PART 2 — stability check.** Before importing, `waitUntilStable()` samples `file.length()`,
+sleeps 3 s, re-samples; proceeds only when size is unchanged (and > 0), capped at 10 retries. A file
+still growing after the cap is left for the next event/restart (not recorded) — avoids importing a
+half-copied file.
+
+**PART 3 — idempotency (migration V55).** New `tbl_stock_import_history` (`file_name` UNIQUE,
+`imported_at`, `rows_updated`, `status`, `message`) + `StockImportHistory` entity +
+`StockImportHistoryRepository`. Before importing: skip if `existsByFileNameAndStatus(name,'SUCCESS')`.
+After: `recordResult()` **upserts by filename** (so a retried FAILED row updates in place rather than
+violating the UNIQUE constraint) with SUCCESS+rows or FAILED+message. A FAILED file is thus retried
+on the next event/restart rather than being marked done.
+
+**PART 4 — startup scan (latest-only).** On `ApplicationReadyEvent`, before starting the watch, it
+lists matching files and imports **only the newest** (max filename; the zero-padded ISO date makes
+lexical order == chronological) **if not already SUCCESS**. Rationale: each import is an **absolute
+overwrite** of stock, so the most recent file is current truth and supersedes older unprocessed ones
+— importing only the latest is sufficient, correct, and avoids applying a stale snapshot over a
+newer one. (Known minor edge: a *back-dated* file dropped after a newer import would still be
+imported by the live watcher; real files arrive current — flagged, not guarded, to keep logic simple.)
+
+**PART 6 — last-import marker.** No new table — `StockImportHistoryRepository.findLastSuccessfulImportAt()`
+= `MAX(imported_at) WHERE status='SUCCESS'`. That is the "last stock import" anchor the upcoming
+reconciliation feature needs, for free.
+
+**PART 7 — logging.** SUCCESS → INFO (`file`, `rowsUpdated`, timestamp); already-processed → DEBUG;
+failure → ERROR with reason; non-Material events → DEBUG; still-changing file → WARN.
+
+**Config:** added `sap.csv.import.path` (default `/home/issuenote/issue`) and `sap.csv.watch.enabled`
+(default true) to `application.yml`, env-overridable (`SAP_CSV_IMPORT_PATH`, `SAP_CSV_WATCH_ENABLED`).
+
+**Build:** backend `mvn compile` clean; `tsc -b && vite build` clean. Migration **V55**. Backend-only —
+frontend bundle unchanged (`index-Dvex2nF9.js`).
+
+**Verify after deploy:** drop a real `Material(<today>).CSV` into `/home/issuenote/issue`; the log
+should show `SAP import SUCCESS: file=…, rowsUpdated=N`; confirm `tbl_map_company_plant_material`
+quantities refreshed and a row appears in `tbl_stock_import_history`. Ensure the app user can read
+that directory.
+
+---
+
 ## 2026-07-09
 
 ### Issue-Note Stock Check Reads Real Stock + Read-Only Inventory Module

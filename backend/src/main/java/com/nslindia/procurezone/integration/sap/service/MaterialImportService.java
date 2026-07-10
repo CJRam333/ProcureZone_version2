@@ -5,11 +5,11 @@ import com.nslindia.procurezone.integration.sap.dto.MaterialImportResult;
 import com.nslindia.procurezone.masterdata.Company;
 import com.nslindia.procurezone.masterdata.Plant;
 import com.nslindia.procurezone.masterdata.Material;
-import com.nslindia.procurezone.mapping.entity.CompanyPlantMaterial;
+import com.nslindia.procurezone.mapping.CompanyPlantMaterialMap;
+import com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository;
 import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
 import com.nslindia.procurezone.masterdata.PlantRepository;
 import com.nslindia.procurezone.masterdata.repository.MaterialRepository;
-import com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,7 +33,10 @@ public class MaterialImportService {
     private final CompanyRepository companyRepository;
     private final PlantRepository plantRepository;
     private final MaterialRepository materialRepository;
-    private final CompanyPlantMaterialRepository companyPlantMaterialRepository;
+    // Writes the AUTHORITATIVE stock table tbl_map_company_plant_material (map_quantity_stores) —
+    // the same table the dropdown, Inventory view and issue-note stock check read. Previously this
+    // wrote tbl_pz_map_company_plant_material (CompanyPlantMaterial), which nothing reads for stock.
+    private final CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository;
 
     private static final Integer SYSTEM_USER_ID = 1; // System user for automated imports
 
@@ -132,11 +135,11 @@ public class MaterialImportService {
      */
     private void updateCompanyPlantMaterialMapping(Company company, Plant plant,
             Material material, BigDecimal quantity) {
-        Optional<CompanyPlantMaterial> existingMapping = companyPlantMaterialRepository
-                .findByCompanyIdAndPlantIdAndMaterialId(
+        Optional<CompanyPlantMaterialMap> existingMapping = companyPlantMaterialMapRepository
+                .findByCompanyAndPlantAndMaterial(
                         company.getId(), plant.getId(), material.getId());
 
-        CompanyPlantMaterial mapping;
+        CompanyPlantMaterialMap mapping;
 
         if (existingMapping.isPresent()) {
             // Update existing mapping
@@ -144,23 +147,25 @@ public class MaterialImportService {
             log.debug("Updating existing mapping: company={}, plant={}, material={}",
                     company.getId(), plant.getId(), material.getId());
         } else {
-            // Create new mapping
+            // Create new mapping (uses entity relationships for map_comp/map_plant/map_material)
             log.info("Creating new mapping: company={}, plant={}, material={}",
                     company.getId(), plant.getId(), material.getId());
-            mapping = new CompanyPlantMaterial();
-            mapping.setCompanyId(company.getId());
-            mapping.setPlantId(plant.getId());
-            mapping.setMaterialId(material.getId());
-            mapping.setQuantityStores(BigDecimal.ZERO);
+            mapping = new CompanyPlantMaterialMap();
+            mapping.setCompany(company);
+            mapping.setPlant(plant);
+            mapping.setMaterial(material);
             mapping.setStatus(1); // Active
             mapping.setLastModifiedBy(SYSTEM_USER_ID);
         }
 
-        // Update quantity and last modified date
-        mapping.setQuantityStores(quantity);
+        // Absolute overwrite of stock to the CSV value + stamp last modified date
+        mapping.setQuantity(quantity);
         mapping.setLastModifiedDate(LocalDate.now());
+        if (mapping.getLastModifiedBy() == null) {
+            mapping.setLastModifiedBy(SYSTEM_USER_ID);
+        }
 
-        companyPlantMaterialRepository.save(mapping);
+        companyPlantMaterialMapRepository.save(mapping);
     }
 
     /**

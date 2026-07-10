@@ -5,7 +5,6 @@ import com.nslindia.procurezone.integration.sap.service.MaterialImportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -18,13 +17,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Scheduled job for SAP Material CSV Import
- * Matches legacy SchedulerJob.java and Job1.java functionality
- * 
- * Runs at:
- * - 10:21 AM daily (Trigger 1)
- * - 11:55 AM daily (Trigger 2)
- * - 10:43 AM daily (Job1)
+ * DEPRECATED — superseded by {@link com.nslindia.procurezone.integration.sap.watcher.SapMaterialFileWatcher}
+ * (event-driven WatchService on /home/issuenote/issue, writes the authoritative
+ * tbl_map_company_plant_material). The three @Scheduled cron triggers below have been DISABLED
+ * (annotations removed) because they (a) polled the wrong path and (b) wrote the wrong table via
+ * the old MaterialImportService target. Code retained for reference / quick re-enable.
  */
 @Component
 @RequiredArgsConstructor
@@ -49,7 +46,7 @@ public class SapMaterialImportJob {
      * SAP CSV Import Job - Trigger 1
      * Runs daily at 10:21 AM (matching legacy cron: 0 21 10 * * ?)
      */
-    @Scheduled(cron = "0 21 10 * * ?", zone = "Asia/Kolkata")
+    // DISABLED (was @Scheduled cron 0 21 10) — replaced by SapMaterialFileWatcher (event-driven)
     public void importSapMaterialsTrigger1() {
         if (!importEnabled) {
             log.info("SAP material import is disabled");
@@ -64,7 +61,7 @@ public class SapMaterialImportJob {
      * SAP CSV Import Job - Trigger 2
      * Runs daily at 11:55 AM (matching legacy cron: 0 55 11 * * ?)
      */
-    @Scheduled(cron = "0 55 11 * * ?", zone = "Asia/Kolkata")
+    // DISABLED (was @Scheduled cron 0 55 11) — replaced by SapMaterialFileWatcher (event-driven)
     public void importSapMaterialsTrigger2() {
         if (!importEnabled) {
             log.info("SAP material import is disabled");
@@ -79,7 +76,7 @@ public class SapMaterialImportJob {
      * Material Quantity Insert Job
      * Runs daily at 10:43 AM (matching legacy Job1 cron: 0 43 10 * * ?)
      */
-    @Scheduled(cron = "0 43 10 * * ?", zone = "Asia/Kolkata")
+    // DISABLED (was @Scheduled cron 0 43 10) — replaced by SapMaterialFileWatcher (event-driven)
     public void insertMaterialQuantity() {
         if (!importEnabled) {
             log.info("Material quantity insert is disabled");
