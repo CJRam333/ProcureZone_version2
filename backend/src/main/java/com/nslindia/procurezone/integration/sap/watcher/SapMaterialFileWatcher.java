@@ -112,8 +112,8 @@ public class SapMaterialFileWatcher {
         // Newest by filename (the date is embedded and zero-padded, so lexical == chronological).
         Optional<File> newest = Arrays.stream(matches).max(Comparator.comparing(File::getName));
         newest.ifPresent(f -> {
-            if (historyRepository.existsByFileNameAndStatus(f.getName(), StockImportHistory.STATUS_SUCCESS)) {
-                log.info("SAP startup scan: newest file {} already imported — nothing to do", f.getName());
+            if (alreadyProcessed(f.getName())) {
+                log.info("SAP startup scan: newest file {} already processed — nothing to do", f.getName());
             } else {
                 log.info("SAP startup scan: importing newest unprocessed file {}", f.getName());
                 processFile(f);
@@ -162,8 +162,8 @@ public class SapMaterialFileWatcher {
     private synchronized void processFile(File file) {
         String fileName = file.getName();
         try {
-            if (historyRepository.existsByFileNameAndStatus(fileName, StockImportHistory.STATUS_SUCCESS)) {
-                log.debug("SAP import: {} already processed successfully — skipping", fileName);
+            if (alreadyProcessed(fileName)) {
+                log.debug("SAP import: {} already processed (SUCCESS/PARTIAL) — skipping", fileName);
                 return;
             }
 
@@ -175,12 +175,19 @@ public class SapMaterialFileWatcher {
 
             MaterialImportResult result = materialImportService.importMaterialsFromFile(file.getAbsolutePath());
             int rows = result.getSuccessfulInserts() + result.getSuccessfulUpdates();
+            int failures = result.getFailures();
 
-            if (result.isSuccess()) {
+            if (failures == 0) {
                 recordResult(fileName, StockImportHistory.STATUS_SUCCESS, rows, truncate(result.getSummary()));
                 log.info("SAP import SUCCESS: file={}, rowsUpdated={}, at={}", fileName, rows, LocalDateTime.now());
+            } else if (rows > 0) {
+                // Partial: some rows persisted, some failed (e.g. pre-existing duplicates). Counts as
+                // processed (not blindly re-run) but the failures are recorded and visible.
+                recordResult(fileName, StockImportHistory.STATUS_PARTIAL, rows,
+                        truncate(rows + " updated, " + failures + " failed: " + result.getSummary()));
+                log.warn("SAP import PARTIAL: file={}, rowsUpdated={}, rowsFailed={}", fileName, rows, failures);
             } else {
-                recordResult(fileName, StockImportHistory.STATUS_FAILED, rows, truncate(result.getSummary()));
+                recordResult(fileName, StockImportHistory.STATUS_FAILED, 0, truncate(result.getSummary()));
                 log.error("SAP import FAILED: file={}, {}", fileName, result.getSummary());
             }
         } catch (Exception e) {
@@ -191,6 +198,14 @@ public class SapMaterialFileWatcher {
                 // history write is best-effort; never mask the original error
             }
         }
+    }
+
+    /** A file counts as processed (not to be re-run) if a prior SUCCESS or PARTIAL row exists. */
+    private boolean alreadyProcessed(String fileName) {
+        return historyRepository.findByFileName(fileName)
+                .map(h -> StockImportHistory.STATUS_SUCCESS.equals(h.getStatus())
+                        || StockImportHistory.STATUS_PARTIAL.equals(h.getStatus()))
+                .orElse(false);
     }
 
     /** Fully-written check: size unchanged across a {@value #STABILITY_WAIT_MS} ms interval. */

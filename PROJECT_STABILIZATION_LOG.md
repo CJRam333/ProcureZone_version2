@@ -4,6 +4,56 @@
 
 ## 2026-07-10
 
+### SAP Import — duplicate-row tolerance + per-row transaction isolation (3 bad rows no longer revert 562)
+
+The event-driven import updated 562 rows but the whole batch rolled back at commit:
+`NonUniqueResultException: Query did not return a unique result: 11 results` on 3 rows.
+
+**STEP 1 — where the 11 came from.** Every lookup in the import path returns a single-result
+`Optional` and therefore throws on >1: `companyRepository.findByCode`, `plantRepository.findByCode`,
+**`materialRepository.findByCode`**, and `companyPlantMaterialMapRepository.findByCompanyAndPlantAndMaterial`.
+Since production/dev confirmed **zero duplicate (map_comp, map_plant, map_material) triples**, the
+mapping lookup cannot return 11 — so the 11 is a **duplicate material code** in `tbl_material_master`:
+the import auto-creates a Material keyed only by code (`findOrCreateMaterial`), and over runs (and
+within-file repeats not yet flushed) duplicate codes accumulate, so `findByCode` returns 11.
+(Owner can confirm: `SELECT COUNT(*) FROM tbl_material_master WHERE material_code='<failed code>'`.)
+Fixed both the material lookup AND the mapping lookup, plus per-row isolation as defence-in-depth.
+
+**STEP 2 — duplicate-tolerant lookups.**
+- `MaterialRepository.findFirstByCodeOrderByIdAsc(code)` (new) — first match, never throws;
+  `findOrCreateMaterial` now uses it.
+- `CompanyPlantMaterialMapRepository.findAllByCompanyAndPlantAndMaterial(...)` (new, List; the
+  existing Optional method is kept for `CompanyPlantMaterialService`). `updateCompanyPlantMaterialMapping`
+  now: **empty** → INSERT; **exactly one** → UPDATE; **more than one** → UPDATE the primary
+  (lowest `map_id`) row's `map_quantity_stores`, **WARN** naming company+plant+material and the
+  duplicate count, and do **not** throw (extras left for a separate cleanup task).
+
+**STEP 3 — per-row transaction isolation.** `importMaterials` is no longer `@Transactional`; it
+loops and calls `self.importSingleRow(row, result)` through a `@Lazy` self-reference so the proxy
+applies `@Transactional(propagation = REQUIRES_NEW)` on `importSingleRow`. Each row commits in its
+own transaction; a row that throws rolls back only itself, the orchestrator catches it, logs the
+material id + reason, and continues. A failing row can no longer mark the batch rollback-only — 562
+good rows commit, 3 bad rows are logged. (Chose per-row REQUIRES_NEW over batch-error-collection
+because, in JPA, one exception inside a shared transaction marks it rollback-only and poisons the
+commit regardless of catching — collection cannot save the good rows; separate transactions can.)
+
+**STEP 4 — partial success in history.** Added `StockImportHistory.STATUS_PARTIAL`. The watcher now
+records: `failures==0` → **SUCCESS**; some persisted + some failed → **PARTIAL** (rows_updated =
+persisted count, message `"N updated, M failed: …"`); nothing persisted → **FAILED**. A file with
+SUCCESS **or PARTIAL** counts as processed and is skipped on re-run (`alreadyProcessed()`), so it's
+not blindly re-imported, while the failures stay visible in `tbl_stock_import_history`. FAILED
+(nothing persisted, e.g. unreadable file) still retries on the next event/restart.
+
+**Build:** backend `mvn compile` clean. Backend-only change — no frontend build, bundle unchanged.
+
+**Verify after deploy:** re-drop the failing `Material(<date>).CSV`; expect
+`SAP import PARTIAL: file=…, rowsUpdated=562, rowsFailed=3` (or SUCCESS if the material-code dupes are
+also cleaned), a WARN per duplicate triple (if any remain), and 562 refreshed
+`tbl_map_company_plant_material` quantities that persist (no rollback). Duplicate material codes /
+duplicate mapping rows remain a **separate data-cleanup task**.
+
+---
+
 ### Event-Driven SAP Stock Import — WatchService, filename-tracked idempotency, authoritative table
 
 Replaced the broken scheduled SAP stock import (wrong path, wrong table) with an event-driven

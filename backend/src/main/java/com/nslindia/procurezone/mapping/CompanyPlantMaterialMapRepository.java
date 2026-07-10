@@ -32,6 +32,21 @@ public interface CompanyPlantMaterialMapRepository extends JpaRepository<Company
                         @Param("materialId") Integer materialId);
 
         /**
+         * Duplicate-tolerant variant: returns ALL mappings for a company+plant+material rather than a
+         * single result. The SAP import uses this so a pre-existing duplicate row set (same triple)
+         * cannot throw NonUniqueResultException and roll back the whole batch.
+         */
+        @Query("SELECT cpm FROM CompanyPlantMaterialMap cpm " +
+                        "WHERE cpm.company.id = :companyId " +
+                        "AND cpm.plant.id = :plantId " +
+                        "AND cpm.material.id = :materialId " +
+                        "ORDER BY cpm.id ASC")
+        List<CompanyPlantMaterialMap> findAllByCompanyAndPlantAndMaterial(
+                        @Param("companyId") Integer companyId,
+                        @Param("plantId") Integer plantId,
+                        @Param("materialId") Integer materialId);
+
+        /**
          * Find all active mappings for a plant
          */
         @Query("SELECT cpm FROM CompanyPlantMaterialMap cpm " +

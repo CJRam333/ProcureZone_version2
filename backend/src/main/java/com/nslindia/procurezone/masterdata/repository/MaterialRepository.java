@@ -28,6 +28,14 @@ public interface MaterialRepository extends JpaRepository<Material, Integer> {
         Optional<Material> findByCode(String code);
 
         /**
+         * Duplicate-tolerant lookup: returns the first material for a code (lowest id) instead of
+         * throwing NonUniqueResultException when tbl_material_master contains duplicate codes (which
+         * happens because the SAP import auto-creates materials keyed only by code). Used by the SAP
+         * import so a duplicate code cannot fail/roll back the batch.
+         */
+        Optional<Material> findFirstByCodeOrderByIdAsc(String code);
+
+        /**
          * Find all active materials.
          * 
          * @param status the status (1 for active)

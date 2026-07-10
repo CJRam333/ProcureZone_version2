@@ -21,6 +21,8 @@ public class StockImportHistory {
 
     public static final String STATUS_SUCCESS = "SUCCESS";
     public static final String STATUS_FAILED = "FAILED";
+    /** Some rows imported, some failed (e.g. pre-existing duplicates). Counts as processed. */
+    public static final String STATUS_PARTIAL = "PARTIAL";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
