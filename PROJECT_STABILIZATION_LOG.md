@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-07-14
+
+### Collation Mismatch — Real Fix at Connection Level (V56 table-conversion was WRONG, reverted)
+
+**Correction to 2026-07-10 (V56):** production `information_schema` confirmed all four tables AND the
+`material_code`/`name`/`description` columns are **already `utf8mb4 / utf8mb4_0900_ai_ci`**. There is
+NO latin1 table. The V56 blanket table-conversion fixed a non-existent problem — **deleted** the
+migration (`V56__convert_material_tables_to_utf8mb4.sql`); it was flagged-to-hold on 07-10 and never
+run in prod.
+
+**Real source of `Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8mb4_0900_ai_ci,COERCIBLE)`:**
+the **connection/session**, not stored data. The MySQL server's session default
+`collation_connection` is `latin1_swedish_ci`, so the JDBC driver sent string literals as latin1;
+comparing a latin1 literal to a utf8mb4 column (`=` in SAP import `findByCode`, `LIKE` in Inventory
+search) throws. The latin1 side is IMPLICIT = the connection default, which is why utf8mb4 columns
+still failed.
+
+**Diagnostics (owner runs; no DB access here) — expected to confirm:**
+- STEP 1: `SHOW VARIABLES LIKE 'collation%'` / `'character_set%'` — expect `collation_connection =
+  latin1_swedish_ci` (the culprit). If it already shows utf8mb4, re-examine per-column collations.
+- STEP 4: per-column `collation_name` on `tbl_company_master`/`tbl_plant_master` — expect utf8mb4
+  (tables confirmed utf8mb4); if any individual `comp_name`/`plant_name` column overrides to latin1,
+  that column needs a targeted `MODIFY COLUMN … utf8mb4` (not applied yet — pending that result).
+
+**Fix applied (STEP 3 — connection level).** Pinned the connection to utf8mb4 in `application.yml`:
+```
+jdbc:mysql://127.0.0.1:3306/seeds_indent?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&socketTimeout=30000&connectTimeout=10000&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_0900_ai_ci
+```
+Added `useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_0900_ai_ci`. This forces
+every connection to send/compare string literals as utf8mb4, removing the latin1 side of the mismatch
+for both the SAP import and Inventory search. `application-prod.yml` has no datasource URL — the
+**business owner must add the same params to the server's prod datasource URL**.
+
+**Migration numbering note:** V56 is retired/deleted. To avoid any Flyway checksum conflict (in case
+V56 was applied in a dev environment), the **next migration should be V57**, not a reused V56. If V56
+was ever applied anywhere, run `flyway repair` to drop its history row.
+
+**Build:** backend `mvn compile` clean. Config + migration-deletion only — no Java/frontend change.
+
+**Verify after deploy (with the prod URL param added + restart):** `SHOW VARIABLES` shows
+`collation_connection = utf8mb4_0900_ai_ci`; SAP import of `BPW-TIPBOX-200ΜL` and Inventory search
+both work with no collation error.
+
+---
+
 ## 2026-07-10
 
 ### Collation Mismatch (latin1 vs utf8mb4) Breaking SAP Import + Inventory Search — V56 convert
