@@ -182,6 +182,9 @@ public class EmployeeService {
 
         // Create reporting relationship in tbl_map_emp_reporting
         if (request.reportingManagerId() != null && request.reportingManagerId() > 0) {
+            // Single-supervisor invariant: retire any existing active row(s) first (a new employee
+            // normally has none, but this keeps the "exactly one active row" guarantee everywhere).
+            employeeReportingRepository.deactivateActiveSupervisors(employee.getEmployeeNumber());
             EmployeeReporting reporting = new EmployeeReporting();
             reporting.setSubordinateEmployeeNumber(employee.getEmployeeNumber());
             reporting.setSupervisorEmployeeNumber(request.reportingManagerId());
@@ -392,13 +395,9 @@ public class EmployeeService {
 
         // Reporting manager update: null = no change, 0 = remove, positive = set/replace.
         if (request.reportingManagerId() != null) {
-            // Deactivate any existing active reporting relationship for this employee
-            employeeReportingRepository.findActiveSupervisor(employee.getEmployeeNumber())
-                    .ifPresent(existing -> {
-                        existing.setStatus(0);
-                        existing.setLastModifiedDate(LocalDate.now());
-                        employeeReportingRepository.save(existing);
-                    });
+            // Deactivate ALL existing active reporting row(s) for this employee (single-supervisor
+            // invariant + defensive against any stray duplicate), then insert the new one.
+            employeeReportingRepository.deactivateActiveSupervisors(employee.getEmployeeNumber());
 
             // Create new relationship if a valid manager is provided
             if (request.reportingManagerId() > 0) {
@@ -465,9 +464,10 @@ public class EmployeeService {
                         er.getStatus()))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        // Look up reporting manager via tbl_map_emp_reporting
+        // Look up reporting manager via tbl_map_emp_reporting — defensive List lookup takes the
+        // single current supervisor (first of the deterministically-ordered active rows), never throws.
         Integer reportingManagerId = employeeReportingRepository
-                .findSupervisorNumber(employee.getEmployeeNumber()).orElse(null);
+                .findActiveSupervisors(employee.getEmployeeNumber()).stream().findFirst().orElse(null);
         String reportingManagerName = reportingManagerId != null
                 ? employeeRepository.findById(reportingManagerId)
                         .map(Employee::getFullName).orElse(null)

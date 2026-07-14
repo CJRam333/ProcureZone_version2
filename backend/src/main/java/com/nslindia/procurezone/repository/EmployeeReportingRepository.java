@@ -9,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface EmployeeReportingRepository extends JpaRepository<EmployeeReporting, Integer> {
@@ -23,19 +22,38 @@ public interface EmployeeReportingRepository extends JpaRepository<EmployeeRepor
     @Query("SELECT er FROM EmployeeReporting er WHERE er.supervisorEmployeeNumber = :supervisorId AND er.status = 1")
     List<EmployeeReporting> findActiveSubordinates(@Param("supervisorId") Integer supervisorId);
 
-    // Find the supervisor of a subordinate
-    @Query("SELECT er FROM EmployeeReporting er WHERE er.subordinateEmployeeNumber = :subordinateId AND er.status = 1")
-    Optional<EmployeeReporting> findActiveSupervisor(@Param("subordinateId") Integer subordinateId);
+    // Active supervisor ROWS for a subordinate — List (never throws on a stray duplicate),
+    // deterministically ordered (latest report_start, then latest id first).
+    @Query("SELECT er FROM EmployeeReporting er " +
+            "WHERE er.subordinateEmployeeNumber = :subordinateId AND er.status = 1 " +
+            "ORDER BY er.reportStart DESC, er.id DESC")
+    List<EmployeeReporting> findActiveSupervisorRows(@Param("subordinateId") Integer subordinateId);
+
+    /**
+     * Enforce single-supervisor: deactivate ALL currently-active reporting rows for a subordinate
+     * (soft-delete, keeping history) before a new one is inserted. Shared by every assignment path.
+     */
+    default void deactivateActiveSupervisors(Integer subordinateId) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        for (EmployeeReporting r : findActiveSupervisorRows(subordinateId)) {
+            r.setStatus(0);
+            r.setEndDate(today);
+            r.setLastModifiedDate(today);
+            save(r);
+        }
+    }
 
     // Get all subordinate employee numbers for a supervisor
     @Query("SELECT er.subordinateEmployeeNumber FROM EmployeeReporting er " +
             "WHERE er.supervisorEmployeeNumber = :supervisorId AND er.status = 1")
     List<Integer> findSubordinateNumbers(@Param("supervisorId") Integer supervisorId);
 
-    // Get supervisor employee number for a subordinate
+    // Active supervisor employee number(s) for a subordinate — List so it NEVER throws on a stray
+    // duplicate; callers take the first. Deterministic order (latest report_start, then latest id).
     @Query("SELECT er.supervisorEmployeeNumber FROM EmployeeReporting er " +
-            "WHERE er.subordinateEmployeeNumber = :subordinateId AND er.status = 1")
-    Optional<Integer> findSupervisorNumber(@Param("subordinateId") Integer subordinateId);
+            "WHERE er.subordinateEmployeeNumber = :subordinateId AND er.status = 1 " +
+            "ORDER BY er.reportStart DESC, er.id DESC")
+    List<Integer> findActiveSupervisors(@Param("subordinateId") Integer subordinateId);
 
     // Check if a reporting relationship exists
     boolean existsBySubordinateEmployeeNumberAndSupervisorEmployeeNumberAndStatus(

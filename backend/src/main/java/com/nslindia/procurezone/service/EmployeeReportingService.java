@@ -42,6 +42,10 @@ public class EmployeeReportingService {
             throw new RuntimeException("This would create a circular reporting structure");
         }
 
+        // Single-supervisor invariant: retire any existing active reporting row(s) for this
+        // subordinate before inserting the new one (deactivate-then-insert; history preserved).
+        employeeReportingRepository.deactivateActiveSupervisors(request.getSubordinateEmployeeNumber());
+
         EmployeeReporting reporting = new EmployeeReporting();
         reporting.setSubordinateEmployeeNumber(request.getSubordinateEmployeeNumber());
         reporting.setSupervisorEmployeeNumber(request.getSupervisorEmployeeNumber());
@@ -79,7 +83,8 @@ public class EmployeeReportingService {
     }
 
     public EmployeeReportingResponse getSupervisor(Integer subordinateId) {
-        EmployeeReporting reporting = employeeReportingRepository.findActiveSupervisor(subordinateId)
+        EmployeeReporting reporting = employeeReportingRepository.findActiveSupervisorRows(subordinateId)
+                .stream().findFirst()
                 .orElseThrow(() -> new RuntimeException("No active supervisor found for employee: " + subordinateId));
         return new EmployeeReportingResponse(reporting);
     }
@@ -106,8 +111,9 @@ public class EmployeeReportingService {
             visited.add(currentEmployee);
             chain.add(currentEmployee);
 
-            // Get supervisor
-            Optional<Integer> supervisor = employeeReportingRepository.findSupervisorNumber(currentEmployee);
+            // Get supervisor (single current supervisor; List lookup never throws on a stray dup)
+            Optional<Integer> supervisor = employeeReportingRepository
+                    .findActiveSupervisors(currentEmployee).stream().findFirst();
             currentEmployee = supervisor.orElse(null);
             depth++;
         }

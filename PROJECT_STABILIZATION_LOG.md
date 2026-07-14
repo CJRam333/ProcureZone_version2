@@ -4,6 +4,51 @@
 
 ## 2026-07-14
 
+### Enforce Single Reporting Manager — deactivate-then-insert + defensive supervisor lookup
+
+Business decision: exactly one active reporting manager per employee. Duplicate data already cleaned
+in prod+dev. This makes the code enforce it so duplicates can't reappear, and stops the employee-detail
+"Query did not return a unique result: 2 results" throw.
+
+**PART 1 — reassignment never creates a duplicate active row.** Added a shared
+`EmployeeReportingRepository.deactivateActiveSupervisors(subordinateId)` default method that soft-deletes
+ALL current active rows (`status=0`, `report_end=today`, `lmd=today`; history preserved). Applied
+deactivate-then-insert to **every** reporting insert path:
+- `EmployeeService.createEmployee` — before: inserted with no deactivation. After: `deactivateActiveSupervisors()` then insert.
+- `EmployeeService.updateEmployee` — before: deactivated via single-result `findActiveSupervisor(...).ifPresent(...)` (which itself threw on a duplicate). After: `deactivateActiveSupervisors()` (all rows) then insert.
+- `EmployeeReportingService.createReportingRelationship` (the reporting-management screen's POST `/employee-reporting`) — before: only checked exact (sub,sup) duplicate + circular ref, then inserted → assigning a *different* manager created a 2nd active row. After: `deactivateActiveSupervisors()` then insert.
+- (Confirmed the only other `save()`s — `EmployeeReportingService` update/delete-by-id — edit one existing row in place; they don't create a new active row.)
+
+**PART 2 — supervisor lookup back to single-result, but never throws.** Replaced the throwing
+single-result methods with deterministically-ordered List methods (`ORDER BY report_start DESC, id DESC`):
+- Removed `Optional<Integer> findSupervisorNumber` → added `List<Integer> findActiveSupervisors`.
+- Removed `Optional<EmployeeReporting> findActiveSupervisor` → added `List<EmployeeReporting> findActiveSupervisorRows`.
+- Every call site takes `.stream().findFirst()` — returns the single current supervisor, deterministically
+  picks the latest if a stray duplicate ever slips through, never throws. **Call sites updated (4):**
+  `EmployeeService.mapToEmployeeResponse` (read), `EmployeeReportingService.getSupervisor` (read),
+  `EmployeeReportingService.getManagerChain` (hierarchy walk), and `EmployeeService.updateEmployee`
+  deactivation (now via the shared helper). No `findSupervisorNumber`/`findActiveSupervisor` references remain.
+
+**PART 3 — employee detail.** `EmployeeResponse` already carries a single `reportingManagerId` +
+`reportingManagerName`; `mapToEmployeeResponse` resolves them via the defensive lookup (first active).
+Frontend `EmployeeDetailPage` already shows one "Reporting Manager" field. No change needed.
+
+**PART 4 — access-denied symptom.** The `moduleaccess` package does not use the reporting repository at
+all; supervisor-scoped visibility uses `findSubordinateNumbers` (List, already safe) and `hasSupervisor`
+(boolean COUNT, safe). The only place that threw was employee-detail `mapToEmployeeResponse` — so the
+"access denied" for those 21 employees was that endpoint's 500 surfacing, not a separate module-access
+break. With the throw removed and data cleaned, the path is safe.
+
+**PART 5 — reporting UI.** `ReportingHierarchyPage` (mappings) posts `{subordinate, supervisor}` to
+`/employee-reporting` → `createReportingRelationship`, which now deactivate-then-inserts — so assigning a
+manager via that screen enforces single-supervisor. It's a per-relationship editor; no frontend change
+required (backend enforcement covers all entry points).
+
+**Build:** backend `mvn compile` clean; `tsc -b && vite build` clean. Backend-only — frontend bundle
+unchanged (`index-Dvex2nF9.js`).
+
+---
+
 ### Collation Mismatch — Real Fix at Connection Level (V56 table-conversion was WRONG, reverted)
 
 **Correction to 2026-07-10 (V56):** production `information_schema` confirmed all four tables AND the
