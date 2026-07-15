@@ -26,7 +26,7 @@ public interface EmployeeReportingRepository extends JpaRepository<EmployeeRepor
     // deterministically ordered (latest report_start, then latest id first).
     @Query("SELECT er FROM EmployeeReporting er " +
             "WHERE er.subordinateEmployeeNumber = :subordinateId AND er.status = 1 " +
-            "ORDER BY er.reportStart DESC, er.id DESC")
+            "ORDER BY er.effectiveDate DESC, er.id DESC")
     List<EmployeeReporting> findActiveSupervisorRows(@Param("subordinateId") Integer subordinateId);
 
     /**
@@ -52,7 +52,7 @@ public interface EmployeeReportingRepository extends JpaRepository<EmployeeRepor
     // duplicate; callers take the first. Deterministic order (latest report_start, then latest id).
     @Query("SELECT er.supervisorEmployeeNumber FROM EmployeeReporting er " +
             "WHERE er.subordinateEmployeeNumber = :subordinateId AND er.status = 1 " +
-            "ORDER BY er.reportStart DESC, er.id DESC")
+            "ORDER BY er.effectiveDate DESC, er.id DESC")
     List<Integer> findActiveSupervisors(@Param("subordinateId") Integer subordinateId);
 
     // Check if a reporting relationship exists

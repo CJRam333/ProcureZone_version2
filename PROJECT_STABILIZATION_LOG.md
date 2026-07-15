@@ -2,7 +2,53 @@
 
 ---
 
-## 2026-07-14
+## 2026-07-15
+
+### Startup Failure — findActiveSupervisors ORDER BY referenced non-existent field `reportStart`
+
+The 2026-07-14 reporting queries used `ORDER BY er.reportStart DESC, er.id DESC`, but the
+`EmployeeReporting` entity has no `reportStart` field — the `report_start` column maps to
+**`effectiveDate`**. Hibernate validates all `@Query` at startup, so this `PathElementException`
+prevented the whole app from booting.
+
+**STEP 1 — `EmployeeReporting` fields ↔ columns:**
+`report_id`→`id` (PK), `report_sub`→`subordinateEmployeeNumber`, `report_sup`→`supervisorEmployeeNumber`,
+`report_start`→**`effectiveDate`**, `report_end`→`endDate`, `report_status`→`status`,
+`report_lmd`→`lastModifiedDate`, `report_lmu`→`lastModifiedBy`. (`er.id` in the ORDER BY was already
+correct; only `reportStart` was wrong.)
+
+**STEP 2 — fix.** Both new queries changed `ORDER BY er.reportStart DESC, er.id DESC` →
+`ORDER BY er.effectiveDate DESC, er.id DESC`:
+- `findActiveSupervisorRows(subordinateId)`
+- `findActiveSupervisors(subordinateId)`
+
+**STEP 3 — full `@Query` audit (43 repositories).** Rather than eyeball 43 files, verified
+mechanically by booting the context (STEP 4): Spring Data validates every declared `@Query` at
+startup (that is exactly what failed originally), so a successful boot proves all query property
+paths resolve. Reasoning cross-check: any `@Query` present before the last successful prod boot is
+already validated; only queries added/changed since could newly break startup. The only such
+additions were the 2026-07-14 reporting queries (the `reportStart` ones, now fixed) — the 2026-07-10
+`findAllByCompanyAndPlantAndMaterial` and `StockImportHistory` queries had already booted in prod
+(the SAP import ran), and the context boot below re-confirms them all.
+
+**STEP 4 — startup verified (not just compiled).** Ran the H2-backed `@SpringBootTest`
+`AuthControllerIntegrationTest`: the **context started cleanly** — EntityManagerFactory + all Spring
+Data repositories initialized, security chain and dispatcher servlet came up, requests executed
+(`Tests run: 2`). No `PathElementException` / "Could not resolve attribute" — so every `@Query`
+validated. `mvn compile` alone would NOT catch this; the context boot does.
+
+**Unrelated pre-existing test failure (flagged, not fixed — out of scope):** the same run had one
+assertion failure — `login_withValidCredentials` (`legacy.user@nsl.com`, contains `@`) now routes to
+the LDAP branch (added 2026-07-09), and `LdapAuthService` hits `tbl_ldap_config`, which the H2 test
+schema doesn't create → 401. This is a test-environment gap (H2 lacks `tbl_ldap_config`) surfaced by
+the `@`-routing, not a query/startup issue and not from this change. Deploy uses `-DskipTests`, so it
+doesn't block release. Follow-up: seed `tbl_ldap_config` in the H2 test schema or use a non-`@` test
+user / mock `LdapAuthService` in that test.
+
+**Build:** `mvn compile` clean; context boots (queries validated) via `AuthControllerIntegrationTest`.
+Backend-only — no frontend change.
+
+---
 
 ### Enforce Single Reporting Manager — deactivate-then-insert + defensive supervisor lookup
 
