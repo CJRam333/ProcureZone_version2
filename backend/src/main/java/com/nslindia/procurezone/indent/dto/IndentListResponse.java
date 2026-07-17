@@ -17,6 +17,9 @@ public record IndentListResponse(
         LocalDate deliveryDate,
         String statusName,
         Integer statusId,
+        Integer approvedStatusId,
+        Integer finalStatusId,
+        Integer procurementStatusId,
         Integer detailsCount,
         String displayStatus) {
 }

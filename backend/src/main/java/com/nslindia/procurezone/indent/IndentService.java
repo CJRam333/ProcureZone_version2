@@ -1972,6 +1972,9 @@ public class IndentService {
                                 indent.getDeliveryDate(),
                                 resolveStatusLabel(indent.getStatus()),
                                 indent.getStatus() != null ? indent.getStatus().getId() : null,
+                                indent.getApprovedStatus() != null ? indent.getApprovedStatus().getId() : null,
+                                indent.getFinalStatus() != null ? indent.getFinalStatus().getId() : null,
+                                indent.getProcurementStatus() != null ? indent.getProcurementStatus().getId() : null,
                                 indent.getDetails().size(),
                                 deriveDisplayStatus(
                                         indent.getApprovedStatus() != null ? indent.getApprovedStatus().getId() : null,

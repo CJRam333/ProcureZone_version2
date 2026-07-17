@@ -414,44 +414,18 @@ const router = createBrowserRouter([
           },
         ],
       },
-      // ==================== PLANT INDENT ROUTES ====================
-      // Plant Indent is not in active use — every route restricted to ADMIN/SUPERADMIN only.
-      // Re-enable for other roles later by widening these roles arrays.
+      // ==================== PLANT INDENT ROUTES (DORMANT — hidden from all roles) ==============
+      // Module is dormant: every route redirects to /dashboard so old bookmarked URLs resolve
+      // predictably and no user (incl. ADMIN/SUPERADMIN) can reach the pages. Routes stay
+      // registered and the page components (PlantIndent*Page) are preserved for re-enable —
+      // restore the ProtectedRoute elements to bring it back.
       {
         path: 'plant-indent',
         children: [
-          {
-            index: true,
-            element: (
-              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
-                <PlantIndentListPage />
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: 'new',
-            element: (
-              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
-                <PlantIndentFormPage />
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: ':id',
-            element: (
-              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
-                <PlantIndentDetailPage />
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: ':id/edit',
-            element: (
-              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
-                <PlantIndentFormPage />
-              </ProtectedRoute>
-            ),
-          },
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: 'new', element: <Navigate to="/dashboard" replace /> },
+          { path: ':id', element: <Navigate to="/dashboard" replace /> },
+          { path: ':id/edit', element: <Navigate to="/dashboard" replace /> },
         ],
       },
       // ==================== QUALITY CONTROL ROUTES ====================
@@ -476,34 +450,16 @@ const router = createBrowserRouter([
           },
         ],
       },
-      // ==================== CONFIRMATIONS ROUTES ====================
-      // Placeholder module tied to the dormant Plant Indent flow — every route restricted to
-      // ADMIN/SUPERADMIN only. Re-enable for other roles later by widening these roles arrays.
-      // (The index below is a plain redirect to the now-restricted /confirmations/issue, so a
-      // non-admin landing on /confirmations is forwarded there and then blocked by that guard.)
+      // ==================== CONFIRMATIONS ROUTES (DORMANT — hidden from all roles) ============
+      // Dormant placeholder module: every route redirects to /dashboard so no user reaches the
+      // pages and old bookmarks resolve predictably. Routes stay registered and the page
+      // components (IssueConfirmationPage/ReceiptConfirmationPage) are preserved for re-enable.
       {
         path: 'confirmations',
         children: [
-          {
-            index: true,
-            element: <Navigate to="/confirmations/issue" replace />,
-          },
-          {
-            path: 'issue',
-            element: (
-              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
-                <IssueConfirmationPage />
-              </ProtectedRoute>
-            ),
-          },
-          {
-            path: 'receipt',
-            element: (
-              <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
-                <ReceiptConfirmationPage />
-              </ProtectedRoute>
-            ),
-          },
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: 'issue', element: <Navigate to="/dashboard" replace /> },
+          { path: 'receipt', element: <Navigate to="/dashboard" replace /> },
         ],
       },
       {

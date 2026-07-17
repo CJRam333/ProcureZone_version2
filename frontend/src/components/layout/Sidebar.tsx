@@ -100,9 +100,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       label: 'Plant Indent',
       icon: <FaSeedling />,
       moduleCode: 'PLANT_INDENTS',
-      // Plant Indent is not in active use — restricted to ADMIN/SUPERADMIN only (re-enable later
-      // by widening this list). Was previously unrestricted (gated by module access only).
       roles: ['ADMIN', 'SUPERADMIN'],
+      // Dormant module — hidden from every role including ADMIN/SUPERADMIN. Code/route preserved;
+      // re-enable by removing this flag (and reactivating the module in tbl_module_master).
+      hidden: true,
     },
     {
       path: '/purchase-orders',
@@ -139,11 +140,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, mobileOpen = fal
       path: '/confirmations/issue',
       label: 'Confirmations',
       icon: <FaExclamationTriangle />,
-      // Placeholder module tied to the dormant Plant Indent flow — restricted to ADMIN/SUPERADMIN
-      // (re-enable later by widening this list). Was: SUPERADMIN, ADMIN, ISSUECONFIRM,
-      // RECEIPTCONFIRM, DEPTHEAD, USER, SUPERVISOR.
       roles: ['ADMIN', 'SUPERADMIN'],
       moduleCode: 'CONFIRMATIONS',
+      // Dormant placeholder module — hidden from every role. Code/route preserved; re-enable by
+      // removing this flag (and reactivating the module in tbl_module_master).
+      hidden: true,
     },
     {
       // Read-only stock view — available to all operational roles. Activated (was future/hidden).

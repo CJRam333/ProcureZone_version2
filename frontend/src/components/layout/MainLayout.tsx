@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopNavbar from './TopNavbar';
+import { ScrollToTop } from '../ScrollToTop';
 import { useSettings } from '../../contexts/SettingsContext';
 import './MainLayout.css';
 
@@ -25,6 +26,9 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="app-container">
+      {/* Reset scroll to top on every route change (lives within the router context) */}
+      <ScrollToTop />
+
       {/* Mobile sidebar overlay */}
       <div
         className={`sidebar-overlay ${mobileSidebarOpen ? 'show' : ''}`}

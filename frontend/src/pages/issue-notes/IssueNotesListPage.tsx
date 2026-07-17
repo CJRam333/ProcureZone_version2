@@ -17,7 +17,6 @@ import {
   FaEye,
   FaEdit,
   FaSyncAlt,
-  FaUndo,
 } from 'react-icons/fa';
 import { PageHeader, DataTable } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
@@ -134,7 +133,10 @@ const IssueNotesListPage: React.FC = () => {
           <Button
             variant="outline-primary"
             size="sm"
-            onClick={() => navigate(`/issue-notes/${row.id}`)}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/issue-notes/${row.id}`);
+            }}
             title="View Details"
           >
             <FaEye />
@@ -146,21 +148,13 @@ const IssueNotesListPage: React.FC = () => {
             <Button
               variant="outline-secondary"
               size="sm"
-              onClick={() => navigate(`/issue-notes/${row.id}/edit`)}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/issue-notes/${row.id}/edit`);
+              }}
               title="Edit"
             >
               <FaEdit />
-            </Button>
-          )}
-          {/* Return only for notes issued through the new app (backend requires status=8) */}
-          {row.status === 8 && hasAnyRole(['ADMIN', 'ISSUECONFIRM']) && (
-            <Button
-              variant="outline-success"
-              size="sm"
-              onClick={() => navigate(`/issue-notes/${row.id}/return`)}
-              title="Process Return"
-            >
-              <FaUndo />
             </Button>
           )}
         </div>
@@ -264,6 +258,7 @@ const IssueNotesListPage: React.FC = () => {
               currentPage={page}
               pageSize={pageSize}
               onPageChange={setPage}
+              onRowClick={(row: any) => navigate(`/issue-notes/${row.id}`)}
               emptyMessage="No issue notes found"
             />
           )}

@@ -175,7 +175,14 @@ const IndentsListPage: React.FC = () => {
           >
             <FaEye />
           </Button>
+          {/* Edit only on a GENUINE draft: Spring status=1 AND no workflow progress in the
+              three-column model. Legacy rows carry status=1 as an active flag even at terminal
+              states (e.g. PO Released procurement=7 / Cash Buy=9), so the status=1 check alone
+              wrongly showed Edit there — the three-column guard excludes those. */}
           {((item as any).statusId ?? (item as any).status) === 1 &&
+            ((item as any).approvedStatusId ?? 1) === 1 &&
+            ((item as any).finalStatusId ?? 1) === 1 &&
+            ((item as any).procurementStatusId ?? 1) === 1 &&
             hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT', 'SUPERVISOR']) && (
               <Button
                 variant="outline-secondary"

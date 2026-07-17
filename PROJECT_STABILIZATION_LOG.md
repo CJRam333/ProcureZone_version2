@@ -1967,3 +1967,58 @@ The approve button label was also corrected: L1 → "Approve (RM Review)", L2 �
 - `tsc -b` — clean, 0 errors
 
 ---
+
+## 2026-07-17 — Pass 1: Small UI Fixes
+
+Four independent UI fixes shipped in one commit. No feature code deleted — dormant modules are hidden, not removed, and all backend endpoints remain intact.
+
+### FIX 1 — Scroll to top on every route navigation
+
+New `ScrollToTop` component (standard React Router pattern: `useLocation()` + `window.scrollTo(0, 0)` on `pathname` change). The app scroll container is the window (MainLayout.css defines no `overflow` container), so `window.scrollTo` is sufficient.
+
+- **New:** `frontend/src/components/ScrollToTop.tsx`
+- **Mounted in:** `frontend/src/components/layout/MainLayout.tsx` — first child of `.app-container`. MainLayout stays mounted across route changes and lives inside router context (`createBrowserRouter` → `RouterProvider`), so `useLocation()` is valid there.
+
+### FIX 2 — Hide Plant Indent AND Confirmations from every role (code preserved)
+
+Hidden from all roles including ADMIN/SUPERADMIN. Nothing deleted — re-enable by reverting these three changes.
+
+- **Sidebar** (`frontend/src/components/layout/Sidebar.tsx`): added `hidden: true` to both the Plant Indent and Confirmations nav items (existing `roles`/`moduleCode` left intact). The nav filter already honors `!item.hidden`; `hidden: true` is the established hide pattern (precedent: `/masters/users`).
+- **Routes** (`frontend/src/routes/router.tsx`): every Plant Indent route (`index`, `new`, `:id`, `:id/edit`) and Confirmations route (`index`, `issue`, `receipt`) now renders `<Navigate to="/dashboard" replace />`. Routes stay registered and page imports remain, so re-enabling is a one-line-per-route revert. (Note: `roles: []` was deliberately NOT used — an empty roles array makes `ProtectedRoute` skip its check and render children as PUBLIC, and a denial shows an "Access Denied" panel rather than redirecting.)
+- **Migration** `backend/src/main/resources/db/migration/V57__deactivate_plant_indent_confirmations_modules.sql`: `UPDATE tbl_module_master SET module_status = 0 WHERE module_code IN ('PLANT_INDENTS','CONFIRMATIONS');` — deactivates at the module-access layer so nothing re-surfaces them.
+- Backend `@PreAuthorize` annotations left unchanged, as specified.
+
+### FIX 3 — Remove obsolete action buttons
+
+- **Issue Notes list** (`frontend/src/pages/issue-notes/IssueNotesListPage.tsx`): removed the "Process Return" button (`FaUndo`) entirely, plus its now-unused import. The backend return endpoint is untouched.
+- **Indents list** (`frontend/src/pages/indents/IndentsListPage.tsx`): the Edit button previously showed whenever Spring `status === 1`. Legacy rows carry `status = 1` as an active flag even at terminal states (PO Released `procurementStatusId=7`, Cash Buy `=9`), so Edit wrongly appeared there. Tightened to a genuine-draft guard: `status === 1 && approvedStatusId === 1 && finalStatusId === 1 && procurementStatusId === 1` (mirrors the detail page's draft gate), which inherently excludes procurement 7/9 and every other advanced stage.
+  - **Backend prerequisite:** `IndentListResponse` did not return the three-column ids, so the list rows lacked `procurementStatusId` at runtime. Added `approvedStatusId`, `finalStatusId`, `procurementStatusId` to the record and populated them in `IndentService.toIndentListResponse(...)`. Additive change — no existing consumer affected.
+
+### FIX 4 — Row click opens issue note detail
+
+Mirrored the Indents-list pattern: added `onRowClick={(row) => navigate('/issue-notes/' + row.id)}` to the issue-notes `DataTable`. `DataTable` already applies `cursor: pointer` when `onRowClick` is set. Added `e.stopPropagation()` to the remaining action-column buttons (View, Edit) so they don't also trigger row navigation.
+
+### Files changed
+
+- `frontend/src/components/ScrollToTop.tsx` (new)
+- `frontend/src/components/layout/MainLayout.tsx`
+- `frontend/src/components/layout/Sidebar.tsx`
+- `frontend/src/routes/router.tsx`
+- `frontend/src/pages/issue-notes/IssueNotesListPage.tsx`
+- `frontend/src/pages/indents/IndentsListPage.tsx`
+- `backend/src/main/java/com/nslindia/procurezone/indent/dto/IndentListResponse.java`
+- `backend/src/main/java/com/nslindia/procurezone/indent/IndentService.java`
+- `backend/src/main/resources/db/migration/V57__deactivate_plant_indent_confirmations_modules.sql` (new)
+
+### Migration
+
+V57 — `V57__deactivate_plant_indent_confirmations_modules.sql` (to be run by the business owner per the standing no-DB-access constraint).
+
+### Build results
+
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in 16.60s, 0 errors (pre-existing >500 kB chunk-size warning only)
+- New build hashes: JS `assets/index-DWRGIhPe.js`, CSS `assets/index-C0ZtAKUb.css`
+
+---
