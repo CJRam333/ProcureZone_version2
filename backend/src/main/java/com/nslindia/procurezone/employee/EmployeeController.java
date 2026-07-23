@@ -274,4 +274,90 @@ public class EmployeeController {
         employeeService.resetPassword(id, request.newPassword());
         return ResponseEntity.ok().build();
     }
+
+    /**
+     * GET /api/v1/employees/export - Export employees list as CSV or Excel,
+     * respecting the same filters and roles as GET /api/v1/employees.
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN', 'VIEWER')")
+    public ResponseEntity<byte[]> exportEmployees(
+            @RequestParam(defaultValue = "csv") String format,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer departmentId,
+            @RequestParam(required = false) Integer locationId) throws java.io.IOException {
+
+        java.util.List<EmployeeSummaryResponse> rows = employeeService.getAllEmployees(
+                status, search, departmentId, locationId,
+                org.springframework.data.domain.PageRequest.of(0, 50000, Sort.by(Sort.Direction.ASC, "fullName")))
+                .getContent();
+
+        String base = "employees";
+        String date = java.time.LocalDate.now().toString();
+        String[] headers = {"Emp ID", "Name", "Email", "Designation", "Department", "Location", "Status", "Active Roles"};
+
+        if ("csv".equalsIgnoreCase(format)) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.join(",", headers)).append('\n');
+            for (EmployeeSummaryResponse r : rows) {
+                sb.append(csv(r.empId())).append(',')
+                  .append(csv(r.empName())).append(',')
+                  .append(csv(r.empEmail())).append(',')
+                  .append(csv(r.empDesignation())).append(',')
+                  .append(csv(r.departmentName())).append(',')
+                  .append(csv(r.locationName())).append(',')
+                  .append(csv(r.statusName())).append(',')
+                  .append(r.activeRolesCount() != null ? r.activeRolesCount() : 0).append('\n');
+            }
+            byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".csv\"")
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .body(bytes);
+        }
+
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Employees");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            int rowNum = 1;
+            for (EmployeeSummaryResponse r : rows) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(r.empId() != null ? r.empId() : "");
+                row.createCell(1).setCellValue(r.empName() != null ? r.empName() : "");
+                row.createCell(2).setCellValue(r.empEmail() != null ? r.empEmail() : "");
+                row.createCell(3).setCellValue(r.empDesignation() != null ? r.empDesignation() : "");
+                row.createCell(4).setCellValue(r.departmentName() != null ? r.departmentName() : "");
+                row.createCell(5).setCellValue(r.locationName() != null ? r.locationName() : "");
+                row.createCell(6).setCellValue(r.statusName() != null ? r.statusName() : "");
+                row.createCell(7).setCellValue(r.activeRolesCount() != null ? r.activeRolesCount() : 0);
+            }
+
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            wb.write(bos);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".xlsx\"")
+                    .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(bos.toByteArray());
+        }
+    }
+
+    private static String csv(String value) {
+        if (value == null) return "";
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
 }

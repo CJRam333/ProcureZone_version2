@@ -22,7 +22,7 @@ import {
   FaFileDownload,
   FaSyncAlt,
 } from 'react-icons/fa';
-import { PageHeader, DataTable, LoadingSpinner, StatusBadge } from '../../components/common';
+import { PageHeader, DataTable, LoadingSpinner, StatusBadge, ExportButtons } from '../../components/common';
 import { purchaseOrdersApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -285,6 +285,16 @@ const POListPage: React.FC = () => {
                       Clear
                     </Button>
                   )}
+                  <ExportButtons
+                    filenameBase="purchase_orders_export"
+                    onExport={(fmt) =>
+                      purchaseOrdersApi.export({
+                        format: fmt,
+                        status: filters.status ? Number(filters.status) : undefined,
+                        search: filters.search || undefined,
+                      })
+                    }
+                  />
                 </div>
               </Col>
             </Row>

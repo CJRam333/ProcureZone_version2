@@ -254,6 +254,19 @@ export const purchaseOrdersApi = {
         return response.data;
     },
 
+    // Export the (filtered) list to CSV/Excel — returns a Blob for browser download
+    export: async (params: {
+        format: "csv" | "xlsx";
+        status?: number;
+        search?: string;
+    }): Promise<Blob> => {
+        const response = await apiClient.get("/pos/export", {
+            params,
+            responseType: "blob",
+        });
+        return response.data;
+    },
+
     // GET /api/v1/pos/{id} — returns full PurchaseOrder
     getById: async (id: number): Promise<PurchaseOrder> => {
         const response = await apiClient.get<PurchaseOrder>(`/pos/${id}`);

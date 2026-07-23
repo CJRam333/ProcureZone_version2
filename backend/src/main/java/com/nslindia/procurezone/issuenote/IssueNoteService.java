@@ -7,6 +7,7 @@ import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.inventory.InventoryService;
 import com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository;
+import com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository;
 import com.nslindia.procurezone.issuenote.dto.*;
 import com.nslindia.procurezone.masterdata.PlantRepository;
 import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
@@ -55,6 +56,7 @@ public class IssueNoteService {
     private final EmployeeReportingRepository employeeReportingRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository;
+    private final CompanyPlantMaterialRepository companyPlantMaterialRepository;
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
     private final SectionRepository sectionRepository;
@@ -692,22 +694,15 @@ public class IssueNoteService {
     }
 
     /**
-     * Export all issue notes (up to 10,000 rows) for file download, with optional filters.
+     * Export issue notes (up to 50,000 rows) for file download, with the same filters as the list.
+     * Routes through the role-scoped getAll() so the export contains EXACTLY what the caller would
+     * see in the filtered list — same visibility scope, same filters. This closes a prior leak
+     * where export hit unscoped repository queries and returned all issue notes regardless of role.
      */
     @Transactional(readOnly = true)
-    public List<IssueNoteSummaryResponse> exportAll(Integer status, Integer departmentId) {
-        Pageable exportPageable = PageRequest.of(0, 10_000, Sort.by(Sort.Direction.DESC, "issueDate"));
-        Page<IssueNote> page;
-        if (status != null && departmentId != null) {
-            page = issueNoteRepository.findByDepartmentIdAndStatus(departmentId, status, exportPageable);
-        } else if (status != null) {
-            page = issueNoteRepository.findByStatus(status, exportPageable);
-        } else if (departmentId != null) {
-            page = issueNoteRepository.findByDepartmentId(departmentId, exportPageable);
-        } else {
-            page = issueNoteRepository.findAll(exportPageable);
-        }
-        return page.map(this::mapToSummaryResponse).getContent();
+    public List<IssueNoteSummaryResponse> exportAll(
+            String search, Integer approvedStatus, Integer storesByStatus, Integer departmentId) {
+        return getAll(0, 50_000, search, approvedStatus, storesByStatus, departmentId).getContent();
     }
 
     /**
@@ -796,7 +791,24 @@ public class IssueNoteService {
         return employeeRepository.findById(empNumber).map(Employee::getEmpName).orElse(null);
     }
 
+    /**
+     * Resolve the comma-separated list of company names stocking a material, using a
+     * per-request cache so each distinct materialId is queried at most once. Line items
+     * do not capture their own company, so we return ALL active companies for the material.
+     * Null/empty resolves to "".
+     */
+    private String resolveCompaniesForMaterial(Integer materialId, Map<Integer, String> cache) {
+        if (materialId == null) return "";
+        return cache.computeIfAbsent(materialId, id -> {
+            List<String> names = companyPlantMaterialRepository.findCompanyNamesByMaterial(id);
+            return (names == null || names.isEmpty()) ? "" : String.join(", ", names);
+        });
+    }
+
     private IssueNoteResponse mapToResponse(IssueNote issueNote) {
+        // Cache company-name lookups per distinct materialId so we do at most one query
+        // per material across all line items of this issue note.
+        Map<Integer, String> companiesByMaterial = new HashMap<>();
         List<IssueNoteResponse.IssueNoteDetailResponse> detailResponses = issueNote.getDetails().stream()
                 .map(d -> {
                     var material = d.getMaterialId() != null
@@ -814,7 +826,8 @@ public class IssueNoteService {
                             d.getRate(),
                             d.getAmount(),
                             d.getPurpose(),
-                            d.getStatus());
+                            d.getStatus(),
+                            resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial));
                 })
                 .collect(Collectors.toList());
 
@@ -894,7 +907,8 @@ public class IssueNoteService {
                 issueNote.getApprovedStatus(),
                 issueNote.getStoresByStatus(),
                 totalAmount,
-                issueNote.getDetails().size());
+                issueNote.getDetails().size(),
+                issueNote.getLastModifiedDate());
     }
 
     private String buildAuditDetails(IssueNote issueNote, String action) {

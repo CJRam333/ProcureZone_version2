@@ -2,6 +2,7 @@ package com.nslindia.procurezone.dashboard.controller;
 
 import com.nslindia.procurezone.dashboard.dto.DashboardStatisticsResponse;
 import com.nslindia.procurezone.dashboard.dto.DashboardStatisticsResponse.*;
+import com.nslindia.procurezone.dashboard.dto.DashboardActivityItem;
 import com.nslindia.procurezone.dashboard.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -213,6 +214,21 @@ public class DashboardController {
         List<PendingApprovalData> response = dashboardService.getPendingApprovals(companyId, departmentId);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get the unified "Latest Activity" feed (indents + issue notes) visible to the current user.
+     * Per-role visibility is enforced inside the service (it routes through the scoped list
+     * methods), so this endpoint only requires authentication.
+     * GET /api/v1/dashboard/latest-activity?limit=15
+     */
+    @GetMapping("/latest-activity")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<DashboardActivityItem>> getLatestActivity(
+            @RequestParam(required = false) Integer limit) {
+
+        log.debug("Fetching latest activity feed (limit={})", limit);
+        return ResponseEntity.ok(dashboardService.getLatestActivity(limit));
     }
 
     /**

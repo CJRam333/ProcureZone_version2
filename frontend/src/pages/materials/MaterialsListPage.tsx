@@ -18,9 +18,8 @@ import {
   FaSyncAlt,
   FaToggleOn,
   FaToggleOff,
-  FaFileExport,
 } from 'react-icons/fa';
-import { PageHeader, DataTable, StatusBadge } from '../../components/common';
+import { PageHeader, DataTable, StatusBadge, ExportButtons } from '../../components/common';
 import { materialsApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -159,39 +158,9 @@ const MaterialsListPage: React.FC = () => {
         actions={
           <div className="d-flex gap-2">
             {hasAnyRole(['SUPERADMIN', 'ADMIN']) && (
-              <>
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => {
-                    materialsApi.list({ page: 0, size: 1000 }).then((d) => {
-                      const csv = [
-                        ['Code', 'Name', 'Description', 'Stock', 'Status'],
-                        ...(d.content || []).map((m: any) => [
-                          m.materialCode || '',
-                          m.materialName || '',
-                          m.description || '',
-                          m.stockQuantity ?? 0,
-                          m.isActive ? 'Active' : 'Inactive',
-                        ]),
-                      ]
-                        .map((r) => r.map((c) => `"${c}"`).join(','))
-                        .join('\n');
-                      const blob = new Blob([csv], { type: 'text/csv' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'materials_export.csv';
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    });
-                  }}
-                >
-                  <FaFileExport className="me-2" /> Export
-                </Button>
-                <Button variant="primary" onClick={() => navigate('/masters/materials/new')}>
-                  <FaPlus className="me-2" /> Add Material
-                </Button>
-              </>
+              <Button variant="primary" onClick={() => navigate('/masters/materials/new')}>
+                <FaPlus className="me-2" /> Add Material
+              </Button>
             )}
           </div>
         }
@@ -232,6 +201,10 @@ const MaterialsListPage: React.FC = () => {
                   {(filters.search || filters.status) && (
                     <Button variant="outline-danger" onClick={resetFilters}>Clear</Button>
                   )}
+                  <ExportButtons
+                    filenameBase="materials_export"
+                    onExport={(fmt) => materialsApi.export({ format: fmt })}
+                  />
                 </div>
               </Col>
             </Row>

@@ -166,4 +166,83 @@ public class MaterialController {
         materialService.deleteMaterial(id, principal.email());
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Export the material list as CSV or Excel, respecting the same roles as GET /api/v1/materials.
+     * GET /api/v1/materials/export?format=csv|xlsx
+     */
+    @GetMapping("/export")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> exportMaterials(
+            @RequestParam(defaultValue = "csv") String format) throws java.io.IOException {
+
+        java.util.List<MaterialResponse> rows = materialService.getAllMaterials(
+                org.springframework.data.domain.PageRequest.of(0, 50000, Sort.by(Sort.Direction.ASC, "name")))
+                .getContent();
+
+        String base = "materials";
+        String date = java.time.LocalDate.now().toString();
+        String[] headers = {"Material Code", "Material Name", "Description", "Status", "Stock Quantity", "Company", "Plant"};
+
+        if ("csv".equalsIgnoreCase(format)) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.join(",", headers)).append('\n');
+            for (MaterialResponse r : rows) {
+                sb.append(csv(r.materialCode())).append(',')
+                  .append(csv(r.materialName())).append(',')
+                  .append(csv(r.description())).append(',')
+                  .append(csv(r.statusText())).append(',')
+                  .append(csv(r.stockQuantity() != null ? r.stockQuantity().toPlainString() : "")).append(',')
+                  .append(csv(r.companyName())).append(',')
+                  .append(csv(r.plantName())).append('\n');
+            }
+            byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".csv\"")
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .body(bytes);
+        }
+
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Materials");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            int rowNum = 1;
+            for (MaterialResponse r : rows) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(r.materialCode() != null ? r.materialCode() : "");
+                row.createCell(1).setCellValue(r.materialName() != null ? r.materialName() : "");
+                row.createCell(2).setCellValue(r.description() != null ? r.description() : "");
+                row.createCell(3).setCellValue(r.statusText() != null ? r.statusText() : "");
+                row.createCell(4).setCellValue(r.stockQuantity() != null ? r.stockQuantity().doubleValue() : 0d);
+                row.createCell(5).setCellValue(r.companyName() != null ? r.companyName() : "");
+                row.createCell(6).setCellValue(r.plantName() != null ? r.plantName() : "");
+            }
+
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            wb.write(bos);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".xlsx\"")
+                    .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(bos.toByteArray());
+        }
+    }
+
+    private static String csv(String value) {
+        if (value == null) return "";
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
 }

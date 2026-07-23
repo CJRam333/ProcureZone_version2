@@ -90,6 +90,7 @@ export interface IndentItem {
     purpose?: string;
     vendor?: string;
     status: number;
+    companies?: string; // comma-separated company names stocking this material
     // Optional aliases for UI compatibility
     materialDescription?: string; // alias for materialName
     uomCode?: string; // alias for unitOfMeasureCode

@@ -22,5 +22,6 @@ public record IssueNoteSummaryResponse(
         Integer approvedStatus,
         Integer storesByStatus,
         BigDecimal totalAmount,
-        Integer lineItemCount) {
+        Integer lineItemCount,
+        LocalDateTime lastModifiedDate) {
 }

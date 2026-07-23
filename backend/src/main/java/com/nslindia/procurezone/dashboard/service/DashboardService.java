@@ -2,8 +2,15 @@ package com.nslindia.procurezone.dashboard.service;
 
 import com.nslindia.procurezone.dashboard.dto.DashboardStatisticsResponse;
 import com.nslindia.procurezone.dashboard.dto.DashboardStatisticsResponse.*;
+import com.nslindia.procurezone.dashboard.dto.DashboardActivityItem;
+import com.nslindia.procurezone.indent.IndentService;
+import com.nslindia.procurezone.indent.dto.IndentListResponse;
+import com.nslindia.procurezone.issuenote.IssueNoteService;
+import com.nslindia.procurezone.issuenote.dto.IssueNoteSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -52,7 +60,94 @@ public class DashboardService {
     @PersistenceContext
     private EntityManager entityManager;
 
+    private final IndentService indentService;
+    private final IssueNoteService issueNoteService;
+
     private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("MMM");
+
+    // "Latest Activity" feed tuning.
+    private static final int TERMINAL_WINDOW_DAYS = 3;   // terminal docs drop off after 3 days
+    private static final int CANDIDATE_CAP = 100;        // candidates fetched per doc type before filtering
+    private static final int DEFAULT_ACTIVITY_LIMIT = 15; // mixed items returned
+
+    /**
+     * Unified "Latest Activity" feed over indents and issue notes visible to the current user.
+     *
+     * <p>Visibility: routes through the EXACT role-scoped list methods
+     * ({@link IndentService#filterIndents} and {@link IssueNoteService#getAll}) so the feed always
+     * agrees with what the module list pages show for this user — no scope is re-implemented here.
+     *
+     * <p>Timing rule applied in-memory after fetch:
+     * <ul>
+     *   <li>in-flight (non-terminal) documents: always included, no time limit;</li>
+     *   <li>terminal documents (indent: approved=2 / final=2 / procurement=7 or 9; issue note:
+     *       approved=2 / stores=2 / stores=11): included only if lmd is within the last
+     *       {@value #TERMINAL_WINDOW_DAYS} days.</li>
+     * </ul>
+     *
+     * <p>Why in-memory rather than a single SQL predicate: issue-note lmd is a {@code varchar(20)}
+     * persisted via a converter (mixed legacy formats), which must not be used in a JPQL range/sort;
+     * filtering after fetch keeps both document types consistent and guarantees list/dashboard
+     * agreement. Candidates are capped at {@value #CANDIDATE_CAP} per type (ordered newest-first)
+     * before filtering and merging.
+     */
+    @Transactional(readOnly = true)
+    public List<DashboardActivityItem> getLatestActivity(Integer limit) {
+        int max = (limit != null && limit > 0) ? limit : DEFAULT_ACTIVITY_LIMIT;
+        LocalDateTime cutoff = LocalDate.now().minusDays(TERMINAL_WINDOW_DAYS).atStartOfDay();
+        List<DashboardActivityItem> items = new ArrayList<>();
+
+        // --- Indents (scoped by filterIndents, newest-modified first) ---
+        try {
+            var indents = indentService.filterIndents(
+                    null, null, null, null, null, null, null, null, null, null,
+                    PageRequest.of(0, CANDIDATE_CAP, Sort.by(Sort.Direction.DESC, "lastModifiedDate")));
+            for (IndentListResponse r : indents.getContent()) {
+                if (includeInFeed(indentTerminal(r), r.lastModifiedDate(), cutoff)) {
+                    items.add(new DashboardActivityItem(
+                            "INDENT", r.id(), r.indentNumber(),
+                            r.displayStatus() != null ? r.displayStatus() : r.statusName(),
+                            r.lastModifiedDate(), r.employeeName()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Latest Activity: indent fetch failed: {}", e.getMessage());
+        }
+
+        // --- Issue notes (scoped by getAll) ---
+        try {
+            var notes = issueNoteService.getAll(0, CANDIDATE_CAP, null, null, null, null);
+            for (IssueNoteSummaryResponse r : notes.getContent()) {
+                if (includeInFeed(issueNoteTerminal(r), r.lastModifiedDate(), cutoff)) {
+                    items.add(new DashboardActivityItem(
+                            "ISSUE_NOTE", r.id(), r.issueNoteNumber(),
+                            r.statusDescription(), r.lastModifiedDate(), r.employeeName()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Latest Activity: issue-note fetch failed: {}", e.getMessage());
+        }
+
+        // Merge, newest-modified first (nulls last), cap.
+        items.sort(Comparator.comparing(DashboardActivityItem::lastModifiedDate,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        return items.size() > max ? new ArrayList<>(items.subList(0, max)) : items;
+    }
+
+    private static boolean includeInFeed(boolean terminal, LocalDateTime lmd, LocalDateTime cutoff) {
+        if (!terminal) return true;                       // in-flight: always visible
+        return lmd != null && !lmd.isBefore(cutoff);      // terminal: only within the window
+    }
+
+    private static boolean indentTerminal(IndentListResponse r) {
+        Integer a = r.approvedStatusId(), f = r.finalStatusId(), p = r.procurementStatusId();
+        return (a != null && a == 2) || (f != null && f == 2) || (p != null && (p == 7 || p == 9));
+    }
+
+    private static boolean issueNoteTerminal(IssueNoteSummaryResponse r) {
+        Integer a = r.approvedStatus(), s = r.storesByStatus();
+        return (a != null && a == 2) || (s != null && (s == 2 || s == 11));
+    }
 
     /**
      * Get comprehensive dashboard statistics

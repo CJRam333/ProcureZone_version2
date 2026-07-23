@@ -20,5 +20,6 @@ public record IndentDetailResponse(
         BigDecimal pricing,
         String purpose,
         String vendor,
-        Integer status) {
+        Integer status,
+        String companies) {
 }

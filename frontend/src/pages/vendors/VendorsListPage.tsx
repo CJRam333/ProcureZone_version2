@@ -24,7 +24,7 @@ import {
   FaEnvelope,
   FaPhone,
 } from 'react-icons/fa';
-import { PageHeader, DataTable, StatusBadge } from '../../components/common';
+import { PageHeader, DataTable, StatusBadge, ExportButtons } from '../../components/common';
 import { vendorsApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -258,6 +258,12 @@ const VendorsListPage: React.FC = () => {
                       Clear
                     </Button>
                   )}
+                  <ExportButtons
+                    filenameBase="vendors_export"
+                    onExport={(fmt) =>
+                      vendorsApi.export({ format: fmt, status: filters.status || undefined })
+                    }
+                  />
                 </div>
               </Col>
             </Row>

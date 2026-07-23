@@ -21,5 +21,6 @@ public record IndentListResponse(
         Integer finalStatusId,
         Integer procurementStatusId,
         Integer detailsCount,
-        String displayStatus) {
+        String displayStatus,
+        LocalDateTime lastModifiedDate) {
 }

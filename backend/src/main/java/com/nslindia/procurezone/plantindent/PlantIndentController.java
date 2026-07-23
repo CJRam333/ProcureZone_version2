@@ -368,4 +368,99 @@ public class PlantIndentController {
         java.util.Map<String, Long> counts = plantIndentService.getDashboardCounts(plantId);
         return ResponseEntity.ok(counts);
     }
+
+    /**
+     * Export the plant indent list as CSV or Excel, respecting the same filters and roles as
+     * GET /api/v1/plant-indents.
+     * GET /api/v1/plant-indents/export?format=csv|xlsx&search=...&plantId=...&status=...
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
+    public ResponseEntity<byte[]> exportPlantIndents(
+            @RequestParam(defaultValue = "csv") String format,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer plantId,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String empSearch,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) throws java.io.IOException {
+
+        java.util.List<PlantIndentResponse> rows = plantIndentService.listPlantIndents(
+                search, plantId, status, empSearch, fromDate, toDate,
+                org.springframework.data.domain.PageRequest.of(0, 50000)).getContent();
+
+        String base = "plant-indents";
+        String date = java.time.LocalDate.now().toString();
+        String[] headers = {"Indent Number", "Employee", "Plant", "Crop Type", "Crop", "Output Material",
+                "Batch Number", "Expected Quantity", "Status", "Created Date", "Line Items"};
+
+        if ("csv".equalsIgnoreCase(format)) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.join(",", headers)).append('\n');
+            for (PlantIndentResponse r : rows) {
+                sb.append(csv(r.indentNumber())).append(',')
+                  .append(csv(r.employeeName())).append(',')
+                  .append(csv(r.plantName())).append(',')
+                  .append(csv(r.cropTypeName())).append(',')
+                  .append(csv(r.cropName())).append(',')
+                  .append(csv(r.outputMaterial())).append(',')
+                  .append(r.batchNumber() != null ? r.batchNumber() : "").append(',')
+                  .append(csv(r.expectedQuantity())).append(',')
+                  .append(csv(r.statusDescription())).append(',')
+                  .append(csv(r.createdDate() != null ? r.createdDate().toString() : "")).append(',')
+                  .append(r.detailCount()).append('\n');
+            }
+            byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".csv\"")
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .body(bytes);
+        }
+
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Plant Indents");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 20 * 256);
+            }
+
+            int rowNum = 1;
+            for (PlantIndentResponse r : rows) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(r.indentNumber() != null ? r.indentNumber() : "");
+                row.createCell(1).setCellValue(r.employeeName() != null ? r.employeeName() : "");
+                row.createCell(2).setCellValue(r.plantName() != null ? r.plantName() : "");
+                row.createCell(3).setCellValue(r.cropTypeName() != null ? r.cropTypeName() : "");
+                row.createCell(4).setCellValue(r.cropName() != null ? r.cropName() : "");
+                row.createCell(5).setCellValue(r.outputMaterial() != null ? r.outputMaterial() : "");
+                row.createCell(6).setCellValue(r.batchNumber() != null ? r.batchNumber() : 0);
+                row.createCell(7).setCellValue(r.expectedQuantity() != null ? r.expectedQuantity() : "");
+                row.createCell(8).setCellValue(r.statusDescription() != null ? r.statusDescription() : "");
+                row.createCell(9).setCellValue(r.createdDate() != null ? r.createdDate().toString() : "");
+                row.createCell(10).setCellValue(r.detailCount());
+            }
+
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            wb.write(bos);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".xlsx\"")
+                    .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(bos.toByteArray());
+        }
+    }
+
+    private static String csv(String value) {
+        if (value == null) return "";
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
 }

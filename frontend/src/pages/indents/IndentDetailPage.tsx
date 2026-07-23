@@ -178,10 +178,6 @@ const IndentDetailPage: React.FC = () => {
   const deliveryDate = indent.deliveryDate ?? indent.requiredDate;
   const comments = indent.comments ?? indent.purpose ?? '';
   const remarks = indent.remarks ?? '';
-  const companyName = indent.companyName ?? '';
-  const departmentName = indent.departmentName ?? '';
-  const plantName = indent.plantName ?? '';
-  const sectionName = indent.sectionName ?? '';
   const approvedByName = indent.approvedByName ?? '';
   const approvedByDate = indent.approvedByDate ?? indent.approvedAt;
   const finalApprovedByName = indent.finalApprovedByName ?? '';
@@ -407,79 +403,95 @@ const IndentDetailPage: React.FC = () => {
         {/* Details Tab */}
         <Tab eventKey="details" title={<><FaFileAlt className="me-2" />Details</>}>
           <Row className="g-4">
-            {/* Basic Info */}
+            {/* Items Table — promoted directly under the header, into the space
+                the removed Indent Information card vacated */}
+            <Col xs={12}>
+              <Card>
+                <Card.Header>
+                  <h5 className="mb-0">Items ({details.length})</h5>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <div className="table-responsive">
+                    <Table className="mb-0">
+                      <thead className="bg-light">
+                        <tr>
+                          <th>#</th>
+                          <th>Material Code</th>
+                          <th>Description</th>
+                          <th>Company</th>
+                          <th>UOM</th>
+                          <th className="text-end">Qty</th>
+                          {/* <th className="text-end">Est. Rate (₹)</th> */}
+                          <th className="text-end">Est. Value (₹)</th>
+                          <th>Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="text-center text-muted py-4">
+                              No items found
+                            </td>
+                          </tr>
+                        ) : (
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          details.map((item: any, index: number) => {
+                            const qty = Number(item.quantity ?? item.requestedQuantity ?? 0);
+                            const rate = Number(item.pricing ?? item.estimatedRate ?? 0);
+                            return (
+                              <tr key={item.id || index}>
+                                <td>{index + 1}</td>
+                                <td><code>{item.materialCode || 'N/A'}</code></td>
+                                <td>{item.materialName || item.materialDescription || 'N/A'}</td>
+                                <td>{item.companies || '—'}</td>
+                                <td><Badge bg="secondary">{item.unitOfMeasureCode || item.uomCode || 'N/A'}</Badge></td>
+                                <td className="text-end">{qty}</td>
+                                {/* <td className="text-end">{new Intl.NumberFormat('en-IN').format(rate)}</td> */}
+                                <td className="text-end fw-medium">
+                                  {new Intl.NumberFormat('en-IN').format(qty * rate)}
+                                </td>
+                                <td>{item.purpose || item.remarks || '-'}</td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </Table>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            {/* Additional Information — comments & remarks preserved from the
+                removed Indent Information card */}
             <Col lg={8}>
               <Card className="h-100">
                 <Card.Header>
-                  <h5 className="mb-0">Indent Information</h5>
+                  <h5 className="mb-0">Additional Information</h5>
                 </Card.Header>
                 <Card.Body>
-                  <Row className="g-3">
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Indent Number</small>
-                        <strong>{indent.indentNumber}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Indent Date</small>
-                        <strong>{formatDate(createdDate)}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Company</small>
-                        <strong>{companyName || '—'}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Department</small>
-                        <strong>{departmentName || '—'}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Plant</small>
-                        <strong>{plantName || '—'}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Section</small>
-                        <strong>{sectionName || '—'}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Requested By</small>
-                        <strong>{employeeName}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Delivery Date</small>
-                        <strong>{deliveryDate ? formatDate(deliveryDate) : 'Not specified'}</strong>
-                      </div>
-                    </Col>
-                    {comments && (
-                      <Col sm={12}>
-                        <div className="mb-3">
-                          <small className="text-muted d-block">Comments</small>
-                          <p className="mb-0">{comments}</p>
-                        </div>
-                      </Col>
-                    )}
-                    {remarks && (
-                      <Col sm={12}>
-                        <div>
-                          <small className="text-muted d-block">Remarks</small>
-                          <p className="mb-0">{remarks}</p>
-                        </div>
-                      </Col>
-                    )}
-                  </Row>
+                  {comments || remarks ? (
+                    <Row className="g-3">
+                      {comments && (
+                        <Col sm={12}>
+                          <div className="mb-3">
+                            <small className="text-muted d-block">Comments</small>
+                            <p className="mb-0">{comments}</p>
+                          </div>
+                        </Col>
+                      )}
+                      {remarks && (
+                        <Col sm={12}>
+                          <div>
+                            <small className="text-muted d-block">Remarks</small>
+                            <p className="mb-0">{remarks}</p>
+                          </div>
+                        </Col>
+                      )}
+                    </Row>
+                  ) : (
+                    <p className="text-muted mb-0">No additional information.</p>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
@@ -586,62 +598,6 @@ const IndentDetailPage: React.FC = () => {
                       {remarks && <div className="mt-2">{remarks}</div>}
                     </Alert>
                   )}
-                </Card.Body>
-              </Card>
-            </Col>
-
-            {/* Items Table */}
-            <Col xs={12}>
-              <Card>
-                <Card.Header>
-                  <h5 className="mb-0">Items ({details.length})</h5>
-                </Card.Header>
-                <Card.Body className="p-0">
-                  <div className="table-responsive">
-                    <Table className="mb-0">
-                      <thead className="bg-light">
-                        <tr>
-                          <th>#</th>
-                          <th>Material Code</th>
-                          <th>Description</th>
-                          <th>UOM</th>
-                          <th className="text-end">Qty</th>
-                          {/* <th className="text-end">Est. Rate (₹)</th> */}
-                          <th className="text-end">Est. Value (₹)</th>
-                          <th>Remarks</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {details.length === 0 ? (
-                          <tr>
-                            <td colSpan={8} className="text-center text-muted py-4">
-                              No items found
-                            </td>
-                          </tr>
-                        ) : (
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          details.map((item: any, index: number) => {
-                            const qty = Number(item.quantity ?? item.requestedQuantity ?? 0);
-                            const rate = Number(item.pricing ?? item.estimatedRate ?? 0);
-                            return (
-                              <tr key={item.id || index}>
-                                <td>{index + 1}</td>
-                                <td><code>{item.materialCode || 'N/A'}</code></td>
-                                <td>{item.materialName || item.materialDescription || 'N/A'}</td>
-                                <td><Badge bg="secondary">{item.unitOfMeasureCode || item.uomCode || 'N/A'}</Badge></td>
-                                <td className="text-end">{qty}</td>
-                                {/* <td className="text-end">{new Intl.NumberFormat('en-IN').format(rate)}</td> */}
-                                <td className="text-end fw-medium">
-                                  {new Intl.NumberFormat('en-IN').format(qty * rate)}
-                                </td>
-                                <td>{item.purpose || item.remarks || '-'}</td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </Table>
-                  </div>
                 </Card.Body>
               </Card>
             </Col>

@@ -266,88 +266,91 @@ const IssueNoteDetailPage: React.FC = () => {
         {/* Details Tab */}
         <Tab eventKey="details" title={<><FaFileAlt className="me-2" />Details</>}>
           <Row className="g-4">
-            {/* Basic Info — the raising employee's information lives here now
-                (removed from the creation form; auto-captured at creation) */}
+            {/* Items — promoted directly under the header, into the space
+                the removed Issue Note Information card vacated */}
+            <Col xs={12}>
+              <Card>
+                <Card.Header>
+                  <h5 className="mb-0">Items ({details.length})</h5>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <div className="table-responsive">
+                    <Table className="mb-0">
+                      <thead className="bg-light">
+                        <tr>
+                          <th>#</th>
+                          <th>Material Code</th>
+                          <th>Description</th>
+                          <th>Company</th>
+                          <th>UOM</th>
+                          <th className="text-end">Quantity</th>
+                          <th>Purpose</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {details.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="text-center text-muted py-4">No items found</td>
+                          </tr>
+                        ) : (
+                          details.map((item, index) => (
+                            <tr key={item.id}>
+                              <td>{index + 1}</td>
+                              <td><code>{item.materialCode || 'N/A'}</code></td>
+                              <td>{item.materialName || 'N/A'}</td>
+                              <td>{item.companies || '—'}</td>
+                              <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
+                              <td className="text-end fw-medium">{item.quantity}</td>
+                              <td>{item.purpose || '-'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                      <tfoot className="bg-light">
+                        <tr>
+                          <td colSpan={5} className="text-end fw-bold">Total Quantity:</td>
+                          <td className="text-end fw-bold">
+                            {details.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}
+                          </td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </Table>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            {/* Additional Information — purpose & comments preserved from the
+                removed Issue Note Information card */}
             <Col lg={8}>
               <Card className="h-100">
                 <Card.Header>
-                  <h5 className="mb-0">Issue Note Information</h5>
+                  <h5 className="mb-0">Additional Information</h5>
                 </Card.Header>
                 <Card.Body>
-                  <Row className="g-3">
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Issue Note Number</small>
-                        <strong>{issueNote.issueNoteNumber}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Issue Date</small>
-                        <strong>{formatDate(issueNote.issueDate)}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Requested By</small>
-                        <strong>{issueNote.employeeName || 'N/A'}</strong>
-                        {issueNote.employeeNumber != null && (
-                          <small className="text-muted ms-2">(#{issueNote.employeeNumber})</small>
-                        )}
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Company</small>
-                        <strong>{issueNote.companyName || '—'}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Department</small>
-                        <strong>{issueNote.departmentName || '—'}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Section</small>
-                        <strong>{issueNote.sectionName || '—'}</strong>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="mb-3">
-                        <small className="text-muted d-block">Plant</small>
-                        <strong>{issueNote.plantName || '—'}</strong>
-                      </div>
-                    </Col>
-                    {issueNote.issuedByName && (
-                      <Col sm={6}>
-                        <div className="mb-3">
-                          <small className="text-muted d-block">Issued By (Stores)</small>
-                          <strong>{issueNote.issuedByName}</strong>
-                          {issueNote.storesByDate && (
-                            <small className="text-muted ms-2">on {formatDate(issueNote.storesByDate)}</small>
-                          )}
-                        </div>
-                      </Col>
-                    )}
-                    {issueNote.purpose && (
-                      <Col sm={12}>
-                        <div className="mb-3">
-                          <small className="text-muted d-block">Purpose</small>
-                          <p className="mb-0">{issueNote.purpose}</p>
-                        </div>
-                      </Col>
-                    )}
-                    {issueNote.comments && (
-                      <Col sm={12}>
-                        <div>
-                          <small className="text-muted d-block">Comments</small>
-                          <p className="mb-0" style={{ whiteSpace: 'pre-line' }}>{issueNote.comments}</p>
-                        </div>
-                      </Col>
-                    )}
-                  </Row>
+                  {issueNote.purpose || issueNote.comments ? (
+                    <Row className="g-3">
+                      {issueNote.purpose && (
+                        <Col sm={12}>
+                          <div className="mb-3">
+                            <small className="text-muted d-block">Purpose</small>
+                            <p className="mb-0">{issueNote.purpose}</p>
+                          </div>
+                        </Col>
+                      )}
+                      {issueNote.comments && (
+                        <Col sm={12}>
+                          <div>
+                            <small className="text-muted d-block">Comments</small>
+                            <p className="mb-0" style={{ whiteSpace: 'pre-line' }}>{issueNote.comments}</p>
+                          </div>
+                        </Col>
+                      )}
+                    </Row>
+                  ) : (
+                    <p className="text-muted mb-0">No additional information.</p>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
@@ -446,57 +449,6 @@ const IssueNoteDetailPage: React.FC = () => {
               </Card>
             </Col>
 
-            {/* Items */}
-            <Col xs={12}>
-              <Card>
-                <Card.Header>
-                  <h5 className="mb-0">Items ({details.length})</h5>
-                </Card.Header>
-                <Card.Body className="p-0">
-                  <div className="table-responsive">
-                    <Table className="mb-0">
-                      <thead className="bg-light">
-                        <tr>
-                          <th>#</th>
-                          <th>Material Code</th>
-                          <th>Description</th>
-                          <th>UOM</th>
-                          <th className="text-end">Quantity</th>
-                          <th>Purpose</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {details.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center text-muted py-4">No items found</td>
-                          </tr>
-                        ) : (
-                          details.map((item, index) => (
-                            <tr key={item.id}>
-                              <td>{index + 1}</td>
-                              <td><code>{item.materialCode || 'N/A'}</code></td>
-                              <td>{item.materialName || 'N/A'}</td>
-                              <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
-                              <td className="text-end fw-medium">{item.quantity}</td>
-                              <td>{item.purpose || '-'}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                      <tfoot className="bg-light">
-                        <tr>
-                          <td colSpan={4} className="text-end fw-bold">Total Quantity:</td>
-                          <td className="text-end fw-bold">
-                            {details.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}
-                          </td>
-                          <td></td>
-                        </tr>
-                      </tfoot>
-                    </Table>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
           </Row>
         </Tab>
 

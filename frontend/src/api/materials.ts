@@ -134,6 +134,15 @@ export const materialsApi = {
         return response.data;
     },
 
+    // Export the list to CSV/Excel — returns a Blob for browser download
+    export: async (params: { format: "csv" | "xlsx" }): Promise<Blob> => {
+        const response = await apiClient.get("/materials/export", {
+            params,
+            responseType: "blob",
+        });
+        return response.data;
+    },
+
     getById: async (id: number): Promise<Material> => {
         const response = await apiClient.get<Material>(`/materials/${id}`);
         return response.data;

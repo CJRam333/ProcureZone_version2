@@ -130,6 +130,23 @@ export const plantIndentsApi = {
         return response.data;
     },
 
+    // Export the (filtered) list to CSV/Excel — returns a Blob for browser download
+    export: async (params: {
+        format: "csv" | "xlsx";
+        search?: string;
+        plantId?: number;
+        status?: number;
+        empSearch?: string;
+        fromDate?: string;
+        toDate?: string;
+    }): Promise<Blob> => {
+        const response = await apiClient.get("/plant-indents/export", {
+            params,
+            responseType: "blob",
+        });
+        return response.data;
+    },
+
     // List by plant
     listByPlant: async (
         plantId: number,

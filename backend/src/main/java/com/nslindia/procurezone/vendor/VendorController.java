@@ -179,4 +179,92 @@ public class VendorController {
 
         return ResponseEntity.ok(performance);
     }
+
+    /**
+     * Exports the vendor list as CSV or Excel, respecting the same filter and roles as
+     * GET /api/v1/vendors.
+     * Endpoint: GET /api/v1/vendors/export?format=csv|xlsx&status={status}
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('USER', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'VIEWER', 'ADMIN', 'SUPERADMIN')")
+    public ResponseEntity<byte[]> exportVendors(
+            @RequestParam(defaultValue = "csv") String format,
+            @RequestParam(required = false) Integer status) throws java.io.IOException {
+
+        java.util.List<VendorResponse> rows = vendorService.listVendors(status, 0, 50000).getContent();
+
+        String base = "vendors";
+        String date = java.time.LocalDate.now().toString();
+        String[] headers = {"Vendor Code", "Vendor Name", "Type", "Contact Person", "Phone", "Email",
+                "City", "State", "Status", "Rating", "Total Orders"};
+
+        if ("csv".equalsIgnoreCase(format)) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.join(",", headers)).append('\n');
+            for (VendorResponse r : rows) {
+                sb.append(csv(r.vendorCode())).append(',')
+                  .append(csv(r.vendorName())).append(',')
+                  .append(csv(r.vendorType())).append(',')
+                  .append(csv(r.contactPerson())).append(',')
+                  .append(csv(r.contactPhone())).append(',')
+                  .append(csv(r.contactEmail())).append(',')
+                  .append(csv(r.city())).append(',')
+                  .append(csv(r.state())).append(',')
+                  .append(csv(r.statusName())).append(',')
+                  .append(r.rating() != null ? r.rating() : "").append(',')
+                  .append(r.totalOrders() != null ? r.totalOrders() : 0).append('\n');
+            }
+            byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".csv\"")
+                    .header("Content-Type", "text/csv; charset=UTF-8")
+                    .body(bytes);
+        }
+
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.createSheet("Vendors");
+            org.apache.poi.ss.usermodel.CellStyle headerStyle = wb.createCellStyle();
+            org.apache.poi.ss.usermodel.Font font = wb.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 18 * 256);
+            }
+
+            int rowNum = 1;
+            for (VendorResponse r : rows) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(r.vendorCode() != null ? r.vendorCode() : "");
+                row.createCell(1).setCellValue(r.vendorName() != null ? r.vendorName() : "");
+                row.createCell(2).setCellValue(r.vendorType() != null ? r.vendorType() : "");
+                row.createCell(3).setCellValue(r.contactPerson() != null ? r.contactPerson() : "");
+                row.createCell(4).setCellValue(r.contactPhone() != null ? r.contactPhone() : "");
+                row.createCell(5).setCellValue(r.contactEmail() != null ? r.contactEmail() : "");
+                row.createCell(6).setCellValue(r.city() != null ? r.city() : "");
+                row.createCell(7).setCellValue(r.state() != null ? r.state() : "");
+                row.createCell(8).setCellValue(r.statusName() != null ? r.statusName() : "");
+                row.createCell(9).setCellValue(r.rating() != null ? r.rating() : 0d);
+                row.createCell(10).setCellValue(r.totalOrders() != null ? r.totalOrders() : 0);
+            }
+
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            wb.write(bos);
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=\"" + base + "-" + date + ".xlsx\"")
+                    .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(bos.toByteArray());
+        }
+    }
+
+    private static String csv(String value) {
+        if (value == null) return "";
+        return "\"" + value.replace("\"", "\"\"") + "\"";
+    }
 }

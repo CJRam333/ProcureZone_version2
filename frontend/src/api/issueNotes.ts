@@ -54,6 +54,7 @@ export interface IssueNoteDetail {
     amount?: number;
     purpose?: string;
     status: number;
+    companies?: string; // comma-separated company names stocking this material
 }
 
 // Backend Issue Note status values (1-based, from issue_note_status column)
@@ -154,6 +155,21 @@ export const issueNotesApi = {
             "/issue-notes",
             { params }
         );
+        return response.data;
+    },
+
+    // Export the (filtered) list to CSV/Excel — returns a Blob for browser download
+    export: async (params: {
+        format: "csv" | "xlsx";
+        search?: string;
+        approvedStatus?: number;
+        storesByStatus?: number;
+        departmentId?: number;
+    }): Promise<Blob> => {
+        const response = await apiClient.get("/issue-notes/export", {
+            params,
+            responseType: "blob",
+        });
         return response.data;
     },
 

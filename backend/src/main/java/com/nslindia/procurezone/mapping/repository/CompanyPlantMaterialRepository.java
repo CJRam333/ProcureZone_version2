@@ -258,4 +258,7 @@ public interface CompanyPlantMaterialRepository extends JpaRepository<CompanyPla
 
         @Query("SELECT SUM(cpm.quantityStores) FROM CompanyPlantMaterial cpm WHERE cpm.materialId = :materialId")
         java.util.Optional<java.math.BigDecimal> sumQuantityByMaterial(@Param("materialId") Integer materialId);
+
+        @Query("SELECT DISTINCT co.name FROM CompanyPlantMaterial cpm JOIN Company co ON co.id = cpm.companyId WHERE cpm.materialId = :materialId AND cpm.status = 1 ORDER BY co.name")
+        java.util.List<String> findCompanyNamesByMaterial(@Param("materialId") Integer materialId);
 }

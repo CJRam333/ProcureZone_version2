@@ -118,6 +118,15 @@ export const inventoryApi = {
         return response.data;
     },
 
+    // Export the (filtered) stock list to CSV/Excel — returns a Blob for browser download
+    export: async (params: { format: "csv" | "xlsx"; search?: string }): Promise<Blob> => {
+        const response = await apiClient.get("/inventory/export", {
+            params,
+            responseType: "blob",
+        });
+        return response.data;
+    },
+
     // Main list endpoint - adapts backend response to PageResponse format
     list: async (
         params: InventorySearchParams = {}

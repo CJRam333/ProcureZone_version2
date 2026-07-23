@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Form, Row, Col, Badge, Button, InputGroup } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FaPlus, FaEye, FaEdit, FaTrash, FaSearch, FaFilter, FaLeaf, FaIndustry } from 'react-icons/fa';
-import { PageHeader, DataTable, LoadingSpinner, Column } from '../../components/common';
+import { PageHeader, DataTable, LoadingSpinner, Column, ExportButtons } from '../../components/common';
 import { plantIndentsApi, plantsApi, getErrorMessage } from '../../api';
 import type { PlantIndent } from '../../api/plantIndents';
 import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
@@ -240,7 +240,7 @@ const PlantIndentListPage: React.FC = () => {
                 placeholder="To date"
               />
             </Col>
-            <Col md="auto">
+            <Col md="auto" className="d-flex gap-2">
               {(searchTerm || plantFilter || statusFilter || employeeSearch || fromDate || toDate) && (
                 <Button
                   variant="outline-danger"
@@ -258,6 +258,20 @@ const PlantIndentListPage: React.FC = () => {
                   <FaFilter className="me-1" /> Clear
                 </Button>
               )}
+              <ExportButtons
+                filenameBase="plant_indents_export"
+                onExport={(fmt) =>
+                  plantIndentsApi.export({
+                    format: fmt,
+                    search: searchTerm || undefined,
+                    plantId: plantFilter ? Number(plantFilter) : undefined,
+                    status: statusFilter !== '' ? Number(statusFilter) : undefined,
+                    empSearch: employeeSearch || undefined,
+                    fromDate: fromDate || undefined,
+                    toDate: toDate || undefined,
+                  })
+                }
+              />
             </Col>
           </Row>
         </Card.Body>

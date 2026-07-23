@@ -133,12 +133,13 @@ public class IndentController {
     }
 
     /**
-     * Export indents as Excel or CSV, respecting the same filters as the list endpoint.
-     * Restricted to SUPERADMIN and ADMIN roles.
-     * GET /api/v1/indents/export?format=excel|csv&search=...&status=...&...
+     * Export indents as Excel or CSV, respecting the same filters AND role-visibility as the
+     * list endpoint (the service routes through the scoped filterIndents()). Available to every
+     * role that can view the list — you can only export what you can already see.
+     * GET /api/v1/indents/export?format=xlsx|csv&search=...&status=...&...
      */
     @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'FLOORINCHARGE', 'GOODSINCHARGE', 'VIEWER', 'ADMIN', 'SUPERADMIN', 'USER', 'SUPERVISOR')")
     public ResponseEntity<byte[]> exportIndents(
             @RequestParam(defaultValue = "excel") String format,
             @RequestParam(required = false) String search,
@@ -174,7 +175,7 @@ public class IndentController {
             }
             byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
             return ResponseEntity.ok()
-                    .header("Content-Disposition", "attachment; filename=\"indents_export.csv\"")
+                    .header("Content-Disposition", "attachment; filename=\"indents-" + java.time.LocalDate.now() + ".csv\"")
                     .header("Content-Type", "text/csv; charset=UTF-8")
                     .body(bytes);
         }
@@ -216,7 +217,7 @@ public class IndentController {
             java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
             wb.write(bos);
             return ResponseEntity.ok()
-                    .header("Content-Disposition", "attachment; filename=\"indents_export.xlsx\"")
+                    .header("Content-Disposition", "attachment; filename=\"indents-" + java.time.LocalDate.now() + ".xlsx\"")
                     .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     .body(bos.toByteArray());
         }

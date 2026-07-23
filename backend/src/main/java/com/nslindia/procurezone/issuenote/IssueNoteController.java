@@ -428,17 +428,22 @@ public class IssueNoteController {
         }
 
         /**
-         * Export issue notes as Excel or CSV.
-         * GET /api/v1/issue-notes/export?format=excel|csv&status=...&departmentId=...
+         * Export issue notes as Excel or CSV, respecting the same filters AND role-visibility as
+         * the list endpoint (the service routes through the scoped getAll()). Available to every
+         * role that can view the list — you can only export what you can already see.
+         * GET /api/v1/issue-notes/export?format=xlsx|csv&search=&approvedStatus=&storesByStatus=&departmentId=
          */
         @GetMapping("/export")
-        @PreAuthorize("hasAnyRole('ADMIN', 'SUPERADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'PLANTMANAGER', 'ISSUECONFIRM', 'RECEIPTCONFIRM', 'ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'DEPTHEAD', 'VIEWER', 'SUPERVISOR')")
         public ResponseEntity<byte[]> exportIssueNotes(
-                        @RequestParam(defaultValue = "excel") String format,
-                        @RequestParam(required = false) Integer status,
+                        @RequestParam(defaultValue = "csv") String format,
+                        @RequestParam(required = false) String search,
+                        @RequestParam(required = false) Integer approvedStatus,
+                        @RequestParam(required = false) Integer storesByStatus,
                         @RequestParam(required = false) Integer departmentId) throws java.io.IOException {
 
-                java.util.List<IssueNoteSummaryResponse> rows = issueNoteService.exportAll(status, departmentId);
+                java.util.List<IssueNoteSummaryResponse> rows =
+                                issueNoteService.exportAll(search, approvedStatus, storesByStatus, departmentId);
 
                 if ("csv".equalsIgnoreCase(format)) {
                         StringBuilder sb = new StringBuilder();
@@ -454,7 +459,7 @@ public class IssueNoteController {
                         }
                         byte[] bytes = sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
                         return ResponseEntity.ok()
-                                        .header("Content-Disposition", "attachment; filename=\"issue_notes_export.csv\"")
+                                        .header("Content-Disposition", "attachment; filename=\"issue-notes-" + java.time.LocalDate.now() + ".csv\"")
                                         .header("Content-Type", "text/csv; charset=UTF-8")
                                         .body(bytes);
                 }
@@ -481,7 +486,7 @@ public class IssueNoteController {
                         java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
                         wb.write(bos);
                         return ResponseEntity.ok()
-                                        .header("Content-Disposition", "attachment; filename=\"issue_notes_export.xlsx\"")
+                                        .header("Content-Disposition", "attachment; filename=\"issue-notes-" + java.time.LocalDate.now() + ".xlsx\"")
                                         .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                                         .body(bos.toByteArray());
                 }

@@ -145,6 +145,19 @@ export const grnApi = {
         return response.data;
     },
 
+    // Export the (filtered) list to CSV/Excel — returns a Blob for browser download
+    export: async (params: {
+        format: "csv" | "xlsx";
+        status?: number;
+        search?: string;
+    }): Promise<Blob> => {
+        const response = await apiClient.get("/grn/export", {
+            params,
+            responseType: "blob",
+        });
+        return response.data;
+    },
+
     getById: async (id: number): Promise<GRN> => {
         const response = await apiClient.get<GRN>(`/grn/${id}`);
         return response.data;

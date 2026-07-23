@@ -66,6 +66,15 @@ export interface SystemAlert {
     timestamp: string;
 }
 
+export interface LatestActivityItem {
+    type: "INDENT" | "ISSUE_NOTE";
+    id: number;
+    documentNumber: string;
+    displayStatus: string;
+    lastModifiedDate: string | null;
+    creatorName: string | null;
+}
+
 // ============== API Functions ==============
 
 export const dashboardApi = {
@@ -151,6 +160,15 @@ export const dashboardApi = {
     getAlerts: async (): Promise<SystemAlert[]> => {
         const response = await apiClient.get<SystemAlert[]>(
             "/dashboard/alerts"
+        );
+        return response.data;
+    },
+
+    // Unified "Latest Activity" feed (indents + issue notes), role-scoped server-side.
+    getLatestActivity: async (limit = 15): Promise<LatestActivityItem[]> => {
+        const response = await apiClient.get<LatestActivityItem[]>(
+            "/dashboard/latest-activity",
+            { params: { limit } }
         );
         return response.data;
     },

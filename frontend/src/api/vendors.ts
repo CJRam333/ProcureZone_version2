@@ -101,6 +101,15 @@ export const vendorsApi = {
         return response.data;
     },
 
+    // Export the (filtered) list to CSV/Excel — returns a Blob for browser download
+    export: async (params: { format: "csv" | "xlsx"; status?: string }): Promise<Blob> => {
+        const response = await apiClient.get("/vendors/export", {
+            params,
+            responseType: "blob",
+        });
+        return response.data;
+    },
+
     getById: async (id: number): Promise<Vendor> => {
         const response = await apiClient.get<Vendor>(`/vendors/${id}`);
         return response.data;

@@ -82,6 +82,21 @@ export const employeesApi = {
         return response.data;
     },
 
+    // Export the (filtered) list to CSV/Excel — returns a Blob for browser download
+    export: async (params: {
+        format: "csv" | "xlsx";
+        status?: number;
+        search?: string;
+        departmentId?: number;
+        locationId?: number;
+    }): Promise<Blob> => {
+        const response = await apiClient.get("/employees/export", {
+            params,
+            responseType: "blob",
+        });
+        return response.data;
+    },
+
     getActive: async (
         page = 0,
         size = 100

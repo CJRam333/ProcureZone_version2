@@ -4,7 +4,7 @@ import { Card, Button, Badge, InputGroup, Form, Row, Col, Tabs, Tab } from 'reac
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { FaPlus, FaEdit, FaTrash, FaSearch, FaSyncAlt, FaUsers, FaEye, FaUserTag, FaSitemap } from 'react-icons/fa';
-import { PageHeader, DataTable, ConfirmDialog } from '../../components/common';
+import { PageHeader, DataTable, ConfirmDialog, ExportButtons } from '../../components/common';
 import { employeesApi, departmentsApi, getErrorMessage } from '../../api';
 import type { Employee } from '../../api/employees';
 import EmployeeRoleMappingPage from '../mappings/EmployeeRoleMappingPage';
@@ -225,6 +225,17 @@ const EmployeesListPage: React.FC = () => {
                   <Button variant="outline-secondary" onClick={() => refetch()}>
                     <FaSyncAlt className="me-2" />Refresh
                   </Button>
+                  <ExportButtons
+                    filenameBase="employees_export"
+                    onExport={(fmt) =>
+                      employeesApi.export({
+                        format: fmt,
+                        search: searchTerm || undefined,
+                        status: statusFilter,
+                        departmentId: departmentFilter,
+                      })
+                    }
+                  />
                 </Col>
               </Row>
 

@@ -62,6 +62,7 @@ public record IssueNoteResponse(
             BigDecimal rate,
             BigDecimal amount,
             String purpose,
-            Integer status) {
+            Integer status,
+            String companies) {
     }
 }

@@ -2022,3 +2022,143 @@ V57 — `V57__deactivate_plant_indent_confirmations_modules.sql` (to be run by t
 - New build hashes: JS `assets/index-DWRGIhPe.js`, CSS `assets/index-C0ZtAKUb.css`
 
 ---
+
+## 2026-07-23 — Pass 2: Dashboard Rebuild, List-Page Exports, Detail-Page Restructure
+
+Three structural changes in one commit. No feature code deleted; two pre-existing export
+visibility leaks were closed as part of FIX 2.
+
+### FIX 1 — Dashboard rebuild
+
+The dashboard was stripped to exactly three cards, in this order:
+1. **Quick Actions** (existing) — promoted to the top.
+2. **Latest Activity** (new) — the meaningful addition.
+3. **Welcome back** (existing) — moved to the bottom.
+
+**Elements removed** from `DashboardPage.tsx`: the two stat tiles ("Pending Approvals",
+"Low Stock Alerts" StatCards), the role-based `DashboardSummary` widget row, the "Procurement
+Trends" area chart and "Indent Status" pie chart (all recharts usage on this page), the standalone
+"Low Stock Alerts" list card, and the "Recent GRN Activity" table. The `StatCard` component, sample
+`trendData`, `statusDistribution`, `COLORS`, the recharts imports, and the `reportsApi`/`grnApi`
+low-stock + recent-GRN queries were all deleted from the page. (The `DashboardSummary`/recharts
+components themselves remain in the codebase for other pages.)
+
+**Latest Activity — new endpoint:** `GET /api/v1/dashboard/latest-activity?limit=15`,
+`@PreAuthorize("isAuthenticated()")` (per-role visibility is enforced inside the service).
+Response — JSON array of:
+
+    { "type": "INDENT" | "ISSUE_NOTE", "id": 123, "documentNumber": "...",
+      "displayStatus": "...", "lastModifiedDate": "2026-07-23T10:15:00", "creatorName": "..." }
+
+Each row is clickable to `/indents/{id}` or `/issue-notes/{id}`. The "Created By" column shows only
+for roles that can see other people's documents (SUPERVISOR/DEPTHEAD/PLANTMANAGER/PROCUREMENT/
+ISSUECONFIRM/ADMIN/SUPERADMIN); a plain USER does not see it. Default N = **15 mixed items**;
+candidates fetched per type before filtering are capped at **100**.
+
+**Visibility reuse:** `DashboardService.getLatestActivity()` does NOT re-implement scoping — it calls
+the exact role-scoped list methods `IndentService.filterIndents(...)` and `IssueNoteService.getAll(...)`,
+so the feed always agrees with the module list pages for the current user.
+
+**Terminal-vs-non-terminal window:** applied in-memory after the scoped fetch rather than as a single
+SQL predicate, because issue-note lmd (`issue_note_lmd`) is a `varchar(20)` persisted via
+`VarcharDateTimeConverter` (mixed legacy formats) and its own contract forbids using it in a JPQL
+range/sort. The boolean rule (identical for both types) is:
+
+    include = !isTerminal(row)  ||  (lmd != null && lmd >= NOW() - 3 days)
+
+where, for **indents** (`IndentListResponse` now carries the three workflow ids + lmd):
+
+    isTerminal = approvedStatusId == 2         // RM Rejected
+              || finalStatusId    == 2         // Dept. Head Rejected
+              || procurementStatusId in (7, 9) // PO Released / Cash Buy
+
+and for **issue notes** (`IssueNoteSummaryResponse` now carries lmd):
+
+    isTerminal = approvedStatus == 2           // RM Rejected
+              || storesByStatus in (2, 11)     // Stores Rejected / Goods Issued
+
+In-flight (non-terminal) documents are always included; terminal documents drop off the dashboard
+once their lmd is older than 3 days (they remain visible in the module list pages). Candidates are
+ordered newest-modified-first (indents by the native `indent_lmd` column; issue notes by
+`issue_note_date`), merged, sorted by lmd desc, and capped at N.
+
+Backend: `DashboardActivityItem` DTO (new), `DashboardService.getLatestActivity`,
+`DashboardController` endpoint, `lastModifiedDate` added to `IndentListResponse` +
+`IssueNoteSummaryResponse` (+ their list mappers). Frontend: `dashboardApi.getLatestActivity`,
+`DashboardPage.tsx` rewrite.
+
+### FIX 2 — Export CSV/Excel on operational list pages
+
+**Scope (agreed):** the core transactional + explicitly-named lists. The ~10 master lists, ~6 mapping
+pages, admin/audit, and confirmation lists were audited and deferred to a follow-up (see inventory
+below) to keep this commit proportionate.
+
+**Two pre-existing visibility leaks fixed:** `IndentService.exportIndents` and
+`IssueNoteService.exportAll` previously hit unscoped repository queries directly, so any authorized
+caller could export **all** rows regardless of role. Both now route through the role-scoped list
+methods (`filterIndents` / `getAll`) with a single large page (50,000-row cap), so an export returns
+exactly what the caller sees in the filtered list. Both `/export` endpoints' `@PreAuthorize` were
+relaxed from `ADMIN,SUPERADMIN` to the same role set as their list endpoints (if you can view the
+list, you can export it), and filenames are now `"<resource>-<yyyy-MM-dd>.<csv|xlsx>"`.
+
+**Endpoints — added or reused** (all format=csv|xlsx, same filter params + same @PreAuthorize as the
+matching list endpoint, delegating to the same list service method, so no cross-role leak beyond what
+the list itself exposes):
+- `/indents/export` — reused; leak fixed, roles relaxed, filename dated.
+- `/issue-notes/export` — reused; leak fixed, params aligned to list (search/approvedStatus/
+  storesByStatus/departmentId), roles relaxed, now wired to the frontend.
+- `/inventory/export`, `/employees/export`, `/pos/export`, `/grn/export`, `/vendors/export`,
+  `/materials/export`, `/plant-indents/export` — **new**. Apache POI (poi-ooxml 5.2.5) was already a
+  dependency; nothing added. Row cap 50,000.
+
+**Frontend:** new reusable `components/common/ExportButtons.tsx` ("Export CSV" / "Export Excel" with
+in-flight spinner, blob object-URL download). Wired into 8 pages with their live filter state:
+Issue Notes, Inventory (stock view), Employees, Purchase Orders, GRN, Vendors, Materials
+(replaced the old client-side-only CSV), Plant Indents. Indents already had working buttons (left
+as-is). Note: downloads use a per-page filename base (the API returns a bare Blob, which carries no
+`Content-Disposition`); the backend's dated filename applies to direct endpoint hits.
+
+**Full list-page export inventory (audited):**
+- *Already had backend + frontend export:* Indents, Reports (generic ReportsPage, Indent Report,
+  Issue Note Report — Excel/CSV/PDF), Inventory Reports (Excel).
+- *Export added/wired this pass:* Issue Notes, Inventory stock view, Employees, Purchase Orders,
+  GRN, Vendors, Materials, Plant Indents.
+- *Audited, deferred to follow-up (no export):* master lists (Companies, Plants, Departments,
+  Sections, Locations, UOM, Roles, Users, Crops), mapping pages (Company-Dept, Company-Location,
+  Company-Location-Material, Company-Plant-Material, Employee-Role, Reporting-Hierarchy),
+  Email Templates, approval queues (Indent/Issue-Note Approval), QC lists (QC had client-side CSV
+  only), Receipt/Issue Confirmation. Audit-log and QC-Rejected retain their existing client-side CSV.
+
+### FIX 3 — Detail pages: remove info cards, promote items, add material's company
+
+**Material to company resolution:** line items capture **no** company (both `IndentDetail` and
+`IssueNoteDetails` reference only a material; company lives on the parent header). So each line
+resolves to **all active companies stocking that material**, comma-separated, via a new
+`CompanyPlantMaterialRepository.findCompanyNamesByMaterial(materialId)`
+(`DISTINCT co.name ... status = 1 ORDER BY co.name`). Both detail mappers build a
+`Map<Integer,String>` cache keyed by materialId so each distinct material hits the DB at most once.
+A new `companies` field was added to `IndentDetailResponse` and the nested `IssueNoteDetailResponse`.
+
+**Indent detail (`IndentDetailPage.tsx`):** removed the "Indent Information" card; the essential info
+(number, date, creator, status) was already in the header line — comments/remarks moved into a new
+"Additional Information" card. Promoted the #Items card directly under the header. Added a "Company"
+column (next to Description) bound to `item.companies` ("—" when empty). Preserved: number, date,
+creator, status, comments/remarks. Dropped from the visible header: company, department, plant,
+section (delivery date still shown in the procurement summary). Approval-status timeline and
+procurement/terminal action cards unchanged.
+
+**Issue-note detail (`IssueNoteDetailPage.tsx`):** removed the "Issue Note Information" card; header
+line already carried number/date/creator/status (status bar also shows Department/Plant/Total Items);
+purpose/comments moved to a new "Additional Information" card. Promoted the Items card under the
+header. Added the "Company" column (colspans adjusted). Dropped from the visible header: company,
+section (department/plant remain in the status bar; "Issued By (Stores)" remains in the workflow
+timeline). Workflow-status timeline and stores action cards/modals unchanged.
+
+### Build results
+
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in ~90s, 0 errors (pre-existing >500 kB chunk-size warning only)
+- New build hash: JS `assets/index-ajUyHFG9.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
+
+---

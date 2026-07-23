@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card, Form, Row, Col, InputGroup, Button, Badge } from 'react-bootstrap';
 import { useQuery } from '@tanstack/react-query';
 import { FaSearch, FaSyncAlt } from 'react-icons/fa';
-import { PageHeader, DataTable, Column } from '../../components/common';
+import { PageHeader, DataTable, Column, ExportButtons } from '../../components/common';
 import { inventoryApi, getErrorMessage } from '../../api';
 import type { InventoryStockRow } from '../../api/inventory';
 
@@ -90,6 +90,12 @@ const InventoryStockPage: React.FC = () => {
                       Clear
                     </Button>
                   )}
+                  <ExportButtons
+                    filenameBase="inventory_export"
+                    onExport={(fmt) =>
+                      inventoryApi.export({ format: fmt, search: search || undefined })
+                    }
+                  />
                 </div>
               </Col>
             </Row>

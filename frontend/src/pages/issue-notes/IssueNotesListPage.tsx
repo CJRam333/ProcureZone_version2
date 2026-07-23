@@ -18,7 +18,7 @@ import {
   FaEdit,
   FaSyncAlt,
 } from 'react-icons/fa';
-import { PageHeader, DataTable } from '../../components/common';
+import { PageHeader, DataTable, ExportButtons } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
@@ -235,6 +235,17 @@ const IssueNotesListPage: React.FC = () => {
                       Clear
                     </Button>
                   )}
+                  <ExportButtons
+                    filenameBase="issue_notes_export"
+                    onExport={(fmt) =>
+                      issueNotesApi.export({
+                        format: fmt,
+                        search: filters.search || undefined,
+                        approvedStatus,
+                        storesByStatus,
+                      })
+                    }
+                  />
                 </div>
               </Col>
             </Row>

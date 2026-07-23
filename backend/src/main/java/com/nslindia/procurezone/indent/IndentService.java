@@ -137,6 +137,7 @@ public class IndentService {
         private final SectionRepository sectionRepository;
         private final EmployeeReportingRepository employeeReportingRepository;
         private final com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository;
+        private final com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository companyPlantMaterialRepository;
 
         @PersistenceContext
         private EntityManager entityManager;
@@ -152,7 +153,8 @@ public class IndentService {
                         EmployeeRoleRepository employeeRoleRepository,
                         SectionRepository sectionRepository,
                         EmployeeReportingRepository employeeReportingRepository,
-                        com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository) {
+                        com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository,
+                        com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository companyPlantMaterialRepository) {
                 this.indentRepository = indentRepository;
                 this.indentDetailRepository = indentDetailRepository;
                 this.employeeRepository = employeeRepository;
@@ -165,6 +167,7 @@ public class IndentService {
                 this.sectionRepository = sectionRepository;
                 this.employeeReportingRepository = employeeReportingRepository;
                 this.companyEmployeeRepository = companyEmployeeRepository;
+                this.companyPlantMaterialRepository = companyPlantMaterialRepository;
         }
 
         /**
@@ -393,20 +396,21 @@ public class IndentService {
         }
 
         /**
-         * Export indents matching filters — returns up to 10,000 rows for file export.
-         * Accepts the same filter params as filterIndents() so exported data matches what the user sees.
+         * Export indents matching filters — returns up to 50,000 rows for file export.
+         * Routes through the role-scoped filterIndents() service method (NOT the raw repository),
+         * so the exported rows are EXACTLY what the caller would see in the filtered list — same
+         * visibility scope, same filters. This closes a prior leak where export hit the unscoped
+         * repository query directly and returned all indents regardless of role.
          */
         @Transactional(readOnly = true)
         public java.util.List<IndentListResponse> exportIndents(
                         String search, Integer statusId, Integer departmentId, Integer plantId,
                         Integer companyId, LocalDateTime fromDate, LocalDateTime toDate,
                         Integer approvedStatusId, Integer finalStatusId, Integer procurementStatusId) {
-                Pageable exportPageable = PageRequest.of(0, 10_000,
+                Pageable exportPageable = PageRequest.of(0, 50_000,
                         Sort.by("indentDate").descending());
-                return indentRepository
-                                .filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
-                                               approvedStatusId, finalStatusId, procurementStatusId, exportPageable)
-                                .map(this::toIndentListResponse)
+                return filterIndents(search, statusId, departmentId, plantId, companyId, fromDate, toDate,
+                                approvedStatusId, finalStatusId, procurementStatusId, exportPageable)
                                 .getContent();
         }
 
@@ -1883,8 +1887,11 @@ public class IndentService {
         // Mapping methods
 
         private IndentResponse toIndentResponse(Indent indent) {
+                // Cache company-name lookups per distinct materialId so we do at most one query
+                // per material across all line items of this indent.
+                Map<Integer, String> companiesByMaterial = new java.util.HashMap<>();
                 List<IndentDetailResponse> detailResponses = indent.getDetails().stream()
-                                .map(this::toIndentDetailResponse)
+                                .map(detail -> toIndentDetailResponse(detail, companiesByMaterial))
                                 .collect(Collectors.toList());
 
                 return new IndentResponse(
@@ -1941,10 +1948,13 @@ public class IndentService {
                                 detailResponses);
         }
 
-        private IndentDetailResponse toIndentDetailResponse(IndentDetail detail) {
+        private IndentDetailResponse toIndentDetailResponse(IndentDetail detail,
+                        Map<Integer, String> companiesByMaterial) {
+                Integer materialId = detail.getMaterial() != null ? detail.getMaterial().getId() : null;
+                String companies = resolveCompaniesForMaterial(materialId, companiesByMaterial);
                 return new IndentDetailResponse(
                                 detail.getId(),
-                                detail.getMaterial() != null ? detail.getMaterial().getId() : null,
+                                materialId,
                                 detail.getMaterial() != null ? detail.getMaterial().getCode() : null,
                                 detail.getMaterial() != null ? detail.getMaterial().getName() : null,
                                 detail.getUnitOfMeasure() != null ? detail.getUnitOfMeasure().getId() : null,
@@ -1957,7 +1967,22 @@ public class IndentService {
                                 detail.getPricing(),
                                 detail.getPurpose(),
                                 detail.getVendor(),
-                                detail.getStatus());
+                                detail.getStatus(),
+                                companies);
+        }
+
+        /**
+         * Resolve the comma-separated list of company names stocking a material, using a
+         * per-request cache so each distinct materialId is queried at most once. Line items
+         * do not capture their own company, so we return ALL active companies for the material.
+         * Null/empty resolves to "".
+         */
+        private String resolveCompaniesForMaterial(Integer materialId, Map<Integer, String> cache) {
+                if (materialId == null) return "";
+                return cache.computeIfAbsent(materialId, id -> {
+                        List<String> names = companyPlantMaterialRepository.findCompanyNamesByMaterial(id);
+                        return (names == null || names.isEmpty()) ? "" : String.join(", ", names);
+                });
         }
 
         private IndentListResponse toIndentListResponse(Indent indent) {
@@ -1979,7 +2004,8 @@ public class IndentService {
                                 deriveDisplayStatus(
                                         indent.getApprovedStatus() != null ? indent.getApprovedStatus().getId() : null,
                                         indent.getFinalStatus() != null ? indent.getFinalStatus().getId() : null,
-                                        indent.getProcurementStatus() != null ? indent.getProcurementStatus().getId() : null));
+                                        indent.getProcurementStatus() != null ? indent.getProcurementStatus().getId() : null),
+                                indent.getLastModifiedDate());
         }
 
         /**

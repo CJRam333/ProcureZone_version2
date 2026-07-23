@@ -21,7 +21,7 @@ import {
   FaTruck,
   FaClipboardCheck,
 } from 'react-icons/fa';
-import { PageHeader, DataTable, StatusBadge } from '../../components/common';
+import { PageHeader, DataTable, StatusBadge, ExportButtons } from '../../components/common';
 import { grnApi, getErrorMessage } from '../../api';
 import { GRNStatus } from '../../api/grn';
 import { useAuth } from '../../contexts/AuthContext';
@@ -257,6 +257,16 @@ const GRNListPage: React.FC = () => {
                       Clear
                     </Button>
                   )}
+                  <ExportButtons
+                    filenameBase="grn_export"
+                    onExport={(fmt) =>
+                      grnApi.export({
+                        format: fmt,
+                        status: filters.status ? Number(filters.status) : undefined,
+                        search: filters.search || undefined,
+                      })
+                    }
+                  />
                 </div>
               </Col>
             </Row>
