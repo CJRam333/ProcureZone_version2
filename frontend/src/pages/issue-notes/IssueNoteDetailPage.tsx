@@ -23,7 +23,6 @@ import {
   FaCheck,
   FaTimes,
   FaPrint,
-  FaHistory,
   FaFileAlt,
   FaBoxOpen,
 } from 'react-icons/fa';
@@ -206,11 +205,7 @@ const IssueNoteDetailPage: React.FC = () => {
                 {displayStatus}
               </Badge>
             </div>
-            <div className="vr d-none d-sm-block" />
-            <div>
-              <small className="text-muted d-block">Department</small>
-              <strong>{issueNote.departmentName || '—'}</strong>
-            </div>
+
             <div className="vr d-none d-sm-block" />
             <div>
               <small className="text-muted d-block">Plant</small>
@@ -392,24 +387,24 @@ const IssueNoteDetailPage: React.FC = () => {
                         detail: rmRejected
                           ? <span className="text-danger">Rejected</span>
                           : rmApproved
-                          ? <span className="text-success">
+                            ? <span className="text-success">
                               Approved{issueNote.rmApprovedByName ? ` by ${issueNote.rmApprovedByName}` : ''}
                               {issueNote.rmApprovedByDate ? ` on ${formatDate(issueNote.rmApprovedByDate)}` : ''}
                             </span>
-                          : <span className="text-warning">Pending</span>,
+                            : <span className="text-warning">Pending</span>,
                       },
                       {
                         label: 'Stores',
                         state: storesIssued ? 'done' : storesRejected ? 'rejected' : storesPending ? 'pending' : 'unreached',
                         detail: storesIssued
                           ? <span className="text-success">
-                              Goods Issued{issueNote.issuedByName ? ` by ${issueNote.issuedByName}` : ''}
-                            </span>
+                            Goods Issued{issueNote.issuedByName ? ` by ${issueNote.issuedByName}` : ''}
+                          </span>
                           : storesRejected
-                          ? <span className="text-danger">Rejected by Stores</span>
-                          : storesPending
-                          ? <span className="text-warning">Awaiting Stores Issue</span>
-                          : undefined,
+                            ? <span className="text-danger">Rejected by Stores</span>
+                            : storesPending
+                              ? <span className="text-warning">Awaiting Stores Issue</span>
+                              : undefined,
                       },
                     ];
 
@@ -418,17 +413,16 @@ const IssueNoteDetailPage: React.FC = () => {
                         {stages.map((stage, i) => (
                           <div className="d-flex mb-3" key={stage.label}>
                             <div
-                              className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
-                                stage.state === 'done' ? 'bg-success'
-                                : stage.state === 'rejected' ? 'bg-danger'
-                                : stage.state === 'pending' ? 'bg-warning'
-                                : 'bg-secondary'
-                              }`}
+                              className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${stage.state === 'done' ? 'bg-success'
+                                  : stage.state === 'rejected' ? 'bg-danger'
+                                    : stage.state === 'pending' ? 'bg-warning'
+                                      : 'bg-secondary'
+                                }`}
                               style={{ width: 32, height: 32, minWidth: 32 }}
                             >
                               {stage.state === 'done' ? <FaCheck className="text-white" size={12} />
                                 : stage.state === 'rejected' ? <FaTimes className="text-white" size={12} />
-                                : <span className="text-white">{i + 1}</span>}
+                                  : <span className="text-white">{i + 1}</span>}
                             </div>
                             <div className="flex-grow-1">
                               <strong className={stage.state === 'unreached' ? 'text-muted' : undefined}>{stage.label}</strong>
@@ -450,67 +444,6 @@ const IssueNoteDetailPage: React.FC = () => {
             </Col>
 
           </Row>
-        </Tab>
-
-        {/* History Tab */}
-        <Tab eventKey="history" title={<><FaHistory className="me-2" />History</>}>
-          <Card>
-            <Card.Body>
-              <div className="timeline">
-                <div className="timeline-item">
-                  <div className="timeline-marker bg-primary"></div>
-                  <div className="timeline-content">
-                    <strong>Created</strong>
-                    <p className="text-muted mb-0">
-                      {issueNote.employeeName || 'N/A'} created this issue note on{' '}
-                      {formatDate(issueNote.issueDate)}
-                    </p>
-                  </div>
-                </div>
-                {approvedStatusId === 3 && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-success"></div>
-                    <div className="timeline-content">
-                      <strong>RM Approved</strong>
-                      <p className="text-muted mb-0">Approved by reporting manager</p>
-                    </div>
-                  </div>
-                )}
-                {approvedStatusId === 2 && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-danger"></div>
-                    <div className="timeline-content">
-                      <strong>Rejected by RM</strong>
-                      <p className="text-muted mb-0">Issue note was rejected at RM review</p>
-                    </div>
-                  </div>
-                )}
-                {approvedStatusId === 3 && storesByStatusId === 11 && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-info"></div>
-                    <div className="timeline-content">
-                      <strong>Materials Issued</strong>
-                      <p className="text-muted mb-0">
-                        {issueNote.issuedByName
-                          ? `Issued by ${issueNote.issuedByName}`
-                          : 'Materials have been issued'}
-                        {issueNote.storesByDate && ` on ${formatDate(issueNote.storesByDate)}`}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {approvedStatusId === 3 && storesByStatusId === 2 && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-danger"></div>
-                    <div className="timeline-content">
-                      <strong>Rejected by Stores</strong>
-                      <p className="text-muted mb-0">Materials could not be issued from stores</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card.Body>
-          </Card>
         </Tab>
       </Tabs>
 

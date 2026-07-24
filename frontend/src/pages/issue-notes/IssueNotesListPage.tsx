@@ -17,8 +17,9 @@ import {
   FaEye,
   FaEdit,
   FaSyncAlt,
+  FaFileExport,
 } from 'react-icons/fa';
-import { PageHeader, DataTable, ExportButtons } from '../../components/common';
+import { PageHeader, DataTable } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
@@ -174,6 +175,27 @@ const IssueNotesListPage: React.FC = () => {
     setPage(0);
   };
 
+  // Export mirrors the Indent list pattern (same blob-download mechanism); the file reflects the
+  // current filter state and the caller's role-scoped visibility (backend routes through getAll).
+  const handleExport = async (fmt: 'xlsx' | 'csv') => {
+    try {
+      const blob = await issueNotesApi.export({
+        format: fmt,
+        search: filters.search || undefined,
+        approvedStatus,
+        storesByStatus,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fmt === 'csv' ? 'issue_notes_export.csv' : 'issue_notes_export.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Export failed. You may not have permission.');
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -184,11 +206,23 @@ const IssueNotesListPage: React.FC = () => {
           { label: 'Issue Notes' },
         ]}
         actions={
-          hasAnyRole(['USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN']) && (
-            <Button variant="primary" onClick={() => navigate('/issue-notes/new')}>
-              <FaPlus className="me-2" /> Create Issue Note
+          <div className="d-flex gap-2">
+            {/* Export buttons match the Indent list exactly: same placement (header toolbar,
+                top-right), same variants/icon/size/spacing. Visible to every role that can view
+                the list; the backend export is role-scoped so each file contains only what the
+                caller can see. */}
+            <Button variant="outline-success" size="sm" onClick={() => handleExport('xlsx')}>
+              <FaFileExport className="me-1" /> Excel
             </Button>
-          )
+            <Button variant="outline-secondary" size="sm" onClick={() => handleExport('csv')}>
+              <FaFileExport className="me-1" /> CSV
+            </Button>
+            {hasAnyRole(['USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN']) && (
+              <Button variant="primary" onClick={() => navigate('/issue-notes/new')}>
+                <FaPlus className="me-2" /> Create Issue Note
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -235,17 +269,6 @@ const IssueNotesListPage: React.FC = () => {
                       Clear
                     </Button>
                   )}
-                  <ExportButtons
-                    filenameBase="issue_notes_export"
-                    onExport={(fmt) =>
-                      issueNotesApi.export({
-                        format: fmt,
-                        search: filters.search || undefined,
-                        approvedStatus,
-                        storesByStatus,
-                      })
-                    }
-                  />
                 </div>
               </Col>
             </Row>

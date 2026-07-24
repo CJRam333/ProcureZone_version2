@@ -2162,3 +2162,75 @@ timeline). Workflow-status timeline and stores action cards/modals unchanged.
 - New build hash: JS `assets/index-ajUyHFG9.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
 
 ---
+
+## 2026-07-24 — Pass 2b: Export Button Visibility/Placement + Detail-Page Cleanup
+
+Four small independent UI fixes in one commit. Frontend only — no backend, DTO, or migration changes.
+
+### FIX 1 — Indent export buttons visible to all list-viewing roles
+
+`IndentsListPage.tsx` gated the Excel/CSV export buttons to admins only.
+- **Before:** `{hasAnyRole(['SUPERADMIN', 'ADMIN']) && ( … Excel/CSV … )}`
+- **After:** `{hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT', 'SUPERVISOR']) && ( … )}`
+  (the same role set as the page's "New Indent" button — i.e. everyone who can view/act on the list).
+
+**No data leak:** confirmed still true. Pass 2 fixed the export visibility leak so `/indents/export`
+routes through the role-scoped `filterIndents` — a USER exports only their own indents, a SUPERVISOR
+their team, a DEPTHEAD their department, etc. Making the buttons visible to all roles only lets each
+role download the slice it can already see. A code comment to this effect was added at the gate.
+
+### FIX 2 — Issue-note export buttons match the Indent list's placement + style
+
+The Indent list renders export as two inline buttons in the `PageHeader` `actions` (top-right
+toolbar), `d-flex gap-2`: **Excel** = `variant="outline-success" size="sm"` and **CSV** =
+`variant="outline-secondary" size="sm"`, each with a `<FaFileExport className="me-1" />` icon, sitting
+left of the primary "New" button.
+
+`IssueNotesListPage.tsx` previously rendered export via the shared `ExportButtons` component down in
+the search/filter toolbar. Updated to match the Indent list **identically**: removed `ExportButtons`
+from the filter card, added a `handleExport('xlsx' | 'csv')` mirroring the Indent blob-download
+handler, and placed the same two inline buttons (same variants/icon/size/`gap-2` spacing) in the
+`PageHeader` `actions`, left of "Create Issue Note". Export is shown to every role that can view the
+list; the backend export remains role-scoped via `getAll`. (`FaFileExport` imported; the
+`ExportButtons` import dropped from this page — the shared component is still used by the other
+operational list pages.)
+
+### FIX 3 — Indent detail: consolidate the redundant card into the Status and Actions Bar
+
+Immediately below the Status and Actions Bar, a second (terminal-summary) card showed a colour
+status badge (redundant with the Status field already in the bar), the procurement status, PO#, and
+the delivery date.
+- **Removed** the redundant status badge entirely.
+- **Moved up** into the Status and Actions Bar (as labelled segments alongside Status/Items, shown
+  only at the terminal procurement stage — same condition as before, `showTerminalSummary`):
+  **Procurement** (`PO Released` / `Cash Buy`, with `— PO# …` when PO Released) and **Delivery**
+  (the delivery date, when present).
+- **Deleted** the now-empty second `<Card>` block cleanly (the whole `{showTerminalSummary && (…)}`
+  card was removed — no ghost padding, no empty div left behind).
+
+### FIX 4 — Remove the "History" tab from both detail pages
+
+Both `IndentDetailPage.tsx` and `IssueNoteDetailPage.tsx` had a redundant History tab (a timeline
+duplicating information already conveyed by the indent's **Approval Status** card and the issue
+note's **Workflow Status** card).
+- Removed the `<Tab eventKey="history">…</Tab>` panel from both (the pages keep a single **Details**
+  tab under the existing `<Tabs>`).
+- Removed the now-unused `FaHistory` import from both.
+- **No history-fetch API call existed** — both History tabs were rendered purely from the
+  already-loaded indent/issue-note object (status ids, created/approved names + dates). So nothing
+  was removed on the API/service side and there are **no newly-dead backend endpoints**.
+- The **Approval Status** flowchart (indent) and **Workflow Status** card (issue note) are untouched.
+
+### Files changed
+- `frontend/src/pages/indents/IndentsListPage.tsx` (FIX 1)
+- `frontend/src/pages/issue-notes/IssueNotesListPage.tsx` (FIX 2)
+- `frontend/src/pages/indents/IndentDetailPage.tsx` (FIX 3 + FIX 4)
+- `frontend/src/pages/issue-notes/IssueNoteDetailPage.tsx` (FIX 4)
+
+### Build results
+- `mvn -DskipTests compile` — clean, 0 errors (no backend changes this pass)
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in ~44s, 0 errors (pre-existing >500 kB chunk-size warning only)
+- New build hash: JS `assets/index-C1RJ0X0y.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
+
+---

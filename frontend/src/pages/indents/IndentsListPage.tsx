@@ -212,7 +212,10 @@ const IndentsListPage: React.FC = () => {
         ]}
         actions={
           <div className="d-flex gap-2">
-            {hasAnyRole(['SUPERADMIN', 'ADMIN']) && (
+            {/* Export visible to every role that can view the list. No data leak: the backend
+                /indents/export routes through the role-scoped filterIndents (Pass 2 fix), so each
+                role's file contains only what that role can see (USER → own, SUPERVISOR → team, …). */}
+            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'DEPTHEAD', 'PROCUREMENT', 'SUPERVISOR']) && (
               <>
                 <Button variant="outline-success" size="sm" onClick={() => handleExport('excel')}>
                   <FaFileExport className="me-1" /> Excel

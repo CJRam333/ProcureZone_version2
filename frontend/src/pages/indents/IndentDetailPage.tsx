@@ -23,7 +23,6 @@ import {
   FaCheck,
   FaTimes,
   FaPrint,
-  FaHistory,
   FaFileAlt,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
@@ -287,6 +286,30 @@ const IndentDetailPage: React.FC = () => {
               <small className="text-muted d-block">Items</small>
               <strong>{details.length}</strong>
             </div>
+            {/* Procurement status + delivery, consolidated here from the former terminal-summary
+                card below (the status badge that card also showed was redundant with the Status
+                field above, so it was dropped). */}
+            {showTerminalSummary && (
+              <>
+                <div className="vr d-none d-sm-block" />
+                <div>
+                  <small className="text-muted d-block">Procurement</small>
+                  <strong>
+                    {procurementStatusIdVal === 7 ? 'PO Released' : 'Cash Buy'}
+                    {procurementStatusIdVal === 7 && indent.poNumber && <> — PO# {indent.poNumber}</>}
+                  </strong>
+                </div>
+                {deliveryDate && (
+                  <>
+                    <div className="vr d-none d-sm-block" />
+                    <div>
+                      <small className="text-muted d-block">Delivery</small>
+                      <strong>{formatDate(deliveryDate)}</strong>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
 
           <div className="d-flex flex-wrap gap-2">
@@ -380,21 +403,6 @@ const IndentDetailPage: React.FC = () => {
                 </Button>
               </Col>
             </Row>
-          </Card.Body>
-        </Card>
-      )}
-
-      {showTerminalSummary && (
-        <Card className="mb-4">
-          <Card.Body className="d-flex flex-wrap align-items-center gap-3">
-            <Badge bg={procurementStatusIdVal === 7 ? 'success' : 'teal'} className="fs-6">
-              {procurementStatusIdVal === 7 ? 'PO Released' : 'Cash Buy'}
-            </Badge>
-            <span className="text-muted">
-              Procurement complete
-              {procurementStatusIdVal === 7 && indent.poNumber && <> — PO# <strong>{indent.poNumber}</strong></>}
-              {deliveryDate && <>, Delivery: <strong>{formatDate(deliveryDate)}</strong></>}
-            </span>
           </Card.Body>
         </Card>
       )}
@@ -602,57 +610,6 @@ const IndentDetailPage: React.FC = () => {
               </Card>
             </Col>
           </Row>
-        </Tab>
-
-        {/* History Tab */}
-        <Tab eventKey="history" title={<><FaHistory className="me-2" />History</>}>
-          <Card>
-            <Card.Body>
-              <div className="timeline">
-                <div className="timeline-item">
-                  <div className="timeline-marker bg-primary"></div>
-                  <div className="timeline-content">
-                    <strong>Created</strong>
-                    <p className="text-muted mb-0">
-                      {employeeName} created this indent on {formatDate(createdDate, 'dd MMM yyyy HH:mm')}
-                    </p>
-                  </div>
-                </div>
-                {statusId >= STATUS_SUBMITTED && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-warning"></div>
-                    <div className="timeline-content">
-                      <strong>Submitted for Approval</strong>
-                      <p className="text-muted mb-0">Awaiting department head approval</p>
-                    </div>
-                  </div>
-                )}
-                {statusId >= STATUS_DEPT_HEAD_APPROVED && statusId !== STATUS_REJECTED && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-success"></div>
-                    <div className="timeline-content">
-                      <strong>Dept Head Approved</strong>
-                      {approvedByName && (
-                        <p className="text-muted mb-0">
-                          Approved by {approvedByName}
-                          {approvedByDate && ` on ${formatDate(approvedByDate, 'dd MMM yyyy HH:mm')}`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {statusId === STATUS_REJECTED && (
-                  <div className="timeline-item">
-                    <div className="timeline-marker bg-danger"></div>
-                    <div className="timeline-content">
-                      <strong>Rejected</strong>
-                      {remarks && <p className="mt-1 mb-0"><em>Reason: {remarks}</em></p>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card.Body>
-          </Card>
         </Tab>
       </Tabs>
 
