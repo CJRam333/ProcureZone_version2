@@ -16,9 +16,9 @@ import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
 
 /**
  * Dashboard — deliberately minimal (Pass 2 rebuild). Exactly three cards:
- *   1. Quick Actions (top)
- *   2. Latest Activity (the meaningful addition — role-scoped feed of indents + issue notes)
- *   3. Welcome-back (bottom)
+ *   1. Welcome-back
+ *   2. Quick Actions
+ *   3. Latest Activity (the meaningful addition — role-scoped feed of indents + issue notes)
  * All former stat tiles, charts, low-stock and recent-GRN widgets were removed.
  */
 const DashboardPage: React.FC = () => {
@@ -55,7 +55,16 @@ const DashboardPage: React.FC = () => {
     <div>
       <PageHeader title="Dashboard" />
 
-      {/* 1 — Quick Actions (top) */}
+      {/* 1 — Welcome back */}
+      <Card className="mb-4 border-0 shadow-sm">
+        <Card.Body>
+          <h5 className="mb-1">
+            Welcome back, {user?.displayName || user?.employeeName || user?.username || 'User'}!
+          </h5>
+        </Card.Body>
+      </Card>
+
+      {/* 2 — Quick Actions */}
       <Card className="mb-4 border-0 shadow-sm">
         <Card.Header className="bg-transparent border-0">
           <h5 className="mb-0">Quick Actions</h5>
@@ -76,7 +85,7 @@ const DashboardPage: React.FC = () => {
         </Card.Body>
       </Card>
 
-      {/* 2 — Latest Activity */}
+      {/* 3 — Latest Activity */}
       <Card className="mb-4 border-0 shadow-sm">
         <Card.Header className="bg-transparent border-0">
           <h5 className="mb-0 d-flex align-items-center">
@@ -131,16 +140,6 @@ const DashboardPage: React.FC = () => {
               </Table>
             </div>
           )}
-        </Card.Body>
-      </Card>
-
-      {/* 3 — Welcome back (bottom) */}
-      <Card className="border-0 shadow-sm">
-        <Card.Body>
-          <h5 className="mb-1">
-            Welcome back, {user?.displayName || user?.employeeName || user?.username || 'User'}!
-          </h5>
-          <div className="text-muted small">Here's an overview of your procurement activities.</div>
         </Card.Body>
       </Card>
     </div>
