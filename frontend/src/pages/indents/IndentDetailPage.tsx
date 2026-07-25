@@ -13,6 +13,8 @@ import {
   Tab,
   Tabs,
   Spinner,
+  OverlayTrigger,
+  Popover,
 } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, isValid, parseISO } from 'date-fns';
@@ -24,6 +26,7 @@ import {
   FaTimes,
   FaPrint,
   FaFileAlt,
+  FaHistory,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { indentsApi, getErrorMessage } from '../../api';
@@ -39,6 +42,14 @@ const formatDate = (dateValue: string | Date | null | undefined, formatStr: stri
   } catch {
     return 'N/A';
   }
+};
+
+// Friendly labels for quantity-history stage codes ('RM' | 'DEPTHEAD')
+const stageLabel = (stage: string | undefined): string => {
+  const s = (stage ?? '').toUpperCase();
+  if (s === 'RM') return 'RM';
+  if (s === 'DEPTHEAD' || s === 'DEPT_HEAD') return 'Dept. Head';
+  return stage ?? '';
 };
 
 // Status helpers based on backend IndentStatus IDs (1-based)
@@ -82,6 +93,8 @@ const IndentDetailPage: React.FC = () => {
   const [procPoNumber, setProcPoNumber] = useState('');
   const [procDeliveryDate, setProcDeliveryDate] = useState('');
   const [procRemarks, setProcRemarks] = useState('');
+  // Per-line editable quantity during the user's OWN approval turn, keyed by detail id.
+  const [qtyEdits, setQtyEdits] = useState<Record<number, number>>({});
 
   // Validate id parameter
   const numericId = id ? Number(id) : Number.NaN;
@@ -104,6 +117,20 @@ const IndentDetailPage: React.FC = () => {
     }
   }, [indent]);
 
+  // Seed the editable-quantity map from each line's current effective quantity
+  // (so an already-approved reduction is the starting point, not the raw original).
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const list: any[] = indent?.details ?? [];
+    if (list.length > 0) {
+      const init: Record<number, number> = {};
+      list.forEach((item) => {
+        init[item.id] = Number(item.currentEffectiveQuantity ?? item.quantity ?? 0);
+      });
+      setQtyEdits(init);
+    }
+  }, [indent]);
+
   // Mutations
   const submitMutation = useMutation({
     mutationFn: () => indentsApi.submit(numericId),
@@ -115,7 +142,33 @@ const IndentDetailPage: React.FC = () => {
   });
 
   const approveMutation = useMutation({
-    mutationFn: () => indentsApi.approve(numericId, { remarks: approvalComments }),
+    mutationFn: () => {
+      // Stage is derived here (not from later-declared consts) so this closure has no TDZ deps.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list: any[] = indent?.details ?? [];
+      const aStatus = (indent?.approvedStatusId as number | null | undefined) ?? 1;
+      const fStatus = (indent?.finalStatusId as number | null | undefined) ?? 1;
+      const sId = indent?.statusId ?? indent?.status;
+      const l1 = sId >= STATUS_SUBMITTED && aStatus === 1;
+      const l2 = aStatus === 3 && fStatus === 1;
+      // Send every editable line; the backend audits only the values that actually changed.
+      if (l1) {
+        const adjustments = list.map((item) => ({
+          detailId: item.id,
+          rmQuantity: qtyEdits[item.id] ?? Number(item.currentEffectiveQuantity ?? item.quantity ?? 0),
+        }));
+        return indentsApi.l1Approve(numericId, { remarks: approvalComments, adjustments });
+      }
+      if (l2) {
+        const adjustments = list.map((item) => ({
+          detailId: item.id,
+          deptQuantity: qtyEdits[item.id] ?? Number(item.currentEffectiveQuantity ?? item.quantity ?? 0),
+        }));
+        return indentsApi.l2Approve(numericId, { remarks: approvalComments, adjustments });
+      }
+      // Fallback: no recognised approval stage — behave like the original remarks-only approve.
+      return indentsApi.approve(numericId, { remarks: approvalComments });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['indent', id] });
       queryClient.invalidateQueries({ queryKey: ['indents'] });
@@ -230,6 +283,12 @@ const IndentDetailPage: React.FC = () => {
   const approveLabel = awaitingL1 ? 'Approve (RM Review)'
     : awaitingL2 ? 'Approve (Dept Head)'
     : 'Approve';
+
+  // Quantity is editable ONLY when the existing approval gating says it is this user's turn
+  // AND the indent sits at that exact stage: L1 edits rmQuantity, L2 edits deptQuantity.
+  const isL1Turn = canApprove && awaitingL1;
+  const isL2Turn = canApprove && awaitingL2;
+  const isQtyEditable = isL1Turn || isL2Turn;
 
   const isProcurementStage = finalStatusId === 4 && procurementStatusIdVal >= 4 && procurementStatusIdVal <= 9;
   // PO Released (7) and Cash Buy (9) are terminal — the procurement workflow is complete.
@@ -446,6 +505,40 @@ const IndentDetailPage: React.FC = () => {
                           details.map((item: any, index: number) => {
                             const qty = Number(item.quantity ?? item.requestedQuantity ?? 0);
                             const rate = Number(item.pricing ?? item.estimatedRate ?? 0);
+                            // Read-only display uses the effective (possibly reduced) quantity.
+                            const effectiveQty = Number(item.currentEffectiveQuantity ?? item.quantity ?? item.requestedQuantity ?? 0);
+                            // Convenience ceiling only (server enforces truthfully): L1 caps at the
+                            // requester original; L2 caps at the RM-approved quantity.
+                            const maxQty = isL1Turn
+                              ? qty
+                              : Number(item.rmQuantity ?? item.quantity ?? item.requestedQuantity ?? 0);
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const history: any[] = item.quantityHistory ?? [];
+                            const historyIcon = history.length > 0 ? (
+                              <OverlayTrigger
+                                trigger="click"
+                                rootClose
+                                placement="left"
+                                overlay={
+                                  <Popover id={`qty-history-${item.id}`}>
+                                    <Popover.Header as="h6">Quantity History</Popover.Header>
+                                    <Popover.Body>
+                                      <div>Requested: {qty}</div>
+                                      {history.map((h, hi) => (
+                                        <div key={hi}>
+                                          → {stageLabel(h.stage)}: {h.newQuantity}
+                                          {' '}(by {h.editedByName || 'Unknown'}, {formatDate(h.editedAt, 'dd MMM yyyy HH:mm')})
+                                        </div>
+                                      ))}
+                                    </Popover.Body>
+                                  </Popover>
+                                }
+                              >
+                                <Button variant="link" size="sm" className="p-0 ms-1 align-baseline" title="Quantity edit history">
+                                  <FaHistory />
+                                </Button>
+                              </OverlayTrigger>
+                            ) : null;
                             return (
                               <tr key={item.id || index}>
                                 <td>{index + 1}</td>
@@ -453,7 +546,29 @@ const IndentDetailPage: React.FC = () => {
                                 <td>{item.materialName || item.materialDescription || 'N/A'}</td>
                                 <td>{item.companies || '—'}</td>
                                 <td><Badge bg="secondary">{item.unitOfMeasureCode || item.uomCode || 'N/A'}</Badge></td>
-                                <td className="text-end">{qty}</td>
+                                <td className="text-end">
+                                  {isQtyEditable ? (
+                                    <div className="d-flex flex-column align-items-end">
+                                      <div className="d-flex align-items-center justify-content-end">
+                                        <Form.Control
+                                          type="number"
+                                          size="sm"
+                                          min={0}
+                                          max={maxQty}
+                                          value={qtyEdits[item.id] ?? effectiveQty}
+                                          onChange={(e) =>
+                                            setQtyEdits((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
+                                          }
+                                          style={{ width: 90, textAlign: 'right' }}
+                                        />
+                                        {historyIcon}
+                                      </div>
+                                      <small className="text-muted">max: {maxQty}</small>
+                                    </div>
+                                  ) : (
+                                    <span>{effectiveQty}{historyIcon}</span>
+                                  )}
+                                </td>
                                 {/* <td className="text-end">{new Intl.NumberFormat('en-IN').format(rate)}</td> */}
                                 <td className="text-end fw-medium">
                                   {new Intl.NumberFormat('en-IN').format(qty * rate)}

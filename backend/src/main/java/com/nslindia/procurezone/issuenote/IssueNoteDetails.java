@@ -41,6 +41,13 @@ public class IssueNoteDetails {
     @Column(name = "issue_note_details_quantity", nullable = false, precision = 20, scale = 2)
     private BigDecimal quantity;
 
+    /**
+     * RM-adjusted quantity (Pass 3). Nullable — set only when the RM changes the line at approval.
+     * The requester's original ({@link #quantity}) is NEVER overwritten.
+     */
+    @Column(name = "issue_note_details_rm_qty", precision = 18, scale = 2)
+    private BigDecimal rmQuantity;
+
     @Column(name = "issue_note_details_rate", precision = 20, scale = 2)
     private BigDecimal rate;
 

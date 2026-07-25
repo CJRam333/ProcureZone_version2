@@ -41,6 +41,15 @@ export interface IssueNote {
     totalAmount: number;
 }
 
+// One entry in a line item's quantity-edit history (from the backend audit trail).
+export interface QuantityEdit {
+    stage: string;            // 'RM'
+    oldQuantity?: number;
+    newQuantity: number;
+    editedByName?: string;
+    editedAt?: string;
+}
+
 // Response matching backend IssueNoteDetailResponse — enriched with material/UOM codes
 export interface IssueNoteDetail {
     id: number;
@@ -49,7 +58,10 @@ export interface IssueNoteDetail {
     materialName?: string;
     unitOfMeasureId: number;
     uomCode?: string;
-    quantity: number;
+    quantity: number;                  // requester's ORIGINAL quantity (never overwritten)
+    rmQuantity?: number;               // RM adjustment (null until RM edits)
+    currentEffectiveQuantity?: number; // rmQuantity ?? quantity (server-computed)
+    quantityHistory?: QuantityEdit[];  // per-edit trail, oldest first (empty if never adjusted)
     rate?: number;
     amount?: number;
     purpose?: string;
@@ -292,10 +304,11 @@ export const issueNotesApi = {
         return response.data.data;
     },
 
-    // RM Approval (status 2 → 3, skipped if supervisorBypass)
+    // RM Approval (status 2 → 3, skipped if supervisorBypass).
+    // Pass 3: optional per-line `items` carry RM quantity adjustments; omit for approve-as-is.
     rmApprove: async (
         id: number,
-        data: { remarks: string }
+        data: { remarks: string; items?: { detailId: number; rmQuantity: number }[] }
     ): Promise<IssueNote> => {
         const response = await apiClient.post<{ data: IssueNote }>(
             `/issue-notes/${id}/rm-approve`,

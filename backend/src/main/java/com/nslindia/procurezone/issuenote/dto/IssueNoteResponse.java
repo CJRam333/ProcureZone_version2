@@ -59,10 +59,13 @@ public record IssueNoteResponse(
             Integer unitOfMeasureId,
             String uomCode,
             BigDecimal quantity,
+            BigDecimal rmQuantity,
+            BigDecimal currentEffectiveQuantity,
             BigDecimal rate,
             BigDecimal amount,
             String purpose,
             Integer status,
-            String companies) {
+            String companies,
+            java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO> quantityHistory) {
     }
 }

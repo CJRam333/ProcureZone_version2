@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Card,
@@ -13,6 +13,8 @@ import {
   Tab,
   Tabs,
   Spinner,
+  OverlayTrigger,
+  Popover,
 } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -25,11 +27,20 @@ import {
   FaPrint,
   FaFileAlt,
   FaBoxOpen,
+  FaHistory,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
+
+// Friendly labels for quantity-history stage codes (issue notes only carry 'RM').
+const stageLabel = (stage: string | undefined): string => {
+  const s = (stage ?? '').toUpperCase();
+  if (s === 'RM') return 'RM';
+  if (s === 'DEPTHEAD' || s === 'DEPT_HEAD') return 'Dept. Head';
+  return stage ?? '';
+};
 
 const IssueNoteDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -46,6 +57,8 @@ const IssueNoteDetailPage: React.FC = () => {
   const [issueRemarks, setIssueRemarks] = useState('');
   const [storesRejectReason, setStoresRejectReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // Per-line editable quantity during the RM's approval turn, keyed by detail id.
+  const [qtyEdits, setQtyEdits] = useState<Record<number, number>>({});
 
   // Fetch issue note details
   const { data: issueNote, isLoading, error: fetchError } = useQuery({
@@ -53,6 +66,18 @@ const IssueNoteDetailPage: React.FC = () => {
     queryFn: () => issueNotesApi.getById(Number(id)),
     enabled: !!id,
   });
+
+  // Seed the editable-quantity map from each line's current effective quantity.
+  useEffect(() => {
+    const list = issueNote?.details ?? [];
+    if (list.length > 0) {
+      const init: Record<number, number> = {};
+      list.forEach((item) => {
+        init[item.id] = Number(item.currentEffectiveQuantity ?? item.quantity ?? 0);
+      });
+      setQtyEdits(init);
+    }
+  }, [issueNote]);
 
   // Mutations
   const submitMutation = useMutation({
@@ -66,7 +91,16 @@ const IssueNoteDetailPage: React.FC = () => {
 
   // RM approval — the only approval stage (flow: User → RM → Stores)
   const rmApproveMutation = useMutation({
-    mutationFn: () => issueNotesApi.rmApprove(Number(id), { remarks: approvalComments }),
+    mutationFn: () => {
+      // rmApprove is only reachable on the RM turn, so always send every line's quantity;
+      // the backend audits only the values that actually changed.
+      const list = issueNote?.details ?? [];
+      const items = list.map((item) => ({
+        detailId: item.id,
+        rmQuantity: qtyEdits[item.id] ?? Number(item.currentEffectiveQuantity ?? item.quantity ?? 0),
+      }));
+      return issueNotesApi.rmApprove(Number(id), { remarks: approvalComments, items });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['issue-note', id] });
       queryClient.invalidateQueries({ queryKey: ['issue-notes'] });
@@ -288,17 +322,72 @@ const IssueNoteDetailPage: React.FC = () => {
                             <td colSpan={7} className="text-center text-muted py-4">No items found</td>
                           </tr>
                         ) : (
-                          details.map((item, index) => (
-                            <tr key={item.id}>
-                              <td>{index + 1}</td>
-                              <td><code>{item.materialCode || 'N/A'}</code></td>
-                              <td>{item.materialName || 'N/A'}</td>
-                              <td>{item.companies || '—'}</td>
-                              <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
-                              <td className="text-end fw-medium">{item.quantity}</td>
-                              <td>{item.purpose || '-'}</td>
-                            </tr>
-                          ))
+                          details.map((item, index) => {
+                            const qty = Number(item.quantity ?? 0);
+                            // Read-only display uses the effective (possibly reduced) quantity.
+                            const effectiveQty = Number(item.currentEffectiveQuantity ?? item.quantity ?? 0);
+                            // Convenience ceiling only (server enforces truthfully): RM caps at the original.
+                            const maxQty = qty;
+                            const history = item.quantityHistory ?? [];
+                            const historyIcon = history.length > 0 ? (
+                              <OverlayTrigger
+                                trigger="click"
+                                rootClose
+                                placement="left"
+                                overlay={
+                                  <Popover id={`qty-history-${item.id}`}>
+                                    <Popover.Header as="h6">Quantity History</Popover.Header>
+                                    <Popover.Body>
+                                      <div>Requested: {qty}</div>
+                                      {history.map((h, hi) => (
+                                        <div key={hi}>
+                                          → {stageLabel(h.stage)}: {h.newQuantity}
+                                          {' '}(by {h.editedByName || 'Unknown'}, {formatDate(h.editedAt)})
+                                        </div>
+                                      ))}
+                                    </Popover.Body>
+                                  </Popover>
+                                }
+                              >
+                                <Button variant="link" size="sm" className="p-0 ms-1 align-baseline" title="Quantity edit history">
+                                  <FaHistory />
+                                </Button>
+                              </OverlayTrigger>
+                            ) : null;
+                            return (
+                              <tr key={item.id}>
+                                <td>{index + 1}</td>
+                                <td><code>{item.materialCode || 'N/A'}</code></td>
+                                <td>{item.materialName || 'N/A'}</td>
+                                <td>{item.companies || '—'}</td>
+                                <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
+                                <td className="text-end fw-medium">
+                                  {canRmAct ? (
+                                    <div className="d-flex flex-column align-items-end">
+                                      <div className="d-flex align-items-center justify-content-end">
+                                        <Form.Control
+                                          type="number"
+                                          size="sm"
+                                          min={0}
+                                          max={maxQty}
+                                          value={qtyEdits[item.id] ?? effectiveQty}
+                                          onChange={(e) =>
+                                            setQtyEdits((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
+                                          }
+                                          style={{ width: 90, textAlign: 'right' }}
+                                        />
+                                        {historyIcon}
+                                      </div>
+                                      <small className="text-muted">max: {maxQty}</small>
+                                    </div>
+                                  ) : (
+                                    <span>{effectiveQty}{historyIcon}</span>
+                                  )}
+                                </td>
+                                <td>{item.purpose || '-'}</td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                       <tfoot className="bg-light">

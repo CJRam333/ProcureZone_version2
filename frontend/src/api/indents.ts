@@ -73,6 +73,15 @@ export enum IndentStatus {
     COMPLETED = 8,
 }
 
+// One entry in a line item's quantity-edit history (from the backend audit trail).
+export interface QuantityEdit {
+    stage: string;            // 'RM' | 'DEPTHEAD'
+    oldQuantity?: number;
+    newQuantity: number;
+    editedByName?: string;
+    editedAt?: string;
+}
+
 export interface IndentItem {
     id: number;
     indentId: number;
@@ -82,9 +91,11 @@ export interface IndentItem {
     unitOfMeasureId: number;
     unitOfMeasureCode: string;
     unitOfMeasureName: string;
-    quantity: number;
-    rmQuantity?: number;
-    deptQuantity?: number;
+    quantity: number;               // requester's ORIGINAL quantity
+    rmQuantity?: number;            // RM (L1) adjustment
+    deptQuantity?: number;          // DeptHead (L2) adjustment
+    currentEffectiveQuantity?: number; // deptQuantity ?? rmQuantity ?? quantity (server-computed)
+    quantityHistory?: QuantityEdit[];  // per-edit trail, oldest first (empty if never adjusted)
     stockAvailable?: number;
     pricing?: number;
     purpose?: string;
@@ -244,6 +255,31 @@ export const indentsApi = {
             null,
             { params: { remarks: data.reason } }
         );
+        return response.data;
+    },
+
+    // --- Pass 3: direct L1/L2 approval carrying per-line quantity adjustments ---
+    // These hit the indent endpoints (NOT the remarks-only smart-router) so RM/DeptHead
+    // quantity edits + audit trail are recorded. `adjustments` may be omitted for approve-as-is.
+    l1Approve: async (
+        id: number,
+        data: { remarks?: string; adjustments?: { detailId: number; rmQuantity: number }[] }
+    ): Promise<Indent> => {
+        const response = await apiClient.post<Indent>(`/indents/${id}/l1-approve`, {
+            remarks: data.remarks ?? '',
+            adjustments: data.adjustments ?? [],
+        });
+        return response.data;
+    },
+
+    l2Approve: async (
+        id: number,
+        data: { remarks?: string; adjustments?: { detailId: number; deptQuantity: number }[] }
+    ): Promise<Indent> => {
+        const response = await apiClient.post<Indent>(`/indents/${id}/l2-approve`, {
+            remarks: data.remarks ?? '',
+            adjustments: data.adjustments ?? [],
+        });
         return response.data;
     },
 

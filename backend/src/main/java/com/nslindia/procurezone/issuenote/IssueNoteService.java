@@ -63,6 +63,7 @@ public class IssueNoteService {
     private final PlantRepository plantRepository;
     private final MaterialRepository materialRepository;
     private final UnitOfMeasureRepository unitOfMeasureRepository;
+    private final IssueNoteDetailQtyAuditRepository qtyAuditRepository;
 
     private static final String ENTITY_TYPE = "Issue Note";
     private static final String ERROR_NOT_FOUND = "Issue Note not found with ID: ";
@@ -297,6 +298,37 @@ public class IssueNoteService {
                     + ". Either not pending RM approval or supervisor bypass is enabled.");
         }
 
+        // Pass 3 — optional per-line RM quantity adjustments. The requester's original quantity
+        // (issue_note_details_quantity) is NEVER overwritten; the RM value goes to the new
+        // rmQuantity column. Audit rows are collected and saved only for lines that actually change.
+        LocalDateTime editedAt = LocalDateTime.now();
+        java.util.List<IssueNoteDetailQtyAudit> audits = new java.util.ArrayList<>();
+        if (request.items() != null && !request.items().isEmpty()) {
+            for (ApproveIssueNoteRequest.LineItemQtyAdjustment item : request.items()) {
+                IssueNoteDetails detail = issueNote.getDetails().stream()
+                        .filter(d -> d.getId().equals(item.detailId()))
+                        .findFirst()
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Issue note detail not found with ID: " + item.detailId()));
+
+                // Monotonic-decrease validation (server-authoritative):
+                // 0 <= rmQuantity <= requester's original quantity. Zero is allowed.
+                if (item.rmQuantity().signum() < 0
+                        || item.rmQuantity().compareTo(detail.getQuantity()) > 0) {
+                    throw new IllegalArgumentException(String.format(
+                            "RM quantity (%.2f) must be between 0 and the requested quantity (%.2f) for line item %d",
+                            item.rmQuantity(), detail.getQuantity(), item.detailId()));
+                }
+
+                // Audit only a real change (old = the requester's original quantity).
+                if (item.rmQuantity().compareTo(detail.getQuantity()) != 0) {
+                    audits.add(new IssueNoteDetailQtyAudit(detail.getId(), "RM",
+                            detail.getQuantity(), item.rmQuantity(), userId, editedAt));
+                }
+                detail.setRmQuantity(item.rmQuantity());
+            }
+        }
+
         issueNote.setStatus(3); // RM Approved
         issueNote.setRmApprovedBy(userId);
         issueNote.setRmApprovedByDate(LocalDateTime.now());
@@ -309,6 +341,11 @@ public class IssueNoteService {
         issueNote.setLastModifiedBy(userId);
 
         issueNote = issueNoteRepository.save(issueNote);
+
+        // Persist the per-line quantity-edit audit trail (authoritative history).
+        if (!audits.isEmpty()) {
+            qtyAuditRepository.saveAll(audits);
+        }
 
         // Audit log
         Map<String, Object> extraDetails = new HashMap<>();
@@ -805,16 +842,43 @@ public class IssueNoteService {
         });
     }
 
+    /**
+     * Builds each line item's RM quantity-edit history (oldest first) from the issue-note audit
+     * table, in a single query. Empty for lines that were never adjusted.
+     */
+    private Map<Integer, List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> buildIssueNoteQtyHistory(
+            List<IssueNoteDetails> details) {
+        Map<Integer, List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> byDetail = new HashMap<>();
+        List<Integer> detailIds = details.stream()
+                .map(IssueNoteDetails::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        if (detailIds.isEmpty()) return byDetail;
+
+        for (IssueNoteDetailQtyAudit a : qtyAuditRepository.findByDetailIdInOrderByEditedAtAsc(detailIds)) {
+            byDetail.computeIfAbsent(a.getDetailId(), k -> new java.util.ArrayList<>())
+                    .add(new com.nslindia.procurezone.common.dto.QuantityEditDTO(
+                            a.getStage(), a.getOldQuantity(), a.getNewQuantity(),
+                            resolveEmployeeName(a.getEditedBy()), a.getEditedAt()));
+        }
+        return byDetail;
+    }
+
     private IssueNoteResponse mapToResponse(IssueNote issueNote) {
         // Cache company-name lookups per distinct materialId so we do at most one query
         // per material across all line items of this issue note.
         Map<Integer, String> companiesByMaterial = new HashMap<>();
+        // Per-line quantity-edit history, resolved from the audit table in one query.
+        Map<Integer, List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> historyByDetail =
+                buildIssueNoteQtyHistory(issueNote.getDetails());
         List<IssueNoteResponse.IssueNoteDetailResponse> detailResponses = issueNote.getDetails().stream()
                 .map(d -> {
                     var material = d.getMaterialId() != null
                             ? materialRepository.findById(d.getMaterialId()).orElse(null) : null;
                     var uom = d.getUnitOfMeasureId() != null
                             ? unitOfMeasureRepository.findById(d.getUnitOfMeasureId()).orElse(null) : null;
+                    // Effective = RM-adjusted if set, else the requester's original.
+                    BigDecimal effective = d.getRmQuantity() != null ? d.getRmQuantity() : d.getQuantity();
                     return new IssueNoteResponse.IssueNoteDetailResponse(
                             d.getId(),
                             d.getMaterialId(),
@@ -823,11 +887,14 @@ public class IssueNoteService {
                             d.getUnitOfMeasureId(),
                             uom != null ? uom.getCode() : null,
                             d.getQuantity(),
+                            d.getRmQuantity(),
+                            effective,
                             d.getRate(),
                             d.getAmount(),
                             d.getPurpose(),
                             d.getStatus(),
-                            resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial));
+                            resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial),
+                            historyByDetail.getOrDefault(d.getId(), List.of()));
                 })
                 .collect(Collectors.toList());
 

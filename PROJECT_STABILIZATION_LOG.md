@@ -2234,3 +2234,114 @@ note's **Workflow Status** card).
 - New build hash: JS `assets/index-C1RJ0X0y.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
 
 ---
+
+## 2026-07-25 — Pass 3: Quantity Editing During Approval + Audit Trail
+
+RM (indent L1) and DeptHead (indent L2) can now adjust line-item quantities while approving, and RM
+can adjust them on issue notes. Every edit is captured in dedicated audit tables (who + when, no
+reason field per business owner). Monotonic-decrease only, enforced server-side. Originals are never
+overwritten.
+
+### PART 1 — Migration V58 (`V58__quantity_edit_audit_trail.sql`)
+
+Next number confirmed as V58 (V57 was the last; V56 was previously deleted). Creates:
+- `tbl_indent_details_qty_audit` (audit_id, detail_id FK→tbl_indent_details.indent_details_id,
+  stage 'RM'|'DEPTHEAD', old_quantity, new_quantity, edited_by, edited_at)
+- `tbl_issue_note_details_qty_audit` (same shape, FK→tbl_issue_note_details.issue_note_details_id,
+  stage 'RM')
+- `issue_note_details_rm_qty DECIMAL(18,2) NULL` on `tbl_issue_note_details`
+
+FK PK targets confirmed against the entities (`indent_details_id`, `issue_note_details_id`).
+**Deviation noted:** the spec placed the new column `AFTER issue_note_details_requested_quantity`;
+I used `AFTER issue_note_details_quantity` instead — in the *new* system the requester's original
+lives in `issue_note_details_quantity` (the entity maps that column; `issue_note_details_requested_quantity`
+is a legacy column the app doesn't map), and that column is guaranteed present, so the ALTER can't
+fail on a missing anchor. Placement is cosmetic only. (Migration to be run on the server by the
+business owner per the standing no-DB-access constraint.)
+
+### PART 2 — Backend wiring + issue-note editing
+
+New audit entities + repos: `IndentDetailQtyAudit` / `IndentDetailQtyAuditRepository`,
+`IssueNoteDetailQtyAudit` / `IssueNoteDetailQtyAuditRepository` (each with
+`findByDetailIdInOrderByEditedAtAsc` for one-query history). `IssueNoteDetails` gained an
+`rmQuantity` field (`issue_note_details_rm_qty`). Shared history DTO
+`common/dto/QuantityEditDTO(stage, oldQuantity, newQuantity, editedByName, editedAt)`.
+
+**Indent (`IndentService.l1Approve`, `l2Approve`):** the dark-code adjustment logic was already
+present; added (a) an explicit lower-bound check (see PART 3) and (b) audit writes. After setting a
+line's `rmQuantity`/`deptQuantity`, an audit row is added **only when the new value differs** from
+the previous stage's value — L1 compares against the original `indent_details_qty`; L2 against
+`indent_details_rm_qty` (falling back to the original). Rows are collected and `saveAll`ed right
+after the indent is saved (`edited_by` = approver emp-number, `edited_at` = now). The single
+`indent_details_lmu`/`lmd` columns are kept but the audit table is now the authoritative history.
+An approval with no quantity change writes no audit rows.
+
+**Issue note (`IssueNoteService.rmApprove`):** `ApproveIssueNoteRequest` gained an OPTIONAL
+`items: [{detailId, rmQuantity}]`. For each item the RM value is written to the new `rmQuantity`
+column and an audit row is added if it differs from the requester's original. The original
+`issue_note_details_quantity` is **never** overwritten — confirmed no code in the new system
+overwrites it (the legacy in-place overwrite does not exist here); `rmApprove` previously touched no
+quantity at all. If `items` is null/empty the note is approved with no quantity change and no audit
+rows.
+
+**Old smart-route endpoint:** `/approvals/indents/{id}/approve` (remarks-only) **stays** for
+backward compatibility; the React UI's primary path now calls the direct `/indents/{id}/l1-approve`
+and `/l2-approve` endpoints so quantity edits + audit are recorded.
+
+### PART 2c — Response DTOs
+
+`IndentDetailResponse` now also carries `currentEffectiveQuantity` (= deptQuantity ?? rmQuantity ??
+quantity) and `quantityHistory: List<QuantityEditDTO>`. The nested
+`IssueNoteResponse.IssueNoteDetailResponse` now carries `rmQuantity`, `currentEffectiveQuantity`
+(= rmQuantity ?? quantity), and `quantityHistory`. Both detail mappers build the history in one
+query per document (audit rows grouped by detail id, editor emp-numbers resolved to names with a
+per-call cache) and compute the effective quantity. `quantity` remains the requester's original.
+
+### PART 3 — Monotonic-decrease validation (server-authoritative)
+
+In the service layer (not relying on the frontend), each edited line must satisfy
+`0 <= newQty <= previousStageQty`, else `IllegalArgumentException` with a per-line message
+(→ 400, whole approval rejected, nothing partially applied):
+- Indent L1: `0 <= rmQuantity <= quantity`
+- Indent L2: `0 <= deptQuantity <= (rmQuantity ?? quantity)`
+- Issue-note RM: `0 <= rmQuantity <= quantity`
+
+Zero is allowed (an approver may zero out a line). The request DTOs' bean validation was changed
+from `@Positive` to `@PositiveOrZero` so zero passes binding.
+
+### PART 4 — Frontend editable items during your own turn
+
+`IndentDetailPage.tsx` / `IssueNoteDetailPage.tsx`: a single `qtyEdits: Record<detailId, number>`
+state, seeded from each line's `currentEffectiveQuantity ?? quantity`. Editable state reuses the
+pages' EXISTING approval gating — no new role logic:
+- Indent L1 turn: `canApprove && approvedStatusId === 1` → edits `rmQuantity`, `max = quantity`.
+- Indent L2 turn: `canApprove && approvedStatusId === 3 && finalStatusId === 1` → edits
+  `deptQuantity`, `max = rmQuantity ?? quantity`.
+- Issue-note RM turn: existing `canRmAct` (status 2, approvedStatus 1, RM role) → edits `rmQuantity`,
+  `max = quantity`.
+When it is not the user's turn the cell is read-only, showing `currentEffectiveQuantity ?? quantity`.
+On submit the approve mutation branches by stage: L1 → `indentsApi.l1Approve`, L2 →
+`indentsApi.l2Approve` (fallback to the old remarks-only approve if no stage matches),
+issue-note → `issueNotesApi.rmApprove` with `items`. Every editable line is sent; the backend audits
+only real changes. Client-side `min/max` is convenience only — the server is authoritative.
+
+### PART 5 — Quantity history display (Option B chosen)
+
+Option B (icon + popover) — fits the existing Bootstrap table better than expandable rows. A small
+`FaHistory` button renders next to a line's quantity **only when `quantityHistory.length > 0`**;
+clicking opens an `OverlayTrigger`/`Popover` showing `Requested: {original}` then one line per edit
+`→ {stage}: {newQuantity} (by {name}, {time})` (oldest-first). Lines never edited show nothing extra.
+
+### Backend service methods modified
+- `IndentService.l1Approve`, `IndentService.l2Approve` (validation + audit writes),
+  `IndentService.toIndentResponse`/`toIndentDetailResponse` + new `buildIndentQtyHistory`.
+- `IssueNoteService.rmApprove` (RM editing + validation + audit), `mapToResponse` + new
+  `buildIssueNoteQtyHistory`.
+
+### Build results
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in ~52s, 0 errors (pre-existing >500 kB chunk-size warning only)
+- New build hash: JS `assets/index-DELmqxcs.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
+
+---

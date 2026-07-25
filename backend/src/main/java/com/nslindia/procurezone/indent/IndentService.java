@@ -138,6 +138,7 @@ public class IndentService {
         private final EmployeeReportingRepository employeeReportingRepository;
         private final com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository;
         private final com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository companyPlantMaterialRepository;
+        private final IndentDetailQtyAuditRepository qtyAuditRepository;
 
         @PersistenceContext
         private EntityManager entityManager;
@@ -154,7 +155,8 @@ public class IndentService {
                         SectionRepository sectionRepository,
                         EmployeeReportingRepository employeeReportingRepository,
                         com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository,
-                        com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository companyPlantMaterialRepository) {
+                        com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository companyPlantMaterialRepository,
+                        IndentDetailQtyAuditRepository qtyAuditRepository) {
                 this.indentRepository = indentRepository;
                 this.indentDetailRepository = indentDetailRepository;
                 this.employeeRepository = employeeRepository;
@@ -168,6 +170,7 @@ public class IndentService {
                 this.employeeReportingRepository = employeeReportingRepository;
                 this.companyEmployeeRepository = companyEmployeeRepository;
                 this.companyPlantMaterialRepository = companyPlantMaterialRepository;
+                this.qtyAuditRepository = qtyAuditRepository;
         }
 
         /**
@@ -885,7 +888,10 @@ public class IndentService {
                         }
                 }
 
-                // Apply quantity adjustments if provided
+                // Apply quantity adjustments if provided. Audit rows are collected here and saved
+                // after the indent persists — one row per line that ACTUALLY changed.
+                LocalDateTime editedAt = LocalDateTime.now();
+                java.util.List<IndentDetailQtyAudit> audits = new java.util.ArrayList<>();
                 if (request.adjustments() != null && !request.adjustments().isEmpty()) {
                         for (L1ApprovalRequest.LineItemAdjustment adj : request.adjustments()) {
                                 IndentDetail detail = indent.getDetails().stream()
@@ -894,16 +900,25 @@ public class IndentService {
                                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                                 "Indent detail not found with ID: " + adj.detailId()));
 
-                                // Validate RM quantity doesn't exceed original quantity
-                                if (adj.rmQuantity().compareTo(detail.getQuantity()) > 0) {
+                                // Monotonic-decrease validation (server-authoritative):
+                                // 0 <= rmQuantity <= original quantity. Zero is allowed.
+                                if (adj.rmQuantity().signum() < 0
+                                                || adj.rmQuantity().compareTo(detail.getQuantity()) > 0) {
                                         throw new IllegalArgumentException(
-                                                        String.format("RM quantity (%.2f) cannot exceed original quantity (%.2f) for line item %d",
+                                                        String.format("RM quantity (%.2f) must be between 0 and the original quantity (%.2f) for line item %d",
                                                                         adj.rmQuantity(), detail.getQuantity(),
                                                                         adj.detailId()));
                                 }
 
+                                // Audit only a real change (old = original indent_details_qty).
+                                if (adj.rmQuantity().compareTo(detail.getQuantity()) != 0) {
+                                        audits.add(new IndentDetailQtyAudit(detail.getId(), "RM",
+                                                        detail.getQuantity(), adj.rmQuantity(),
+                                                        currentUser.getEmpNumber(), editedAt));
+                                }
+
                                 detail.setRmQuantity(adj.rmQuantity());
-                                detail.setLastModifiedDate(LocalDateTime.now());
+                                detail.setLastModifiedDate(editedAt);
                                 detail.setLastModifiedBy(currentUser.getEmpNumber());
 
                                 logger.debug("L1 adjusted line item {}: qty {} -> rm_qty {}",
@@ -914,7 +929,7 @@ public class IndentService {
                         for (IndentDetail detail : indent.getDetails()) {
                                 if (detail.getRmQuantity() == null) {
                                         detail.setRmQuantity(detail.getQuantity());
-                                        detail.setLastModifiedDate(LocalDateTime.now());
+                                        detail.setLastModifiedDate(editedAt);
                                         detail.setLastModifiedBy(currentUser.getEmpNumber());
                                 }
                         }
@@ -929,6 +944,11 @@ public class IndentService {
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
                 indent = indentRepository.save(indent);
+
+                // Persist the per-line quantity-edit audit trail (authoritative history).
+                if (!audits.isEmpty()) {
+                        qtyAuditRepository.saveAll(audits);
+                }
 
                 // Record workflow action
                 recordWorkflowAction(indent, currentUser, "L1_APPROVED", request.remarks(), 1);
@@ -1040,7 +1060,10 @@ public class IndentService {
                 Employee currentUser = employeeRepository.findByEmail(username)
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
 
-                // Apply quantity adjustments if provided
+                // Apply quantity adjustments if provided. Audit rows collected here, saved after
+                // the indent persists — one row per line that ACTUALLY changed.
+                LocalDateTime editedAt = LocalDateTime.now();
+                java.util.List<IndentDetailQtyAudit> audits = new java.util.ArrayList<>();
                 if (request.adjustments() != null && !request.adjustments().isEmpty()) {
                         for (L2ApprovalRequest.LineItemAdjustment adj : request.adjustments()) {
                                 IndentDetail detail = indent.getDetails().stream()
@@ -1054,16 +1077,25 @@ public class IndentService {
                                                 ? detail.getRmQuantity()
                                                 : detail.getQuantity();
 
-                                // Validate dept quantity doesn't exceed RM quantity
-                                if (adj.deptQuantity().compareTo(referenceQty) > 0) {
+                                // Monotonic-decrease validation (server-authoritative):
+                                // 0 <= deptQuantity <= reference (rm qty if set, else original). Zero allowed.
+                                if (adj.deptQuantity().signum() < 0
+                                                || adj.deptQuantity().compareTo(referenceQty) > 0) {
                                         throw new IllegalArgumentException(
-                                                        String.format("Dept quantity (%.2f) cannot exceed RM approved quantity (%.2f) for line item %d",
+                                                        String.format("Dept quantity (%.2f) must be between 0 and the previous stage's quantity (%.2f) for line item %d",
                                                                         adj.deptQuantity(), referenceQty,
                                                                         adj.detailId()));
                                 }
 
+                                // Audit only a real change (old = the reference qty the DeptHead saw).
+                                if (adj.deptQuantity().compareTo(referenceQty) != 0) {
+                                        audits.add(new IndentDetailQtyAudit(detail.getId(), "DEPTHEAD",
+                                                        referenceQty, adj.deptQuantity(),
+                                                        currentUser.getEmpNumber(), editedAt));
+                                }
+
                                 detail.setDeptQuantity(adj.deptQuantity());
-                                detail.setLastModifiedDate(LocalDateTime.now());
+                                detail.setLastModifiedDate(editedAt);
                                 detail.setLastModifiedBy(currentUser.getEmpNumber());
 
                                 logger.debug("L2 adjusted line item {}: rm_qty {} -> dept_qty {}",
@@ -1077,7 +1109,7 @@ public class IndentService {
                                                         ? detail.getRmQuantity()
                                                         : detail.getQuantity();
                                         detail.setDeptQuantity(referenceQty);
-                                        detail.setLastModifiedDate(LocalDateTime.now());
+                                        detail.setLastModifiedDate(editedAt);
                                         detail.setLastModifiedBy(currentUser.getEmpNumber());
                                 }
                         }
@@ -1097,6 +1129,11 @@ public class IndentService {
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
                 indent = indentRepository.save(indent);
+
+                // Persist the per-line quantity-edit audit trail (authoritative history).
+                if (!audits.isEmpty()) {
+                        qtyAuditRepository.saveAll(audits);
+                }
 
                 // Record workflow action
                 recordWorkflowAction(indent, currentUser, "L2_APPROVED", request.remarks(), 2);
@@ -1890,8 +1927,11 @@ public class IndentService {
                 // Cache company-name lookups per distinct materialId so we do at most one query
                 // per material across all line items of this indent.
                 Map<Integer, String> companiesByMaterial = new java.util.HashMap<>();
+                // Per-line quantity-edit history, resolved from the audit table in one query.
+                Map<Integer, java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> historyByDetail =
+                                buildIndentQtyHistory(indent.getDetails());
                 List<IndentDetailResponse> detailResponses = indent.getDetails().stream()
-                                .map(detail -> toIndentDetailResponse(detail, companiesByMaterial))
+                                .map(detail -> toIndentDetailResponse(detail, companiesByMaterial, historyByDetail))
                                 .collect(Collectors.toList());
 
                 return new IndentResponse(
@@ -1949,9 +1989,15 @@ public class IndentService {
         }
 
         private IndentDetailResponse toIndentDetailResponse(IndentDetail detail,
-                        Map<Integer, String> companiesByMaterial) {
+                        Map<Integer, String> companiesByMaterial,
+                        Map<Integer, java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> historyByDetail) {
                 Integer materialId = detail.getMaterial() != null ? detail.getMaterial().getId() : null;
                 String companies = resolveCompaniesForMaterial(materialId, companiesByMaterial);
+                // Effective = the most-advanced stage's value: dept ?? rm ?? original.
+                java.math.BigDecimal effective = detail.getDeptQuantity() != null ? detail.getDeptQuantity()
+                                : (detail.getRmQuantity() != null ? detail.getRmQuantity() : detail.getQuantity());
+                java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO> history =
+                                historyByDetail.getOrDefault(detail.getId(), java.util.List.of());
                 return new IndentDetailResponse(
                                 detail.getId(),
                                 materialId,
@@ -1963,12 +2009,41 @@ public class IndentService {
                                 detail.getQuantity(),
                                 detail.getRmQuantity(),
                                 detail.getDeptQuantity(),
+                                effective,
                                 detail.getStockAvailable(),
                                 detail.getPricing(),
                                 detail.getPurpose(),
                                 detail.getVendor(),
                                 detail.getStatus(),
-                                companies);
+                                companies,
+                                history);
+        }
+
+        /**
+         * Builds each line item's quantity-edit history (oldest first) from the indent audit table,
+         * in a single query. Editor emp-numbers are resolved to names with a per-call cache.
+         */
+        private Map<Integer, java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> buildIndentQtyHistory(
+                        java.util.List<IndentDetail> details) {
+                Map<Integer, java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> byDetail =
+                                new java.util.HashMap<>();
+                java.util.List<Integer> detailIds = details.stream()
+                                .map(IndentDetail::getId)
+                                .filter(java.util.Objects::nonNull)
+                                .collect(Collectors.toList());
+                if (detailIds.isEmpty()) return byDetail;
+
+                Map<Integer, String> nameCache = new java.util.HashMap<>();
+                for (IndentDetailQtyAudit a : qtyAuditRepository.findByDetailIdInOrderByEditedAtAsc(detailIds)) {
+                        String editorName = nameCache.computeIfAbsent(a.getEditedBy(), empNo ->
+                                        employeeRepository.findById(empNo).map(Employee::getEmpName)
+                                                        .orElse("Emp #" + empNo));
+                        byDetail.computeIfAbsent(a.getDetailId(), k -> new java.util.ArrayList<>())
+                                        .add(new com.nslindia.procurezone.common.dto.QuantityEditDTO(
+                                                        a.getStage(), a.getOldQuantity(), a.getNewQuantity(),
+                                                        editorName, a.getEditedAt()));
+                }
+                return byDetail;
         }
 
         /**

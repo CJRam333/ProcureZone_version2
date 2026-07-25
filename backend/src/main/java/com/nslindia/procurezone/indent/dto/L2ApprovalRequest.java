@@ -5,7 +5,7 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 /**
  * DTO for L2 (Department Head) approval request with quantity adjustment.
@@ -25,7 +25,7 @@ public record L2ApprovalRequest(
     public record LineItemAdjustment(
             @NotNull(message = "Detail ID is required") Integer detailId,
 
-            @NotNull(message = "Department quantity is required") @Positive(message = "Department quantity must be positive") BigDecimal deptQuantity,
+            @NotNull(message = "Department quantity is required") @PositiveOrZero(message = "Department quantity cannot be negative") BigDecimal deptQuantity,
 
             String deptRemarks) {
     }
