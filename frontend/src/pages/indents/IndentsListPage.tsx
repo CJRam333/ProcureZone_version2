@@ -44,7 +44,7 @@ const DISPLAY_STATUS_FILTERS: Record<string, { approvedStatus?: number; finalSta
 
 const IndentsListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, user } = useAuth();
 
   const pageTitle = hasAnyRole(['ADMIN', 'SUPERADMIN', 'PROCUREMENT'])
     ? 'All Indents'
@@ -62,9 +62,15 @@ const IndentsListPage: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedStatusLabel, setSelectedStatusLabel] = useState('');
 
+  // Cache key includes the viewer's identity + roles so one user's (differently-scoped) result
+  // can NEVER be served to another identity under the same key. staleTime:0 + refetchOnMount
+  // force a fresh, correctly-scoped fetch on every mount/navigation instead of trusting a stale
+  // cache entry. (Contamination fix — 2026-07-26.)
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['indents', searchParams],
+    queryKey: ['indents', user?.employeeNumber, user?.roles, searchParams],
     queryFn: () => indentsApi.list(searchParams),
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: companiesData } = useQuery({

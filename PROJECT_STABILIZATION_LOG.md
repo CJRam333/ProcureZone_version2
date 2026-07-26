@@ -2345,3 +2345,81 @@ clicking opens an `OverlayTrigger`/`Popover` showing `Requested: {original}` the
 - New build hash: JS `assets/index-DELmqxcs.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
 
 ---
+
+## 2026-07-26 — Indent List Contamination Fix (DATA-EXPOSURE bug, now closed at source)
+
+**Severity: data exposure.** Under specific unresolved-identity conditions, a non-admin
+(USER/SUPERVISOR/DEPTHEAD/PLANTMANAGER) could receive the FULL unscoped indent list (~680 rows)
+instead of their scoped subset. Reported as intermittent: correctly scoped right after login, but
+all indents on reload/navigation, self-correcting on logout/login. Confirmed single backend instance
+(no load balancer / stale replica), so the trigger is an in-process unresolved-identity edge, not a
+mixed-build rollout. Fixed structurally so it is now impossible for a non-admin to receive unscoped
+data, regardless of the exact trigger.
+
+### Root cause (two layers)
+1. **Backend fail-OPEN (the leak source).** `IndentService.filterIndents()` scoped USER/SUPERVISOR/
+   DEPTHEAD only when `cu.employeeNumber() != null` and only when the principal was a `UserPrincipal`;
+   any other case (null employee number, non-`UserPrincipal`, or no authentication) **fell through to
+   the unscoped repository query returning ALL indents.** A silent fail-open.
+2. **Frontend cache with no identity + 5-min staleTime (the amplifier).** The indent list query key
+   was `['indents', searchParams]` — no user identity — with the global `staleTime: 5 * 60 * 1000`,
+   cleared only on logout. So any unscoped payload that landed under that key was served across
+   navigation for up to 5 minutes and self-healed on logout (`queryClient.clear()`).
+
+### PART 1 — Backend: fail CLOSED (`IndentService.filterIndents`)
+Restructured the visibility block. Behaviour for every valid role is unchanged
+(ADMIN/SUPERADMIN → unscoped; PROCUREMENT → approvedStatus=3, finalStatus=4; DEPTHEAD/PLANTMANAGER →
+own + 2 levels of reports; SUPERVISOR → own + direct subordinates; USER → own only). Only the edge
+cases changed:
+
+- **Before:** non-admin with null `employeeNumber`, a non-`UserPrincipal` principal, or no auth →
+  fell through to `indentRepository.filterIndents(...)` **unscoped** (all rows).
+- **After:**
+  - no authentication / principal is not a `UserPrincipal` → `return Page.empty(pageable)` +
+    `logger.error("filterIndents: no UserPrincipal in the security context ... returning EMPTY rather than unscoped data ...")`.
+  - authenticated non-admin whose `employeeNumber()` is null → `return Page.empty(pageable)` +
+    `logger.error("filterIndents: could not resolve an employee number for a non-admin principal (roles={}) ... returning EMPTY rather than unscoped data.")`.
+  - ADMIN/SUPERADMIN unchanged (explicit `isGlobal` branch → unscoped, intended).
+
+The two ERROR logs are deliberate: if the real trigger ever recurs in production it now appears
+immediately in app.log (with the roles/authentication context) instead of silently degrading into a
+data leak. This is how the true root trigger will be caught if it happens again.
+
+Callers re-verified (Rule 3): `IndentController` list endpoint and `IndentService.exportIndents`
+(bulk export) both route through `filterIndents`; both now also fail closed for an unresolved
+non-admin identity — export can no longer leak the full dataset either.
+
+### PART 2 — Frontend: identity-aware cache + always revalidate
+- `IndentsListPage.tsx`:
+  - **Before:** `queryKey: ['indents', searchParams]`, global `staleTime` 5 min.
+  - **After:** `queryKey: ['indents', user?.employeeNumber, user?.roles, searchParams]`, plus
+    `staleTime: 0` and `refetchOnMount: 'always'` on this query.
+- `IssueNotesListPage.tsx` — confirmed it had the SAME latent vulnerability (`['issue-notes', page, pageSize, filters]`, no identity, global 5-min stale). Same fix applied:
+  - **After:** `queryKey: ['issue-notes', user?.employeeNumber, user?.roles, page, pageSize, filters]`,
+    `staleTime: 0`, `refetchOnMount: 'always'`.
+- Identity in the key makes it impossible to serve one identity's result to another; `staleTime: 0` +
+  `refetchOnMount: 'always'` force a fresh, correctly-scoped fetch on every mount/navigation rather
+  than trusting a stale entry. Together with the backend fix, contamination is now impossible from
+  either layer.
+- **Clear-cache-on-login:** already satisfied — `AuthContext.login()` calls `clearAllSession()` as its
+  first step, and `clearAllSession()` runs `queryClient.clear()`. No change made (would have been a
+  redundant duplicate).
+
+### Files changed
+- `backend/src/main/java/com/nslindia/procurezone/indent/IndentService.java` — `filterIndents` fail-closed + ERROR logging
+- `frontend/src/pages/indents/IndentsListPage.tsx` — identity-aware key + staleTime:0 + refetchOnMount
+- `frontend/src/pages/issue-notes/IssueNotesListPage.tsx` — same
+- (`AuthContext.tsx` — no change; login already clears the query cache)
+
+### Build results
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in ~27s, 0 errors (pre-existing >500 kB chunk-size warning only)
+- New build hash: JS `assets/index-BwSFYK0f.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
+
+### Verification done (Rule 7 — not just "it compiled")
+Traced every branch of the rewritten `filterIndents`: valid roles produce identical repository calls
+to before (manual line-by-line comparison of the ADMIN/PROCUREMENT/DEPTHEAD/SUPERVISOR/USER paths);
+only the two edge cases now return `Page.empty` + ERROR log instead of the unscoped query. Not
+runtime-verified against a live DB (no DB access); the ERROR logging is in place precisely so a live
+recurrence is observable. Migration N/A (no schema change).

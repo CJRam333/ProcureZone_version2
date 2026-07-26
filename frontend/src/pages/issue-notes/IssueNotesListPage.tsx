@@ -43,7 +43,7 @@ function decodeStatusFilter(key: string): { approvedStatus?: number; storesBySta
 
 const IssueNotesListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { hasAnyRole } = useAuth();
+  const { hasAnyRole, user } = useAuth();
 
   const pageTitle = hasAnyRole(['ADMIN', 'SUPERADMIN', 'PROCUREMENT', 'ISSUECONFIRM'])
     ? 'All Issue Notes'
@@ -64,9 +64,11 @@ const IssueNotesListPage: React.FC = () => {
 
   const { approvedStatus, storesByStatus } = decodeStatusFilter(filters.statusKey);
 
-  // Fetch issue notes
+  // Fetch issue notes. Key includes the viewer's identity + roles so a differently-scoped result
+  // can never be served to another identity under the same key; staleTime:0 + refetchOnMount force
+  // a fresh, correctly-scoped fetch each mount/navigation. (Same contamination fix as indents.)
   const { data, isLoading, refetch, error } = useQuery({
-    queryKey: ['issue-notes', page, pageSize, filters],
+    queryKey: ['issue-notes', user?.employeeNumber, user?.roles, page, pageSize, filters],
     queryFn: () =>
       issueNotesApi.list({
         page,
@@ -75,6 +77,8 @@ const IssueNotesListPage: React.FC = () => {
         approvedStatus,
         storesByStatus,
       }),
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   // Safe date formatter
