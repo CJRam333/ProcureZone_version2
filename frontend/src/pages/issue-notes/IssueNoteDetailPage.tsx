@@ -14,7 +14,7 @@ import {
   Tabs,
   Spinner,
   OverlayTrigger,
-  Popover,
+  Tooltip,
 } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -27,7 +27,6 @@ import {
   FaPrint,
   FaFileAlt,
   FaBoxOpen,
-  FaHistory,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
@@ -302,52 +301,51 @@ const IssueNoteDetailPage: React.FC = () => {
                     <Table className="mb-0">
                       <thead className="bg-light">
                         <tr>
-                          <th>#</th>
-                          <th>Material Code</th>
-                          <th>Description</th>
-                          <th>Company</th>
-                          <th>UOM</th>
-                          <th className="text-end">Quantity</th>
+                          <th rowSpan={2}>#</th>
+                          <th rowSpan={2}>Material Code</th>
+                          <th rowSpan={2}>Description</th>
+                          <th rowSpan={2}>Company</th>
+                          <th rowSpan={2}>UOM</th>
+                          <th className="text-center" colSpan={2}>Quantity</th>
+                        </tr>
+                        <tr>
+                          <th className="text-end">Requested</th>
+                          <th className="text-end">RM</th>
                         </tr>
                       </thead>
                       <tbody>
                         {details.length === 0 ? (
                           <tr>
-                            <td colSpan={6} className="text-center text-muted py-4">No items found</td>
+                            <td colSpan={7} className="text-center text-muted py-4">No items found</td>
                           </tr>
                         ) : (
                           details.map((item, index) => {
                             const qty = Number(item.quantity ?? 0);
-                            // Read-only display uses the effective (possibly reduced) quantity.
+                            // RM read-only display = rmQty ?? original (RM starts from the request).
+                            const rmDisplay = Number(item.rmQuantity ?? qty);
+                            // Editable input seeds from the effective (possibly reduced) quantity.
                             const effectiveQty = Number(item.currentEffectiveQuantity ?? item.quantity ?? 0);
-                            // Convenience ceiling only (server enforces truthfully): RM caps at the original.
-                            const maxQty = qty;
                             const history = item.quantityHistory ?? [];
-                            const historyIcon = history.length > 0 ? (
-                              <OverlayTrigger
-                                trigger="click"
-                                rootClose
-                                placement="left"
-                                overlay={
-                                  <Popover id={`qty-history-${item.id}`}>
-                                    <Popover.Header as="h6">Quantity History</Popover.Header>
-                                    <Popover.Body>
-                                      <div>Requested: {qty}</div>
-                                      {history.map((h, hi) => (
-                                        <div key={hi}>
-                                          → {stageLabel(h.stage)}: {h.newQuantity}
-                                          {' '}(by {h.editedByName || 'Unknown'}, {formatDate(h.editedAt)})
-                                        </div>
-                                      ))}
-                                    </Popover.Body>
-                                  </Popover>
-                                }
-                              >
-                                <Button variant="link" size="sm" className="p-0 ms-1 align-baseline" title="Quantity edit history">
-                                  <FaHistory />
-                                </Button>
-                              </OverlayTrigger>
-                            ) : null;
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const norm = (s: any) => String(s ?? '').toUpperCase();
+                            const rmEdit = history.find((h) => norm(h.stage) === 'RM');
+                            // Inline tooltip on an already-adjusted, read-only RM value: editor + time.
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const withEdit = (value: number, edit: any) =>
+                              edit ? (
+                                <OverlayTrigger
+                                  overlay={
+                                    <Tooltip id={`qte-${item.id}-rm`}>
+                                      {stageLabel(edit.stage)}: {edit.newQuantity} — by {edit.editedByName || 'Unknown'},{' '}
+                                      {formatDate(edit.editedAt)}
+                                    </Tooltip>
+                                  }
+                                >
+                                  <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{value}</span>
+                                </OverlayTrigger>
+                              ) : (
+                                <span>{value}</span>
+                              );
                             return (
                               <tr key={item.id}>
                                 <td>{index + 1}</td>
@@ -355,28 +353,26 @@ const IssueNoteDetailPage: React.FC = () => {
                                 <td>{item.materialName || 'N/A'}</td>
                                 <td>{item.companies || '—'}</td>
                                 <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
+                                {/* Requested — the requester's original, always read-only */}
+                                <td className="text-end">{qty}</td>
+                                {/* RM — editable only on the RM approval turn; else rmQty ?? original */}
                                 <td className="text-end fw-medium">
                                   {canRmAct ? (
                                     <div className="d-flex flex-column align-items-end">
-                                      <div className="d-flex align-items-center justify-content-end">
-                                        <Form.Control
-                                          type="number"
-                                          size="sm"
-                                          min={0}
-                                          max={maxQty}
-                                          value={qtyEdits[item.id] ?? effectiveQty}
-                                          onChange={(e) =>
-                                            setQtyEdits((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
-                                          }
-                                          style={{ width: 90, textAlign: 'right' }}
-                                        />
-                                        {historyIcon}
-                                      </div>
-                                      <small className="text-muted">max: {maxQty}</small>
+                                      <Form.Control
+                                        type="number"
+                                        size="sm"
+                                        min={0}
+                                        max={qty}
+                                        value={qtyEdits[item.id] ?? effectiveQty}
+                                        onChange={(e) =>
+                                          setQtyEdits((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
+                                        }
+                                        style={{ width: 90, textAlign: 'right' }}
+                                      />
+                                      <small className="text-muted">max: {qty}</small>
                                     </div>
-                                  ) : (
-                                    <span>{effectiveQty}{historyIcon}</span>
-                                  )}
+                                  ) : withEdit(rmDisplay, rmEdit)}
                                 </td>
                               </tr>
                             );
@@ -388,6 +384,9 @@ const IssueNoteDetailPage: React.FC = () => {
                           <td colSpan={5} className="text-end fw-bold">Total Quantity:</td>
                           <td className="text-end fw-bold">
                             {details.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}
+                          </td>
+                          <td className="text-end fw-bold">
+                            {details.reduce((sum, item) => sum + (Number(item.currentEffectiveQuantity ?? item.quantity) || 0), 0)}
                           </td>
                         </tr>
                       </tfoot>

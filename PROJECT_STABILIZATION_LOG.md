@@ -2665,3 +2665,89 @@ by `hasSubordinates()` elsewhere (no dead code).
 **File changed:** `backend/.../identity/ReportingHierarchyService.java`.
 **Build:** `mvn compile` clean, `tsc -b` clean, `vite build` clean (backend-only; bundle unchanged
 `assets/index-xJFjXSwf.js`).
+
+## 2026-07-27 — DeptHead bypass (still not firing) + issue-note qty sub-columns + Dept-Head-column blank-until-acted
+
+### PART 1 — Root cause + fix: DeptHead bypass still not firing
+
+**Full trace (runtime path, per Rule 7):**
+- STEP 1 — the "Direct to Procurement" popup (`IndentFormPage.tsx:59`) fires on
+  `isDeptHead = hasAnyRole(['DEPTHEAD','PLANTMANAGER'])` — role only, **both** DEPTHEAD and PLANTMANAGER,
+  no other condition.
+- STEP 2 — `PlantSecurityService.isDeptHead(principal)` reads `principal.roles()` (JWT-derived, set at
+  login via RoleNormalizer) and matches `"DEPTHEAD"` only. Reads the JWT, not the DB — same source the
+  popup uses.
+- STEP 3/4 — `submitIndent()` runs on "Save & Submit" (frontend `doSaveAndSubmit` → create → `submit`
+  → `POST /indents/{id}/submit` → `submitIndent`). The popup is a **pure frontend confirmation**; it
+  sends nothing extra to the backend, so the backend must detect DeptHead status independently.
+  `submitIndent` reads the principal from `SecurityContextHolder` on the same request thread — the
+  principal IS present and correct.
+- STEP 6 — verified the executed path is `submitIndent` (not a create-with-immediate-submit variant);
+  Fix A was in the right method.
+
+**Root cause = signal mismatch between popup and backend (they were NOT reading the same signal):**
+the popup fires for `DEPTHEAD || PLANTMANAGER` unconditionally, but the backend bypass required
+`isDeptHead` (**DEPTHEAD only**) **AND `!hasSupervisor`**. So two classes of account see the popup but
+get no bypass → land at "Pending RM Approval":
+1. a **PLANTMANAGER** (not covered by the DEPTHEAD-only check), and
+2. a **DEPTHEAD who reports to someone** (`hasSupervisor == true`).
+Either matches the reported symptom exactly. (Fix A's code-level trace only held for a DEPTHEAD with
+no supervisor — the assumption that didn't match the live account.)
+
+**Fix (`IndentService.submitIndent`)** — make the backend read the SAME signal as the popup:
+- **Before:** `isDeptHead(DEPTHEAD only) && !hasSupervisor`
+- **After:** `principal.roles().contains("DEPTHEAD") || principal.roles().contains("PLANTMANAGER")`,
+  with the `!hasSupervisor` gate **removed** — identical to `hasAnyRole(['DEPTHEAD','PLANTMANAGER'])`.
+- **⚠ Flagged behaviour change (Rule 10):** removed the `!hasSupervisor` gate and added PLANTMANAGER.
+  This makes the backend honour the popup's unconditional promise. If the business actually wants a
+  DeptHead-with-a-supervisor to still route through their RM, the popup itself must become conditional
+  — flag for confirmation. As-is, popup and backend now agree.
+- The bypass already sets the full three-column state 3/4/4 (from the earlier fix) so the indent
+  routes to Procurement, and now also seeds `deptQuantity` (see Part 3).
+
+### PART 2 — Issue Note quantity sub-columns (`IssueNoteDetailPage.tsx`)
+
+Replaced the single "Quantity" column with a grouped **"Quantity"** header over two sub-columns
+(issue notes have ONE adjustment stage — RM — since the flow is User → RM → Stores, no Dept Head):
+- **Requested** = `item.quantity` (original) — always read-only.
+- **RM** = editable numeric input when `canRmAct` (the existing RM-turn gate), else read-only
+  `rmQuantity ?? original` with an **inline tooltip** (editor + timestamp) when an RM adjustment exists.
+Footer now totals Requested and RM (effective). The Pass-3 click-popover history icon was replaced by
+the per-column inline tooltip (matching the indent pattern); `Popover`/`FaHistory` imports dropped,
+`Tooltip` added. **Submission path unchanged** — the input still binds the same `qtyEdits` state, and
+`rmApproveMutation` still sends `items:[{detailId, rmQuantity}]` exactly as built in Pass 3.
+
+### PART 3 — Dept Head quantity column now blank until a Dept Head acts
+
+- STEP 1/2 — the backend mapper was already correct: `IndentDetailResponse.deptQuantity` = raw
+  `detail.getDeptQuantity()` (null until an L2 action writes it); `currentEffectiveQuantity` carries the
+  `dept ?? rm ?? original` fallback separately. So the bug was **frontend**: the "Dept Head" column
+  rendered `deptDisplay = deptQuantity ?? rmQuantity ?? qty` — the same fallback used for effective qty
+  — so it showed the RM value before the Dept Head had acted.
+- STEP 3 — Fix (`IndentDetailPage.tsx`): the Dept Head column now renders **only `item.deptQuantity`**
+  (blank "—" when null); the `deptQuantity ?? rmQuantity ?? qty` fallback is kept solely for the
+  effective-quantity input seed, not for this column. RM column keeps `rmQuantity ?? original` (the RM
+  starts from the request — unchanged, per spec).
+- Backend consistency: the DeptHead/PlantManager submit bypass now also writes `deptQuantity`
+  (= rmQuantity) since it IS an auto L2 approval, so a bypassed indent correctly shows a Dept Head
+  value. **Confirmed:** an indent not yet acted on by a Dept Head shows the Dept Head column BLANK;
+  once a Dept Head approves (adjusting or not) — or the bypass fires — it shows their value.
+
+### Files changed
+- `backend/.../indent/IndentService.java` — Part 1 bypass detection + Part 3 deptQuantity seeding
+- `frontend/src/pages/indents/IndentDetailPage.tsx` — Part 3 Dept Head column blank-until-acted
+- `frontend/src/pages/issue-notes/IssueNoteDetailPage.tsx` — Part 2 Requested/RM sub-columns
+
+### Build results
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — clean, 0 errors (pre-existing >500 kB chunk warning only)
+- New build hash: JS `assets/index-CbbcZYnm.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
+
+### Verification (Rule 7) + data check still owed
+- Traced Part 1 end-to-end (above). Part 1's live confirmation still needs the STEP-5 DB check the
+  owner runs — but the fix now covers BOTH failure modes (PLANTMANAGER role + DEPTHEAD-with-supervisor)
+  regardless of which the specific account hits.
+- Part 3 traced: not-acted → deptQuantity null → column blank; l2Approve (adjust or not) writes
+  deptQuantity → column shows it; bypass seeds deptQuantity → shows it.
+- Not runtime-verified against a live DB (no DB access).

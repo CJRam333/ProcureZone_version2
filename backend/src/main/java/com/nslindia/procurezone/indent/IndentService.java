@@ -742,28 +742,40 @@ public class IndentService {
                 indent.setLastModifiedDate(LocalDateTime.now());
                 indent.setLastModifiedBy(currentUser.getEmpNumber());
 
-                // DEPTHEAD AUTO-APPROVAL: if the submitter is a DEPTHEAD with no supervisor of their
-                // own, skip BOTH the RM (L1) and Dept-Head (L2) stages and route the indent straight
-                // to Procurement. A DEPTHEAD who still reports to someone goes through their RM.
-                // Detection uses the normalized principal role (isDeptHead — the same method used
-                // everywhere else), NOT a raw role-code string that can drift from JWT normalization.
+                // DEPT-LEVEL AUTO-APPROVAL: mirror the frontend "Direct to Procurement" confirmation
+                // popup EXACTLY. That popup fires for hasAnyRole(['DEPTHEAD','PLANTMANAGER']) with no
+                // other condition, so the backend must bypass RM (L1) + Dept-Head (L2) and route
+                // straight to Procurement for the SAME roles and with NO extra gate — reading the same
+                // normalized principal roles the popup reads (from the JWT), so the two can't drift.
+                //
+                // ROOT CAUSE this replaces: the previous check was `isDeptHead(DEPTHEAD only) &&
+                // !hasSupervisor`. A PLANTMANAGER (not covered) — or a DEPTHEAD who reports to someone
+                // (hasSupervisor=true) — saw the popup but the bypass silently no-opped, leaving the
+                // indent at "Pending RM Approval". Aligning to the popup fixes both cases.
                 var bypassAuth = org.springframework.security.core.context.SecurityContextHolder
                         .getContext().getAuthentication();
-                boolean isDeptHead = bypassAuth != null
+                boolean isDeptLevelRaiser = bypassAuth != null
                         && bypassAuth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal bp
-                        && plantSecurityService.isDeptHead(bp);
-                boolean hasSupervisor = employeeReportingRepository.hasSupervisor(currentUser.getEmpNumber());
-                if (isDeptHead && !hasSupervisor) {
-                        logger.info("DEPTHEAD auto-approval: user {} is a DEPTHEAD with no supervisor — "
+                        && bp.roles() != null
+                        && (bp.roles().contains("DEPTHEAD") || bp.roles().contains("PLANTMANAGER"));
+                if (isDeptLevelRaiser) {
+                        logger.info("Dept-level auto-approval: user {} is DEPTHEAD/PLANTMANAGER — "
                                         + "bypassing L1+L2, routing indent to Procurement", username);
 
-                        // Copy original quantities to rmQuantity (as if RM approved without changes)
+                        // Auto-approve at BOTH L1 and L2 without changes: copy the requested quantity
+                        // into rmQuantity AND deptQuantity so the line reflects a completed Dept-Head
+                        // approval (the Dept Head column then shows a value, consistent with a manual
+                        // l2Approve; deptQuantity stays null only when a Dept Head has NOT yet acted).
                         for (IndentDetail detail : indent.getDetails()) {
                                 if (detail.getRmQuantity() == null) {
                                         detail.setRmQuantity(detail.getQuantity());
-                                        detail.setLastModifiedDate(LocalDateTime.now());
-                                        detail.setLastModifiedBy(currentUser.getEmpNumber());
                                 }
+                                if (detail.getDeptQuantity() == null) {
+                                        detail.setDeptQuantity(detail.getRmQuantity() != null
+                                                        ? detail.getRmQuantity() : detail.getQuantity());
+                                }
+                                detail.setLastModifiedDate(LocalDateTime.now());
+                                detail.setLastModifiedBy(currentUser.getEmpNumber());
                         }
 
                         // Full three-column state: RM approved (approved=3) + Dept-Head approved
@@ -778,20 +790,20 @@ public class IndentService {
                         indent.setFinalApprovedDate(LocalDateTime.now());
                         indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 4));
                         indent.setProcurementStatus(entityManager.getReference(IndentStatus.class, 4));
-                        indent.setRemarks("L1+L2 auto-approved (submitter is DEPTHEAD) — routed to Procurement");
+                        indent.setRemarks("L1+L2 auto-approved (submitter is DEPTHEAD/PLANTMANAGER) — routed to Procurement");
                 }
 
                 indent = indentRepository.save(indent);
 
                 // Record workflow action
-                boolean autoApproved = isDeptHead && !hasSupervisor;
-                String action = autoApproved ? "SUBMITTED_AUTO_L1" : "SUBMITTED";
+                boolean autoApproved = isDeptLevelRaiser;
+                String action = autoApproved ? "SUBMITTED_AUTO_L1_L2" : "SUBMITTED";
                 recordWorkflowAction(indent, currentUser, action,
-                                autoApproved ? "L1 auto-approved for DEPTHEAD without supervisor" : null, 0);
+                                autoApproved ? "L1+L2 auto-approved for DEPTHEAD/PLANTMANAGER — routed to Procurement" : null, 0);
 
                 // Audit log
                 String auditMessage = autoApproved
-                                ? String.format("Submitted indent %s for approval (L1 auto-approved - DEPTHEAD without supervisor)",
+                                ? String.format("Submitted indent %s for approval (L1+L2 auto-approved - DEPTHEAD/PLANTMANAGER, routed to Procurement)",
                                                 indent.getIndentNumber())
                                 : String.format("Submitted indent %s for approval", indent.getIndentNumber());
                 auditService.logEntityChange(
@@ -803,7 +815,7 @@ public class IndentService {
                                 auditMessage);
 
                 logger.info("Submitted indent {} for approval{}", indent.getIndentNumber(),
-                                isDeptHead ? " (L1 auto-approved)" : "");
+                                autoApproved ? " (L1+L2 auto-approved → Procurement)" : "");
 
                 return toIndentResponse(indent);
         }

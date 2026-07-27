@@ -505,10 +505,12 @@ const IndentDetailPage: React.FC = () => {
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           details.map((item: any, index: number) => {
                             const qty = Number(item.quantity ?? item.requestedQuantity ?? 0);
-                            // Read-only display values per stage: RM = rmQty ?? original;
-                            // Dept Head = deptQty ?? rmQty ?? original.
+                            // RM read-only display = rmQty ?? original (RM starts from the request).
+                            // The Dept Head column intentionally has NO fallback: it stays BLANK until a
+                            // Dept Head actually acts (deptQuantity is written), so it never inherits the
+                            // RM value and imply an approval that hasn't happened. currentEffectiveQuantity
+                            // (below) keeps the dept ?? rm ?? original fallback for EFFECTIVE-qty use.
                             const rmDisplay = Number(item.rmQuantity ?? qty);
-                            const deptDisplay = Number(item.deptQuantity ?? item.rmQuantity ?? qty);
                             // The single editable input is seeded from the effective (possibly reduced)
                             // quantity and routed to whichever sub-column is this user's turn to edit.
                             const effectiveQty = Number(item.currentEffectiveQuantity ?? item.quantity ?? item.requestedQuantity ?? 0);
@@ -565,9 +567,14 @@ const IndentDetailPage: React.FC = () => {
                                 <td className="text-end">
                                   {isL1Turn ? qtyInput(qty) : withEdit(rmDisplay, rmEdit)}
                                 </td>
-                                {/* Dept Head — editable only on the L2 (Dept Head) turn */}
+                                {/* Dept Head — editable only on the L2 turn; otherwise BLANK until a
+                                    Dept Head has actually acted (deptQuantity set), never the RM value */}
                                 <td className="text-end">
-                                  {isL2Turn ? qtyInput(Number(item.rmQuantity ?? qty)) : withEdit(deptDisplay, deptEdit)}
+                                  {isL2Turn
+                                    ? qtyInput(Number(item.rmQuantity ?? qty))
+                                    : (item.deptQuantity != null
+                                        ? withEdit(Number(item.deptQuantity), deptEdit)
+                                        : <span className="text-muted">—</span>)}
                                 </td>
                                 <td>{item.purpose || item.remarks || '-'}</td>
                               </tr>
