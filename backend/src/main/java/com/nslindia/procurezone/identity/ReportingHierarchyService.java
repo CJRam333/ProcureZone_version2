@@ -70,14 +70,19 @@ public class ReportingHierarchyService {
         logger.debug("Checking if emp {} can approve for emp {}", approverEmpNumber, employeeEmpNumber);
 
         // Self-approval: an approver acting on THEIR OWN indent (employee == approver) may approve it
-        // at L1 only if they are themselves an RM (have direct reports) — i.e. they ARE the approval
-        // authority for their own requests (the Supervisor/Dept-Head-is-RM case). A regular employee
-        // with no reports still routes to their supervisor. The equality guard means this branch can
-        // NEVER authorise approving someone else's indent.
+        // at L1 only if they hold the SUPERVISOR role (they ARE the RM level) — regardless of how many
+        // subordinates are currently assigned. Role membership is read from the normalized principal
+        // (same pattern as the DEPTHEAD check in FIX A), NOT from a derived signal like subordinate
+        // count. The equality guard means this branch can NEVER authorise approving someone else's
+        // indent (approverEmpNumber is always the current authenticated user in every caller).
         if (employeeEmpNumber != null && employeeEmpNumber.equals(approverEmpNumber)) {
-            boolean isRm = hierarchyRepository.countSubordinates(approverEmpNumber) > 0;
-            logger.debug("Self-approval for emp {}: isRm(hasSubordinates)={}", approverEmpNumber, isRm);
-            return isRm;
+            var auth = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
+            boolean isSupervisor = auth != null
+                    && auth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal cu
+                    && cu.roles() != null && cu.roles().contains("SUPERVISOR");
+            logger.debug("Self-approval for emp {}: isSupervisor(role)={}", approverEmpNumber, isSupervisor);
+            return isSupervisor;
         }
 
         // Check direct reporting relationship

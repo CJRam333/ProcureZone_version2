@@ -2622,3 +2622,46 @@ if (employeeEmpNumber != null && employeeEmpNumber.equals(approverEmpNumber)) {
 - `tsc -b` — clean, 0 errors
 - `vite build` — clean, 0 errors (backend-only change; frontend bundle unchanged: `assets/index-xJFjXSwf.js`)
 - Not runtime-verified against a live DB (no DB access); traces above are code-level. Migration N/A.
+
+## 2026-07-27 — B2 refinement: self-approval keyed on SUPERVISOR role, not subordinate count
+
+Business decision: any SUPERVISOR may self-approve their own raised indent regardless of whether they
+currently have subordinates assigned. `ReportingHierarchyService.canApproveFor()` self-branch:
+
+- **Before:** `return hierarchyRepository.countSubordinates(approverEmpNumber) > 0;` (a derived signal —
+  a SUPERVISOR with zero assigned subordinates would be wrongly denied).
+- **After:** reads the normalized principal role (same pattern as FIX A's `isDeptHead`) —
+  ```java
+  var auth = SecurityContextHolder.getContext().getAuthentication();
+  boolean isSupervisor = auth != null
+      && auth.getPrincipal() instanceof UserPrincipal cu
+      && cu.roles() != null && cu.roles().contains("SUPERVISOR");
+  return isSupervisor;
+  ```
+
+**Principal/role context:** obtained via `SecurityContextHolder.getContext().getAuthentication()` inside
+the method (the class had no principal access before — added here, mirroring FIX A in IndentService).
+This is valid because in every caller (`IndentService.l1Approve`, `approveIndent`) `approverEmpNumber`
+is the current authenticated user, so the SecurityContext principal IS the approver. If there is no
+principal (e.g. a non-web context), it fails closed (returns false).
+
+**Verification traces:**
+- A) SUPERVISOR with ZERO subordinates self-approves → `canApproveFor(self,self)` → self-branch →
+  `roles().contains("SUPERVISOR")`=true → allowed (previously failed under the count check). ✓
+- B) SUPERVISOR WITH subordinates self-approves → same branch, role present → allowed (unchanged). ✓
+- C) Plain USER never reaches `canApproveFor(self,self)`: the indent detail page gates the Approve
+  button on `canApprove = awaitingL1 && hasAnyRole(['SUPERADMIN','ADMIN','SUPERVISOR'])` (or L2 roles),
+  so a USER has no Approve button → never calls `l1Approve` → never hits this branch; their indent
+  routes to their real RM. Defense-in-depth: even a direct API call would return false (USER lacks the
+  SUPERVISOR role). ✓
+- D) SUPERVISOR approving a SUBORDINATE's indent (employee ≠ approver) → self-branch skipped entirely →
+  existing `isSubordinateOf` / `findReportingChain` path → unchanged. ✓
+
+Note (flag, not changed): the branch checks SUPERVISOR only, per the business decision. An ADMIN/
+SUPERADMIN who lacks the SUPERVISOR role self-approving their own indent would return false here; not
+in scope — raise separately if global roles should also self-approve. `countSubordinates` remains used
+by `hasSubordinates()` elsewhere (no dead code).
+
+**File changed:** `backend/.../identity/ReportingHierarchyService.java`.
+**Build:** `mvn compile` clean, `tsc -b` clean, `vite build` clean (backend-only; bundle unchanged
+`assets/index-xJFjXSwf.js`).
