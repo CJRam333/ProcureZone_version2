@@ -242,11 +242,6 @@ const IssueNoteDetailPage: React.FC = () => {
 
             <div className="vr d-none d-sm-block" />
             <div>
-              <small className="text-muted d-block">Plant</small>
-              <strong>{issueNote.plantName || '—'}</strong>
-            </div>
-            <div className="vr d-none d-sm-block" />
-            <div>
               <small className="text-muted d-block">Total Items</small>
               <strong className="text-primary fs-5">{details.length}</strong>
             </div>

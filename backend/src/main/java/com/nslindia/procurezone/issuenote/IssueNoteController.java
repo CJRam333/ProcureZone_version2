@@ -140,7 +140,10 @@ public class IssueNoteController {
          * Changes status from 1 (Created) to 2 (Pending Approval)
          */
         @PostMapping("/{id}/submit")
-        @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPERADMIN', 'SUPERVISOR')")
+        // DEPTHEAD is allowed to CREATE issue notes, so it must also be allowed to SUBMIT them
+        // (symptom 6: create succeeded then submit threw AccessDenied). Kept aligned with the
+        // create endpoint's role set (USER/SUPERVISOR/DEPTHEAD/ADMIN/SUPERADMIN).
+        @PreAuthorize("hasAnyRole('USER', 'SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
         public ResponseEntity<Map<String, Object>> submitForApproval(
                         @PathVariable Integer id,
                         Authentication authentication) {

@@ -227,7 +227,6 @@ const IssueNoteFormPage: React.FC = () => {
         materialId: item.materialId,
         unitOfMeasureId: item.unitOfMeasureId,
         quantity: item.quantity,
-        purpose: item.purpose,
         quantityStores: stockByIndex[index] ?? undefined,
       })),
     };
@@ -358,7 +357,6 @@ const IssueNoteFormPage: React.FC = () => {
                     <th style={{ minWidth: '300px' }}>Material</th>
                     <th style={{ width: '120px' }}>UOM</th>
                     <th style={{ width: '120px' }}>Quantity</th>
-                    <th style={{ width: '150px' }}>Purpose</th>
                     <th style={{ width: '60px' }}></th>
                   </tr>
                 </thead>
@@ -519,13 +517,6 @@ const IssueNoteFormPage: React.FC = () => {
                             Exceeds available stock ({stockByIndex[index]})
                           </div>
                         )}
-                      </td>
-                      <td>
-                        <Form.Control
-                          type="text"
-                          {...register(`lineItems.${index}.purpose`)}
-                          placeholder="Purpose"
-                        />
                       </td>
                       <td className="align-middle text-center">
                         {fields.length > 1 && (

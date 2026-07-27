@@ -148,8 +148,10 @@ const router = createBrowserRouter([
           },
           {
             path: 'new',
+            // DEPTHEAD can view the indent list and must also be able to create (was missing —
+            // symptom 4). PROCUREMENT is intentionally excluded: procurement never creates indents.
             element: (
-              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'SUPERVISOR']}>
+              <ProtectedRoute roles={['SUPERADMIN', 'ADMIN', 'USER', 'SUPERVISOR', 'DEPTHEAD']}>
                 <IndentFormPage />
               </ProtectedRoute>
             ),

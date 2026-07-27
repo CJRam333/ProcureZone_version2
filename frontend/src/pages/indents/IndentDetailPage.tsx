@@ -14,7 +14,7 @@ import {
   Tabs,
   Spinner,
   OverlayTrigger,
-  Popover,
+  Tooltip,
 } from 'react-bootstrap';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, isValid, parseISO } from 'date-fns';
@@ -26,7 +26,6 @@ import {
   FaTimes,
   FaPrint,
   FaFileAlt,
-  FaHistory,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { indentsApi, getErrorMessage } from '../../api';
@@ -288,7 +287,6 @@ const IndentDetailPage: React.FC = () => {
   // AND the indent sits at that exact stage: L1 edits rmQuantity, L2 edits deptQuantity.
   const isL1Turn = canApprove && awaitingL1;
   const isL2Turn = canApprove && awaitingL2;
-  const isQtyEditable = isL1Turn || isL2Turn;
 
   const isProcurementStage = finalStatusId === 4 && procurementStatusIdVal >= 4 && procurementStatusIdVal <= 9;
   // PO Released (7) and Cash Buy (9) are terminal — the procurement workflow is complete.
@@ -482,21 +480,24 @@ const IndentDetailPage: React.FC = () => {
                     <Table className="mb-0">
                       <thead className="bg-light">
                         <tr>
-                          <th>#</th>
-                          <th>Material Code</th>
-                          <th>Description</th>
-                          <th>Company</th>
-                          <th>UOM</th>
-                          <th className="text-end">Qty</th>
-                          {/* <th className="text-end">Est. Rate (₹)</th> */}
-                          <th className="text-end">Est. Value (₹)</th>
-                          <th>Remarks</th>
+                          <th rowSpan={2}>#</th>
+                          <th rowSpan={2}>Material Code</th>
+                          <th rowSpan={2}>Description</th>
+                          <th rowSpan={2}>Company</th>
+                          <th rowSpan={2}>UOM</th>
+                          <th className="text-center" colSpan={3}>Quantity</th>
+                          <th rowSpan={2}>Remarks</th>
+                        </tr>
+                        <tr>
+                          <th className="text-end">Requested</th>
+                          <th className="text-end">RM</th>
+                          <th className="text-end">Dept Head</th>
                         </tr>
                       </thead>
                       <tbody>
                         {details.length === 0 ? (
                           <tr>
-                            <td colSpan={8} className="text-center text-muted py-4">
+                            <td colSpan={9} className="text-center text-muted py-4">
                               No items found
                             </td>
                           </tr>
@@ -504,41 +505,53 @@ const IndentDetailPage: React.FC = () => {
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           details.map((item: any, index: number) => {
                             const qty = Number(item.quantity ?? item.requestedQuantity ?? 0);
-                            const rate = Number(item.pricing ?? item.estimatedRate ?? 0);
-                            // Read-only display uses the effective (possibly reduced) quantity.
+                            // Read-only display values per stage: RM = rmQty ?? original;
+                            // Dept Head = deptQty ?? rmQty ?? original.
+                            const rmDisplay = Number(item.rmQuantity ?? qty);
+                            const deptDisplay = Number(item.deptQuantity ?? item.rmQuantity ?? qty);
+                            // The single editable input is seeded from the effective (possibly reduced)
+                            // quantity and routed to whichever sub-column is this user's turn to edit.
                             const effectiveQty = Number(item.currentEffectiveQuantity ?? item.quantity ?? item.requestedQuantity ?? 0);
-                            // Convenience ceiling only (server enforces truthfully): L1 caps at the
-                            // requester original; L2 caps at the RM-approved quantity.
-                            const maxQty = isL1Turn
-                              ? qty
-                              : Number(item.rmQuantity ?? item.quantity ?? item.requestedQuantity ?? 0);
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             const history: any[] = item.quantityHistory ?? [];
-                            const historyIcon = history.length > 0 ? (
-                              <OverlayTrigger
-                                trigger="click"
-                                rootClose
-                                placement="left"
-                                overlay={
-                                  <Popover id={`qty-history-${item.id}`}>
-                                    <Popover.Header as="h6">Quantity History</Popover.Header>
-                                    <Popover.Body>
-                                      <div>Requested: {qty}</div>
-                                      {history.map((h, hi) => (
-                                        <div key={hi}>
-                                          → {stageLabel(h.stage)}: {h.newQuantity}
-                                          {' '}(by {h.editedByName || 'Unknown'}, {formatDate(h.editedAt, 'dd MMM yyyy HH:mm')})
-                                        </div>
-                                      ))}
-                                    </Popover.Body>
-                                  </Popover>
-                                }
-                              >
-                                <Button variant="link" size="sm" className="p-0 ms-1 align-baseline" title="Quantity edit history">
-                                  <FaHistory />
-                                </Button>
-                              </OverlayTrigger>
-                            ) : null;
+                            const norm = (s: any) => String(s ?? '').toUpperCase();
+                            const rmEdit = history.find((h) => norm(h.stage) === 'RM');
+                            const deptEdit = history.find((h) => norm(h.stage) === 'DEPTHEAD' || norm(h.stage) === 'DEPT_HEAD');
+                            // Inline tooltip on an already-adjusted, read-only value: editor + timestamp
+                            // (same audit data Pass 3 returns; just shown inline instead of a popover).
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const withEdit = (value: number, edit: any) =>
+                              edit ? (
+                                <OverlayTrigger
+                                  overlay={
+                                    <Tooltip id={`qte-${item.id}-${norm(edit.stage)}`}>
+                                      {stageLabel(edit.stage)}: {edit.newQuantity} — by {edit.editedByName || 'Unknown'},{' '}
+                                      {formatDate(edit.editedAt, 'dd MMM yyyy HH:mm')}
+                                    </Tooltip>
+                                  }
+                                >
+                                  <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{value}</span>
+                                </OverlayTrigger>
+                              ) : (
+                                <span>{value}</span>
+                              );
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const qtyInput = (max: number) => (
+                              <div className="d-flex flex-column align-items-end">
+                                <Form.Control
+                                  type="number"
+                                  size="sm"
+                                  min={0}
+                                  max={max}
+                                  value={qtyEdits[item.id] ?? effectiveQty}
+                                  onChange={(e) =>
+                                    setQtyEdits((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
+                                  }
+                                  style={{ width: 90, textAlign: 'right' }}
+                                />
+                                <small className="text-muted">max: {max}</small>
+                              </div>
+                            );
                             return (
                               <tr key={item.id || index}>
                                 <td>{index + 1}</td>
@@ -546,32 +559,15 @@ const IndentDetailPage: React.FC = () => {
                                 <td>{item.materialName || item.materialDescription || 'N/A'}</td>
                                 <td>{item.companies || '—'}</td>
                                 <td><Badge bg="secondary">{item.unitOfMeasureCode || item.uomCode || 'N/A'}</Badge></td>
+                                {/* Requested — the requester's original, always read-only */}
+                                <td className="text-end">{qty}</td>
+                                {/* RM — editable only on the L1 (RM/Supervisor) turn */}
                                 <td className="text-end">
-                                  {isQtyEditable ? (
-                                    <div className="d-flex flex-column align-items-end">
-                                      <div className="d-flex align-items-center justify-content-end">
-                                        <Form.Control
-                                          type="number"
-                                          size="sm"
-                                          min={0}
-                                          max={maxQty}
-                                          value={qtyEdits[item.id] ?? effectiveQty}
-                                          onChange={(e) =>
-                                            setQtyEdits((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
-                                          }
-                                          style={{ width: 90, textAlign: 'right' }}
-                                        />
-                                        {historyIcon}
-                                      </div>
-                                      <small className="text-muted">max: {maxQty}</small>
-                                    </div>
-                                  ) : (
-                                    <span>{effectiveQty}{historyIcon}</span>
-                                  )}
+                                  {isL1Turn ? qtyInput(qty) : withEdit(rmDisplay, rmEdit)}
                                 </td>
-                                {/* <td className="text-end">{new Intl.NumberFormat('en-IN').format(rate)}</td> */}
-                                <td className="text-end fw-medium">
-                                  {new Intl.NumberFormat('en-IN').format(qty * rate)}
+                                {/* Dept Head — editable only on the L2 (Dept Head) turn */}
+                                <td className="text-end">
+                                  {isL2Turn ? qtyInput(Number(item.rmQuantity ?? qty)) : withEdit(deptDisplay, deptEdit)}
                                 </td>
                                 <td>{item.purpose || item.remarks || '-'}</td>
                               </tr>

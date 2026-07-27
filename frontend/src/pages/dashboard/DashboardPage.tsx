@@ -31,6 +31,13 @@ const DashboardPage: React.FC = () => {
     'SUPERVISOR', 'DEPTHEAD', 'PLANTMANAGER', 'PROCUREMENT', 'ISSUECONFIRM', 'ADMIN', 'SUPERADMIN',
   ]);
 
+  // Quick Actions visibility, derived per-role. DEPTHEAD was previously missing from both (symptom
+  // 5). The Quick Actions card renders only if at least one action is available — a role with no
+  // actions (e.g. PROCUREMENT, which creates neither indents nor issue notes) sees no card at all.
+  const canCreateIndent = hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'SUPERVISOR', 'DEPTHEAD']);
+  const canCreateIssueNote = hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'ISSUECONFIRM', 'SUPERVISOR', 'DEPTHEAD']);
+  const hasAnyQuickAction = canCreateIndent || canCreateIssueNote;
+
   const { data: activity, isLoading } = useQuery({
     queryKey: ['dashboard', 'latest-activity'],
     queryFn: () => dashboardApi.getLatestActivity(15),
@@ -64,26 +71,28 @@ const DashboardPage: React.FC = () => {
         </Card.Body>
       </Card>
 
-      {/* 2 — Quick Actions */}
-      <Card className="mb-4 border-0 shadow-sm">
-        <Card.Header className="bg-transparent border-0">
-          <h5 className="mb-0">Quick Actions</h5>
-        </Card.Header>
-        <Card.Body>
-          <div className="d-flex flex-wrap gap-2">
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'SUPERVISOR']) && (
-              <Link to="/indents/new" className="btn btn-primary">
-                <FaFileAlt className="me-2" /> Create Indent
-              </Link>
-            )}
-            {hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']) && (
-              <Link to="/issue-notes/new" className="btn btn-secondary">
-                <FaClipboardList className="me-2" /> Create Issue Note
-              </Link>
-            )}
-          </div>
-        </Card.Body>
-      </Card>
+      {/* 2 — Quick Actions (only rendered when the role has at least one action) */}
+      {hasAnyQuickAction && (
+        <Card className="mb-4 border-0 shadow-sm">
+          <Card.Header className="bg-transparent border-0">
+            <h5 className="mb-0">Quick Actions</h5>
+          </Card.Header>
+          <Card.Body>
+            <div className="d-flex flex-wrap gap-2">
+              {canCreateIndent && (
+                <Link to="/indents/new" className="btn btn-primary">
+                  <FaFileAlt className="me-2" /> Create Indent
+                </Link>
+              )}
+              {canCreateIssueNote && (
+                <Link to="/issue-notes/new" className="btn btn-secondary">
+                  <FaClipboardList className="me-2" /> Create Issue Note
+                </Link>
+              )}
+            </div>
+          </Card.Body>
+        </Card>
+      )}
 
       {/* 3 — Latest Activity */}
       <Card className="mb-4 border-0 shadow-sm">

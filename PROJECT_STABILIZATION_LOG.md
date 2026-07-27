@@ -2423,3 +2423,106 @@ to before (manual line-by-line comparison of the ADMIN/PROCUREMENT/DEPTHEAD/SUPE
 only the two edge cases now return `Page.empty` + ERROR log instead of the unscoped query. Not
 runtime-verified against a live DB (no DB access); the ERROR logging is in place precisely so a live
 recurrence is observable. Migration N/A (no schema change).
+
+## 2026-07-27 — Root Cause A + B fixes + 6 UI/data fixes
+
+Six independent fixes in one commit (scoped per Rule 4, reported separately). Follows the earlier
+investigations that traced these to pre-Pass-3 commits.
+
+### PART 1 — DEPTHEAD denied "New Indent" (symptom 4)
+- `frontend/src/routes/router.tsx` `/indents/new` guard:
+  - **Before:** `['SUPERADMIN','ADMIN','USER','SUPERVISOR']`
+  - **After:** `['SUPERADMIN','ADMIN','USER','SUPERVISOR','DEPTHEAD']`
+  - PROCUREMENT intentionally NOT added (business rule: procurement never creates indents).
+- **Broader list↔new guard audit (Rule 3):**
+  - Indent: list `[SA,A,USER,DEPTHEAD,PROCUREMENT,SUPERVISOR]` vs new (now) `[SA,A,USER,SUPERVISOR,DEPTHEAD]`. Only role that can view-but-not-create = **PROCUREMENT** — intentional. Fixed: DEPTHEAD.
+  - Issue Note: list `[SA,A,USER,ISSUECONFIRM,DEPTHEAD,SUPERVISOR,PROCUREMENT]` vs new `[SA,A,USER,SUPERVISOR,DEPTHEAD]` (already had DEPTHEAD). View-but-not-create = ISSUECONFIRM, PROCUREMENT — intentional downstream roles. No change needed.
+  - No other gap found.
+
+### PART 2 — DEPTHEAD denied submitting an issue note (symptom 6)
+- `backend/.../issuenote/IssueNoteController.java` `/{id}/submit`:
+  - **Before:** `@PreAuthorize("hasAnyRole('USER','ADMIN','SUPERADMIN','SUPERVISOR')")`
+  - **After:** `@PreAuthorize("hasAnyRole('USER','SUPERVISOR','DEPTHEAD','ADMIN','SUPERADMIN')")` — aligned with the create endpoint (DEPTHEAD could create a draft but then AccessDenied on submit).
+- **Broader create↔submit audit (Rule 3):** indent `POST /indents` = `isAuthenticated()` and `/{id}/submit` = `isAuthenticated()` — no narrowing gap for indents (any authenticated creator can submit). No change needed. Issue-note create already includes DEPTHEAD; only submit was the gap.
+
+### PART 3 — Dashboard Quick Actions: add DEPTHEAD, hide card when no actions (symptom 5)
+- `frontend/src/pages/dashboard/DashboardPage.tsx`:
+  - Added `DEPTHEAD` to both button gates.
+    - Create Indent: before `[SA,A,PLANTMANAGER,USER,SUPERVISOR]` → after `[...,'DEPTHEAD']` (derived flag `canCreateIndent`).
+    - Create Issue Note: before `[SA,A,PLANTMANAGER,USER,ISSUECONFIRM,SUPERVISOR]` → after `[...,'DEPTHEAD']` (`canCreateIssueNote`).
+  - Card render: **Before** the `<Card>` was always rendered (ungated). **After** it renders only when
+    `hasAnyQuickAction = canCreateIndent || canCreateIssueNote`. Derived generically (no hardcoded
+    "hide for PROCUREMENT"). Confirmed: **PROCUREMENT resolves both flags false → no Quick Actions card at all.**
+
+### PART 4 — Indent detail: remove Est. Value, restructure Quantity into sub-columns
+- `frontend/src/pages/indents/IndentDetailPage.tsx` items table:
+  - Removed the **"Est. Value (₹)"** column (header + per-row cell). It was frontend display only.
+    Confirmed no calculation breaks: the page's `totalValue` reduce is computed independently from
+    `item.pricing` and is not rendered (pre-existing dead calc); no visible total-value summary
+    depends on the removed column.
+  - Replaced the single **"Qty"** column (with its Pass-3 click-popover history icon) with a grouped
+    header **"Quantity"** over three sub-columns: **Requested | RM | Dept Head**.
+    - Requested = `quantity` (original), always read-only.
+    - RM = `rmQuantity ?? quantity`; editable `<input>` only on the L1 turn (`isL1Turn`, max=original), read-only otherwise.
+    - Dept Head = `deptQuantity ?? rmQuantity ?? quantity`; editable only on the L2 turn (`isL2Turn`, max=`rmQuantity ?? quantity`), read-only otherwise.
+    - On a read-only, already-adjusted value, an **inline tooltip** (react-bootstrap `Tooltip`) shows
+      the editor name + timestamp, sourced from the same `quantityHistory` audit data (icon+popover
+      replaced by per-sub-column inline tooltip; underlying data unchanged).
+  - **Logic unchanged:** the single `qtyEdits` state + `l1Approve`/`l2Approve` submit flow from Pass 3
+    is untouched — the editable input simply renders in the RM or Dept Head sub-column depending on
+    whose turn it is. This is a display restructure only. Removed the now-unused `historyIcon`/`Popover`/`FaHistory`
+    and the dead `isQtyEditable` local.
+
+### PART 5 — Issue note creation: remove duplicate per-line Purpose
+- **Decision: column NOT dropped.** Codebase search for the per-line column
+  `issue_note_details_purpose` (added in migration V36): written at `IssueNoteService.createIssueNote`,
+  **read** at `IssueNoteService.mapToResponse` → exposed as `IssueNoteDetailResponse.purpose`, and
+  **displayed** on the issue-note DETAIL page items table ("Purpose" column, `{item.purpose || '-'}`).
+  No report/export references. Because it IS used elsewhere (detail display + response DTO), per the
+  task rule the column stays (nullable/deprecated).
+- What changed (`frontend/src/pages/issue-notes/IssueNoteFormPage.tsx`, frontend only):
+  - Removed the per-line **Purpose** input + its `<th>` from the "Materials to Issue" table.
+  - Stopped sending per-line `purpose` in both create/save payload builders (`lineItems.map` no longer
+    includes `purpose`). The header-level Purpose (Additional Information card, `data.purpose`) is kept.
+  - Backend, entity, DTO, migration, and the detail-page display of existing per-line purposes are all
+    untouched (existing data still shows; new notes simply leave the per-line purpose null).
+
+### PART 6 — Issue note detail: Company column + remove Plant
+- **Company column (empty) — investigated, NO code discrepancy found.** The issue-note path is
+  byte-for-byte identical to the working indent path:
+  - Both resolve via the same `CompanyPlantMaterialRepository.findCompanyNamesByMaterial(materialId)`
+    and the same private `resolveCompaniesForMaterial(...)` (identical bodies in IndentService and
+    IssueNoteService).
+  - Issue-note `mapToResponse` populates `IssueNoteDetailResponse.companies` at the correct record
+    position via `resolveCompaniesForMaterial(d.getMaterialId(), …)`; `d.getMaterialId()` is a valid
+    material-master id (its `materialCode`/`materialName` resolve and display correctly on the page).
+  - `getById` returns this record DTO; the frontend reads `item.companies` directly (no re-mapping).
+  - **Conclusion:** the empty column is NOT a code bug — it is data-driven: the specific issued
+    materials have no active (`status = 1`) rows in `tbl_map_company_plant_material`. Per Rule 6/7 I did
+    NOT fabricate a code change. **Recommended verification (business owner runs, per no-DB-access
+    rule):** `SELECT material_id, company_id, status FROM tbl_map_company_plant_material WHERE material_id IN (<materials on a test issue note>);`
+    — if those materials have no status=1 rows, the fix is data (add the mappings), not code.
+- **Plant removed from Status and Actions Bar** (`IssueNoteDetailPage.tsx`):
+  - **Before:** Status | Plant | Total Items. **After:** Status | Total Items. (Plant remains in the
+    data/DB; only removed from this display location.)
+
+### Files changed
+- `frontend/src/routes/router.tsx` (P1)
+- `backend/.../issuenote/IssueNoteController.java` (P2)
+- `frontend/src/pages/dashboard/DashboardPage.tsx` (P3)
+- `frontend/src/pages/indents/IndentDetailPage.tsx` (P4)
+- `frontend/src/pages/issue-notes/IssueNoteFormPage.tsx` (P5)
+- `frontend/src/pages/issue-notes/IssueNoteDetailPage.tsx` (P6b)
+- (P6 Company: no file changed — no code discrepancy)
+
+### Build results
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — built in ~20s, 0 errors (pre-existing >500 kB chunk-size warning only)
+- New build hash: JS `assets/index-DLlXiRi9.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
+
+### Verification (Rule 7 — beyond "it compiled")
+Traced each change: role gates only widened (no existing access removed); the P4 restructure keeps the
+Pass-3 `qtyEdits`/`l1Approve`/`l2Approve` submit path unchanged (verified the editable input still binds
+`qtyEdits` and routes to RM at L1 / Dept Head at L2); P3 card correctly hides for a zero-action role.
+Not runtime-verified against a live DB (no DB access). P6 Company left as a data check for the owner.
