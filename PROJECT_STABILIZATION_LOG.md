@@ -2526,3 +2526,99 @@ Traced each change: role gates only widened (no existing access removed); the P4
 Pass-3 `qtyEdits`/`l1Approve`/`l2Approve` submit path unchanged (verified the editable input still binds
 `qtyEdits` and routes to RM at L1 / Dept Head at L2); P3 card correctly hides for a zero-action role.
 Not runtime-verified against a live DB (no DB access). P6 Company left as a data check for the owner.
+
+## 2026-07-27 — Part 4 fixes: DeptHead bypass routing + Supervisor self-approval SQL crash
+
+Implements the plan in docs/bypass-regression-investigation.md. Backend-only (no frontend change).
+
+### FIX A — DeptHead bypass now routes to Procurement + uses normalized role check
+`IndentService.submitIndent()`, the DEPTHEAD auto-approval block.
+
+**Before:**
+```java
+boolean isDeptHead = hasRoleByCode(currentUser.getEmpNumber(), "Department Head"); // raw role-code string
+boolean hasSupervisor = employeeReportingRepository.hasSupervisor(currentUser.getEmpNumber());
+if (isDeptHead && !hasSupervisor) {
+    // copy qty -> rmQuantity
+    indent.setApprovedBy(currentUser);
+    indent.setApprovedByDate(now);
+    indent.setApprovedStatus(ref 3);            // ONLY approvedStatus set → lands at "RM Approved"
+    indent.setRemarks("L1 Auto-approved (submitter is DEPTHEAD)");
+}
+```
+**After:**
+```java
+var bypassAuth = SecurityContextHolder.getContext().getAuthentication();
+boolean isDeptHead = bypassAuth != null
+        && bypassAuth.getPrincipal() instanceof UserPrincipal bp
+        && plantSecurityService.isDeptHead(bp);                 // normalized DEPTHEAD (roles() contains "DEPTHEAD")
+boolean hasSupervisor = employeeReportingRepository.hasSupervisor(currentUser.getEmpNumber());
+if (isDeptHead && !hasSupervisor) {
+    // copy qty -> rmQuantity
+    indent.setStatus(ref 3);                    // Dept Head Approved
+    indent.setApprovedBy(currentUser); setApprovedByDate(now); setApprovedStatus(ref 3);
+    indent.setFinalApprovedBy(currentUser); setFinalApprovedDate(now);
+    indent.setFinalStatus(ref 4);               // NEW — Dept-Head auto-approved
+    indent.setProcurementStatus(ref 4);         // NEW — arrived at Procurement
+    indent.setRemarks("L1+L2 auto-approved (submitter is DEPTHEAD) — routed to Procurement");
+}
+```
+Two defects fixed: (1) detection now uses the same normalized-role method (`PlantSecurityService.isDeptHead`,
+which checks `principal.roles()` contains `DEPTHEAD`) as the rest of the codebase, instead of the raw
+role-code string `"Department Head"` that could silently no-op after JWT normalization; (2) the full
+three-column state is now set to **3 / 4 / 4** (approved / final / procurement) so
+`deriveDisplayStatus(3,4,4)` = "Dept. Head Approved" (procurement stage), instead of stopping at
+`approved=3` → "RM Approved" (Dept-Head queue).
+
+**PLANTMANAGER check:** `submitIndent` has NO PLANTMANAGER bypass (only DEPTHEAD), so this change does
+not affect PLANTMANAGER. Flag (not fixed — out of this scope, different method): `approveIndent`'s
+`hasDeptLevelAuth` (IndentService ~818) still uses the raw-string `hasRoleByCode("Department Head"/"Plant
+Manager"/…)` pattern and has the same latent fragility; recommend migrating it to normalized-role checks
+in a follow-up.
+
+### FIX B1 — reporting-chain CTE SQL error
+`EmployeeReportingHierarchyRepository.findReportingChain()` final line.
+- **Before:** `SELECT DISTINCT report_sup FROM hierarchy ORDER BY level`  ← fails under
+  ONLY_FULL_GROUP_BY (`level` not in SELECT list, incompatible with DISTINCT).
+- **After:** `SELECT report_sup FROM hierarchy GROUP BY report_sup ORDER BY MIN(level)` — de-duplicates
+  `report_sup` and orders nearest-supervisor-first (MIN level), strict-SQL-mode safe. Same result
+  semantics (distinct supervisors, immediate first).
+
+### FIX B2 — allow a Supervisor to self-approve their own indent
+`ReportingHierarchyService.canApproveFor(employeeEmpNumber, approverEmpNumber)` — added at the top:
+```java
+if (employeeEmpNumber != null && employeeEmpNumber.equals(approverEmpNumber)) {
+    boolean isRm = hierarchyRepository.countSubordinates(approverEmpNumber) > 0;
+    return isRm;   // self-approval valid only for an RM (has direct reports)
+}
+```
+- Allows self-approval ONLY when the raiser IS an RM (has direct reports) — the Supervisor/RM case.
+- A regular employee (no reports) still returns to the normal path → routes to their supervisor.
+- The `employee == approver` equality guard means this can NEVER authorise approving someone else's
+  indent. Normal (non-self) approvals skip this branch entirely (unchanged behaviour).
+
+### Verification traces (Rule 7 — reasoned, not just compiled)
+- **A — DeptHead (top of chain) raises + submits:** `submitIndent` → isDeptHead=true (principal role
+  DEPTHEAD), hasSupervisor=false → bypass block → three-column set to approved=3, final=4,
+  procurement=4 → `deriveDisplayStatus(3,4,4)` = "Dept. Head Approved" (procurement stage). Result
+  state = **3/4/4**. ✓
+- **B — Supervisor raises + self-approves:** indent lands approved=1 (no bypass — not a DeptHead) →
+  "Pending RM Approval", Approve shown to self. Approve → `l1Approve` → `canApproveFor(self, self)` →
+  self-branch: `countSubordinates(self) > 0` = true (a Supervisor has reports) → returns true →
+  approval proceeds. The self-branch returns BEFORE `findReportingChain`, so the CTE isn't even hit
+  for self-approval; no SQL exception. ✓
+- **C — Supervisor approves a SUBORDINATE (normal, must be unaffected):** `canApproveFor(subordinate,
+  supervisor)` → employee ≠ approver → self-branch skipped → existing `isSubordinateOf` / (now-fixed)
+  `findReportingChain` path runs unchanged → true. Behaviour identical to before (plus the CTE no
+  longer throws for deeper chains). ✓
+
+### Files changed
+- `backend/.../indent/IndentService.java` (FIX A)
+- `backend/.../identity/EmployeeReportingHierarchyRepository.java` (FIX B1)
+- `backend/.../identity/ReportingHierarchyService.java` (FIX B2)
+
+### Build results
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — clean, 0 errors (backend-only change; frontend bundle unchanged: `assets/index-xJFjXSwf.js`)
+- Not runtime-verified against a live DB (no DB access); traces above are code-level. Migration N/A.

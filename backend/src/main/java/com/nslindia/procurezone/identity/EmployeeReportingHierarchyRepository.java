@@ -94,7 +94,7 @@ public interface EmployeeReportingHierarchyRepository extends JpaRepository<Empl
                 INNER JOIN hierarchy ON hierarchy.report_sup = h2.report_sub
                 WHERE h2.report_status = 1 AND hierarchy.level < 10
             )
-            SELECT DISTINCT report_sup FROM hierarchy ORDER BY level
+            SELECT report_sup FROM hierarchy GROUP BY report_sup ORDER BY MIN(level)
             """, nativeQuery = true)
     List<Integer> findReportingChain(@Param("empNumber") Integer empNumber);
 

@@ -69,6 +69,17 @@ public class ReportingHierarchyService {
     public boolean canApproveFor(Integer employeeEmpNumber, Integer approverEmpNumber) {
         logger.debug("Checking if emp {} can approve for emp {}", approverEmpNumber, employeeEmpNumber);
 
+        // Self-approval: an approver acting on THEIR OWN indent (employee == approver) may approve it
+        // at L1 only if they are themselves an RM (have direct reports) — i.e. they ARE the approval
+        // authority for their own requests (the Supervisor/Dept-Head-is-RM case). A regular employee
+        // with no reports still routes to their supervisor. The equality guard means this branch can
+        // NEVER authorise approving someone else's indent.
+        if (employeeEmpNumber != null && employeeEmpNumber.equals(approverEmpNumber)) {
+            boolean isRm = hierarchyRepository.countSubordinates(approverEmpNumber) > 0;
+            logger.debug("Self-approval for emp {}: isRm(hasSubordinates)={}", approverEmpNumber, isRm);
+            return isRm;
+        }
+
         // Check direct reporting relationship
         if (hierarchyRepository.isSubordinateOf(employeeEmpNumber, approverEmpNumber)) {
             logger.debug("Direct reporting relationship found");
