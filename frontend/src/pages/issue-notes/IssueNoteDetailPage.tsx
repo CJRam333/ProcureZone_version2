@@ -308,13 +308,12 @@ const IssueNoteDetailPage: React.FC = () => {
                           <th>Company</th>
                           <th>UOM</th>
                           <th className="text-end">Quantity</th>
-                          <th>Purpose</th>
                         </tr>
                       </thead>
                       <tbody>
                         {details.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="text-center text-muted py-4">No items found</td>
+                            <td colSpan={6} className="text-center text-muted py-4">No items found</td>
                           </tr>
                         ) : (
                           details.map((item, index) => {
@@ -379,7 +378,6 @@ const IssueNoteDetailPage: React.FC = () => {
                                     <span>{effectiveQty}{historyIcon}</span>
                                   )}
                                 </td>
-                                <td>{item.purpose || '-'}</td>
                               </tr>
                             );
                           })
@@ -391,7 +389,6 @@ const IssueNoteDetailPage: React.FC = () => {
                           <td className="text-end fw-bold">
                             {details.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}
                           </td>
-                          <td></td>
                         </tr>
                       </tfoot>
                     </Table>
@@ -498,9 +495,9 @@ const IssueNoteDetailPage: React.FC = () => {
                           <div className="d-flex mb-3" key={stage.label}>
                             <div
                               className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${stage.state === 'done' ? 'bg-success'
-                                  : stage.state === 'rejected' ? 'bg-danger'
-                                    : stage.state === 'pending' ? 'bg-warning'
-                                      : 'bg-secondary'
+                                : stage.state === 'rejected' ? 'bg-danger'
+                                  : stage.state === 'pending' ? 'bg-warning'
+                                    : 'bg-secondary'
                                 }`}
                               style={{ width: 32, height: 32, minWidth: 32 }}
                             >

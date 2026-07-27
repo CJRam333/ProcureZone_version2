@@ -1,7 +1,6 @@
 package com.nslindia.procurezone.issuenote.dto;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -19,7 +18,8 @@ import java.util.List;
  * @version 1.0
  */
 public record ApproveIssueNoteRequest(
-        @NotBlank(message = "Remarks are required") String remarks,
+        // Remarks are OPTIONAL for RM approval (a reason is only required on rejection).
+        String remarks,
 
         @Valid List<LineItemQtyAdjustment> items) {
 
