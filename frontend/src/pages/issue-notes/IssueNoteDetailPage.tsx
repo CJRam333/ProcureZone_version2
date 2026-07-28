@@ -27,6 +27,7 @@ import {
   FaPrint,
   FaFileAlt,
   FaBoxOpen,
+  FaHistory,
 } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
@@ -342,7 +343,13 @@ const IssueNoteDetailPage: React.FC = () => {
                                     </Tooltip>
                                   }
                                 >
-                                  <span style={{ cursor: 'help', textDecoration: 'underline dotted' }}>{value}</span>
+                                  <span
+                                    style={{ cursor: 'help' }}
+                                    className="d-inline-flex align-items-center gap-1"
+                                  >
+                                    {value}
+                                    <FaHistory className="text-muted" style={{ fontSize: '0.7em' }} />
+                                  </span>
                                 </OverlayTrigger>
                               ) : (
                                 <span>{value}</span>

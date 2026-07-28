@@ -100,6 +100,17 @@ public interface CompanyPlantMaterialMapRepository extends JpaRepository<Company
                         "WHERE s.material.id = :materialId AND s.status IN (0, 1)")
         Optional<BigDecimal> sumQuantityByMaterial(@Param("materialId") Integer materialId);
 
+        /**
+         * Distinct company names stocking a material — the SAME source/filter the material dropdown
+         * and Inventory use (tbl_map_company_plant_material, status IN (0,1)). This is the multi-company
+         * list shown in the detail-page "Company" column. (Previously the column resolved from the
+         * separate tbl_pz_map_company_plant_material via CompanyPlantMaterialRepository, which does not
+         * match the dropdown's data — causing the empty/inconsistent Company column.)
+         */
+        @Query("SELECT DISTINCT co.name FROM CompanyPlantMaterialMap s JOIN s.company co " +
+                        "WHERE s.material.id = :materialId AND s.status IN (0, 1) ORDER BY co.name")
+        List<String> findCompanyNamesByMaterial(@Param("materialId") Integer materialId);
+
         @Query("""
                         SELECT new com.nslindia.procurezone.masterdata.dto.MaterialDropdownResponse(
                             m.id, m.code, m.name, m.description,

@@ -19,7 +19,7 @@ import {
   FaSyncAlt,
   FaFileExport,
 } from 'react-icons/fa';
-import { PageHeader, DataTable } from '../../components/common';
+import { PageHeader, DataTable, ItemsPreview } from '../../components/common';
 import { issueNotesApi, getErrorMessage } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 import { INDENT_STATUS_COLORS } from '../../constants/indentStatus';
@@ -127,7 +127,11 @@ const IssueNotesListPage: React.FC = () => {
       key: 'lineItemCount',
       label: 'Items',
       render: (row: any) => (
-        <Badge bg="secondary">{row.lineItemCount || 0} items</Badge>
+        <ItemsPreview
+          idKey={row.id}
+          items={row.items}
+          count={row.lineItemCount ?? row.items?.length}
+        />
       ),
     },
     {

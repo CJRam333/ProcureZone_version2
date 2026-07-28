@@ -46,6 +46,7 @@ export interface Indent {
     details?: IndentItem[];
     // List endpoint fields
     detailsCount?: number;
+    items?: IndentItemSummary[]; // compact per-line summary for the list-page Items hover-preview
     // Legacy aliases for backward compatibility
     requestedBy?: number;
     requestedByName?: string;
@@ -60,6 +61,15 @@ export interface Indent {
     totalEstimatedValue?: number;
     createdAt?: string;
     updatedAt?: string;
+}
+
+// Compact line-item summary returned by the indent LIST endpoint (IndentListResponse.ItemSummary)
+// — powers the Items hover-preview without a per-row detail fetch.
+export interface IndentItemSummary {
+    materialCode?: string;
+    materialName?: string;
+    uomCode?: string;
+    quantity?: number;
 }
 
 export enum IndentStatus {

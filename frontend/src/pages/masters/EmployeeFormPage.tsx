@@ -80,6 +80,7 @@ const EmployeeFormPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showTempPassword, setShowTempPassword] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [passwordResetError, setPasswordResetError] = useState<string | null>(null);
 
@@ -578,16 +579,26 @@ const EmployeeFormPage: React.FC = () => {
                     <Form.Label>
                       Temporary Password <span className="text-danger">*</span>
                     </Form.Label>
-                    <Form.Control
-                      type="password"
-                      placeholder="Min 6 characters"
-                      {...register('password', {
-                        required: 'Temporary password is required for Non-LDAP users',
-                        minLength: { value: 6, message: 'Password must be at least 6 characters' },
-                      })}
-                      isInvalid={!!errors.password}
-                    />
-                    <Form.Control.Feedback type="invalid">{errors.password?.message}</Form.Control.Feedback>
+                    <InputGroup hasValidation>
+                      <Form.Control
+                        type={showTempPassword ? 'text' : 'password'}
+                        placeholder="Min 6 characters"
+                        {...register('password', {
+                          required: 'Temporary password is required for Non-LDAP users',
+                          minLength: { value: 6, message: 'Password must be at least 6 characters' },
+                        })}
+                        isInvalid={!!errors.password}
+                      />
+                      <Button
+                        variant="outline-secondary"
+                        onClick={() => setShowTempPassword((p) => !p)}
+                        tabIndex={-1}
+                        aria-label={showTempPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showTempPassword ? <FaEyeSlash /> : <FaEye />}
+                      </Button>
+                      <Form.Control.Feedback type="invalid">{errors.password?.message}</Form.Control.Feedback>
+                    </InputGroup>
                     <Form.Text className="text-muted">
                       Employee will use this to log in for the first time.
                     </Form.Text>

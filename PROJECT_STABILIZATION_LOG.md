@@ -2856,3 +2856,74 @@ IssueNoteDetailPage.tsx, IssueNoteFormPage.tsx.
 - PART 8a Company: no code bug — data-driven (needs a DB check of tbl_map_company_plant_material for the tested
   materials).
 - Not runtime-verified against a live DB (no DB access); traces/analysis are code-level.
+
+---
+
+## 2026-07-28 — password toggle, items-Company real-data re-trace, items hover-preview, quantity-tooltip cue
+
+### PART 1 (correction) — Show/hide toggle ADDED to the non-LDAP "Temporary Password *" field
+Earlier this field was reported as "no toggle needed". Corrected: the create-form Temporary Password
+field (EmployeeFormPage, non-LDAP + create only) was a plain `type="password"`. Wrapped it in the EXACT
+same pattern already used by the file's reset-password section — `InputGroup` + an `outline-secondary`
+`Button` toggling `showTempPassword`, `FaEye`/`FaEyeSlash` icon, `type={showTempPassword ? 'text' : 'password'}`.
+Kept react-hook-form `register('password', …)` intact; `InputGroup hasValidation` so the invalid feedback
+still renders. Toggles both ways (hidden ⇄ visible).
+
+### PART 2 (re-investigated with the real table) — Items "Company" column now reads the SAME source as the dropdown/Inventory
+ROOT CAUSE (found by code trace, not another "data-driven" guess): there are TWO company-plant-material
+sources —
+  - `CompanyPlantMaterial` → **tbl_pz_map_company_plant_material** (repo `CompanyPlantMaterialRepository`)
+  - `CompanyPlantMaterialMap` → **tbl_map_company_plant_material** (repo `CompanyPlantMaterialMapRepository`)
+The material-search dropdown and the Inventory page read the **Map** repo/table (tbl_map…, `status IN (0,1)`,
+relations `s.material`/`s.company`). But the detail-page **Company** column AND the current-stock/stores-balance
+columns (added 2026-07-27) resolved from the **non-Map** repo/table (tbl_pz_map…) — a different, sparsely
+populated table. That mismatch is why the Company column flip-flopped empty across earlier rounds.
+FIX:
+  - Added `findCompanyNamesByMaterial(materialId)` to `CompanyPlantMaterialMapRepository`
+    (`SELECT DISTINCT co.name FROM CompanyPlantMaterialMap s JOIN s.company co WHERE s.material.id = :id AND s.status IN (0,1) ORDER BY co.name`) — same table/filter as the dropdown.
+  - IndentService: swapped the injected `CompanyPlantMaterialRepository` → `CompanyPlantMaterialMapRepository`
+    (only used at the 2 resolver call-sites); `resolveCompaniesForMaterial` and `resolveCurrentStock` now hit
+    the Map repo.
+  - IssueNoteService: `resolveCompaniesForMaterial` and `storesBalance` now call the already-injected
+    `companyPlantMaterialMapRepository`; removed the now-unused `CompanyPlantMaterialRepository` field + import.
+Result: detail-page Company (multi-company, comma-separated) and stock now match the dropdown/Inventory exactly.
+OWNER VERIFICATION SQL (run on a known multi-company material to confirm the row set the code now returns):
+  `SELECT map_material, map_comp, c.comp_name, map_plant, map_quantity_stores, map_status
+   FROM tbl_map_company_plant_material m JOIN tbl_company_master c ON c.comp_id = m.map_comp
+   WHERE map_material = <id> AND map_status IN (0,1);`
+
+### PART 3 (new feature) — Items hover-preview on the Indent + Issue Note list pages
+DTO: the list endpoints did NOT carry per-line data (only `detailsCount`/`lineItemCount`), so a compact
+summary field WAS added (per the task's "else add a compact summary field" branch):
+  - `IndentListResponse.ItemSummary { materialCode, materialName, uomCode, quantity }` + `List<ItemSummary> items`;
+    populated in `toIndentListResponse` from `indent.getDetails()` (material/UOM relations already available in
+    the read-only tx).
+  - `IssueNoteSummaryResponse.ItemSummary { … }` + `List<ItemSummary> items`; populated in `mapToSummaryResponse`
+    with a per-note **batch** `findAllById` for materials + UOMs (avoids a per-line N+1).
+Frontend: new shared `components/common/ItemsPreview.tsx` — renders the count + an `FaListUl` icon whose
+hover/focus opens a `Popover` listing every line (`code — name`, `qty uom`), scrollable, `stopPropagation` so
+the icon click doesn't trigger the row-navigate. Wired into both list pages' existing "Items" column.
+Added `items?` to the `Indent`/`IssueNote` list types + `IndentItemSummary`/`IssueNoteItemSummary` and barrel exports.
+
+### PART 4 (UI) — Quantity tooltip trigger: dropped the dotted underline, added a subtle history glyph
+Both detail pages' `withEdit(value, edit)` quantity-history tooltip trigger dropped
+`textDecoration: 'underline dotted'`; the value is now followed by a small muted `FaHistory` glyph
+(`fontSize: 0.7em`), `cursor: help` retained. Hover tooltip (stage / new qty / editor / timestamp) unchanged.
+
+### Files changed (15: 5 backend, 9 frontend edits + 1 new)
+BE: CompanyPlantMaterialMapRepository, IndentService, IndentListResponse, IssueNoteService, IssueNoteSummaryResponse.
+FE: EmployeeFormPage, IndentsListPage, IssueNotesListPage, IndentDetailPage, IssueNoteDetailPage,
+api/indents.ts, api/issueNotes.ts, api/index.ts, components/common/index.ts, + new components/common/ItemsPreview.tsx.
+
+### Build
+- `mvn -q -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — clean (pre-existing >500 kB chunk warning only). New JS `assets/index-DJIE7YZX.js`; CSS unchanged `assets/index-C0ZtAKUb.css`.
+
+### Verification (Rule 7) + notes
+- PART 2 is a genuine code fix (wrong repo/table), not a data assumption — traced via the dropdown's own JPQL
+  (`InventoryService` → `searchForDropdownAllCompanies` on the Map repo). Live-DB confirmation left to the owner
+  via the SQL above (no DB access here).
+- PART 3 issue-note summary uses a per-note batch lookup (2 queries/note) rather than N+1; indent summary reuses
+  the already-loaded detail relations. Acceptable for paginated list sizes; noted for future perf tuning.
+- Not runtime-verified against a live DB; analysis/build are code-level.

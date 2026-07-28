@@ -140,7 +140,9 @@ public class IndentService {
         private final SectionRepository sectionRepository;
         private final EmployeeReportingRepository employeeReportingRepository;
         private final com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository;
-        private final com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository companyPlantMaterialRepository;
+        // Company/stock resolution reads the SAME table the dropdown & Inventory use
+        // (tbl_map_company_plant_material via CompanyPlantMaterialMap), NOT tbl_pz_map_company_plant_material.
+        private final com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository;
         private final IndentDetailQtyAuditRepository qtyAuditRepository;
 
         @PersistenceContext
@@ -158,7 +160,7 @@ public class IndentService {
                         SectionRepository sectionRepository,
                         EmployeeReportingRepository employeeReportingRepository,
                         com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository,
-                        com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository companyPlantMaterialRepository,
+                        com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository,
                         IndentDetailQtyAuditRepository qtyAuditRepository) {
                 this.indentRepository = indentRepository;
                 this.indentDetailRepository = indentDetailRepository;
@@ -172,7 +174,7 @@ public class IndentService {
                 this.sectionRepository = sectionRepository;
                 this.employeeReportingRepository = employeeReportingRepository;
                 this.companyEmployeeRepository = companyEmployeeRepository;
-                this.companyPlantMaterialRepository = companyPlantMaterialRepository;
+                this.companyPlantMaterialMapRepository = companyPlantMaterialMapRepository;
                 this.qtyAuditRepository = qtyAuditRepository;
         }
 
@@ -2112,7 +2114,7 @@ public class IndentService {
         private java.math.BigDecimal resolveCurrentStock(Integer materialId, Map<Integer, java.math.BigDecimal> cache) {
                 if (materialId == null) return null;
                 return cache.computeIfAbsent(materialId, id ->
-                                companyPlantMaterialRepository.sumQuantityByMaterial(id)
+                                companyPlantMaterialMapRepository.sumQuantityByMaterial(id)
                                                 .orElse(java.math.BigDecimal.ZERO));
         }
 
@@ -2152,7 +2154,7 @@ public class IndentService {
         private String resolveCompaniesForMaterial(Integer materialId, Map<Integer, String> cache) {
                 if (materialId == null) return "";
                 return cache.computeIfAbsent(materialId, id -> {
-                        List<String> names = companyPlantMaterialRepository.findCompanyNamesByMaterial(id);
+                        List<String> names = companyPlantMaterialMapRepository.findCompanyNamesByMaterial(id);
                         return (names == null || names.isEmpty()) ? "" : String.join(", ", names);
                 });
         }
@@ -2177,7 +2179,14 @@ public class IndentService {
                                         indent.getApprovedStatus() != null ? indent.getApprovedStatus().getId() : null,
                                         indent.getFinalStatus() != null ? indent.getFinalStatus().getId() : null,
                                         indent.getProcurementStatus() != null ? indent.getProcurementStatus().getId() : null),
-                                indent.getLastModifiedDate());
+                                indent.getLastModifiedDate(),
+                                indent.getDetails().stream()
+                                        .map(d -> new IndentListResponse.ItemSummary(
+                                                d.getMaterial() != null ? d.getMaterial().getCode() : null,
+                                                d.getMaterial() != null ? d.getMaterial().getName() : null,
+                                                d.getUnitOfMeasure() != null ? d.getUnitOfMeasure().getCode() : null,
+                                                d.getQuantity()))
+                                        .collect(Collectors.toList()));
         }
 
         /**

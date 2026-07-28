@@ -2,10 +2,14 @@ package com.nslindia.procurezone.issuenote.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Summary DTO for Issue Note list view
- * 
+ *
+ * <p>{@code items} carries a COMPACT per-line summary (material code/name, UOM, quantity) so the
+ * list page can show an Items hover-preview without a second per-row detail fetch.
+ *
  * @author NSL India
  * @version 1.0
  */
@@ -23,5 +27,14 @@ public record IssueNoteSummaryResponse(
         Integer storesByStatus,
         BigDecimal totalAmount,
         Integer lineItemCount,
-        LocalDateTime lastModifiedDate) {
+        LocalDateTime lastModifiedDate,
+        List<ItemSummary> items) {
+
+    /** Compact line-item summary for the list-page Items hover-preview. */
+    public record ItemSummary(
+            String materialCode,
+            String materialName,
+            String uomCode,
+            BigDecimal quantity) {
+    }
 }

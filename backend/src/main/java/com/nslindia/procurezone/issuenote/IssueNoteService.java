@@ -7,7 +7,6 @@ import com.nslindia.procurezone.identity.Employee;
 import com.nslindia.procurezone.identity.EmployeeRepository;
 import com.nslindia.procurezone.inventory.InventoryService;
 import com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository;
-import com.nslindia.procurezone.mapping.repository.CompanyPlantMaterialRepository;
 import com.nslindia.procurezone.issuenote.dto.*;
 import com.nslindia.procurezone.masterdata.PlantRepository;
 import com.nslindia.procurezone.masterdata.repository.CompanyRepository;
@@ -56,7 +55,6 @@ public class IssueNoteService {
     private final EmployeeReportingRepository employeeReportingRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
     private final CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository;
-    private final CompanyPlantMaterialRepository companyPlantMaterialRepository;
     private final CompanyRepository companyRepository;
     private final DepartmentRepository departmentRepository;
     private final SectionRepository sectionRepository;
@@ -835,7 +833,7 @@ public class IssueNoteService {
     private String resolveCompaniesForMaterial(Integer materialId, Map<Integer, String> cache) {
         if (materialId == null) return "";
         return cache.computeIfAbsent(materialId, id -> {
-            List<String> names = companyPlantMaterialRepository.findCompanyNamesByMaterial(id);
+            List<String> names = companyPlantMaterialMapRepository.findCompanyNamesByMaterial(id);
             return (names == null || names.isEmpty()) ? "" : String.join(", ", names);
         });
     }
@@ -894,7 +892,7 @@ public class IssueNoteService {
                             resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial),
                             historyByDetail.getOrDefault(d.getId(), List.of()),
                             d.getMaterialId() == null ? null
-                                    : companyPlantMaterialRepository.sumQuantityByMaterial(d.getMaterialId())
+                                    : companyPlantMaterialMapRepository.sumQuantityByMaterial(d.getMaterialId())
                                             .orElse(BigDecimal.ZERO));
                 })
                 .collect(Collectors.toList());
@@ -958,9 +956,37 @@ public class IssueNoteService {
     }
 
     private IssueNoteSummaryResponse mapToSummaryResponse(IssueNote issueNote) {
-        BigDecimal totalAmount = issueNote.getDetails().stream()
+        var details = issueNote.getDetails();
+        BigDecimal totalAmount = details.stream()
                 .map(d -> d.getAmount() != null ? d.getAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Compact per-line item summary for the list-page Items hover-preview. Batch-load this
+        // note's materials/UOMs once (one query each) to avoid a per-line N+1.
+        List<Integer> materialIds = details.stream()
+                .map(d -> d.getMaterialId()).filter(id -> id != null).distinct().collect(Collectors.toList());
+        List<Integer> uomIds = details.stream()
+                .map(d -> d.getUnitOfMeasureId()).filter(id -> id != null).distinct().collect(Collectors.toList());
+        Map<Integer, String> materialCodeById = new HashMap<>();
+        Map<Integer, String> materialNameById = new HashMap<>();
+        if (!materialIds.isEmpty()) {
+            materialRepository.findAllById(materialIds).forEach(m -> {
+                materialCodeById.put(m.getId(), m.getCode());
+                materialNameById.put(m.getId(), m.getName());
+            });
+        }
+        Map<Integer, String> uomCodeById = new HashMap<>();
+        if (!uomIds.isEmpty()) {
+            unitOfMeasureRepository.findAllById(uomIds)
+                    .forEach(u -> uomCodeById.put(u.getId(), u.getCode()));
+        }
+        List<IssueNoteSummaryResponse.ItemSummary> items = details.stream()
+                .map(d -> new IssueNoteSummaryResponse.ItemSummary(
+                        materialCodeById.get(d.getMaterialId()),
+                        materialNameById.get(d.getMaterialId()),
+                        uomCodeById.get(d.getUnitOfMeasureId()),
+                        d.getQuantity()))
+                .collect(Collectors.toList());
 
         return new IssueNoteSummaryResponse(
                 issueNote.getId(),
@@ -975,8 +1001,9 @@ public class IssueNoteService {
                 issueNote.getApprovedStatus(),
                 issueNote.getStoresByStatus(),
                 totalAmount,
-                issueNote.getDetails().size(),
-                issueNote.getLastModifiedDate());
+                details.size(),
+                issueNote.getLastModifiedDate(),
+                items);
     }
 
     private String buildAuditDetails(IssueNote issueNote, String action) {

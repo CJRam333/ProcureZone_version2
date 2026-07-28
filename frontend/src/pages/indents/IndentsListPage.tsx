@@ -10,6 +10,7 @@ import {
   StatusBadge,
   ErrorAlert,
   Column,
+  ItemsPreview,
 } from '../../components/common';
 import { useAuth } from '../../contexts/AuthContext';
 import { indentsApi, companiesApi, departmentsApi, plantsApi, Indent, IndentStatus, IndentSearchParams } from '../../api';
@@ -152,7 +153,13 @@ const IndentsListPage: React.FC = () => {
     {
       key: 'itemCount' as any,
       label: 'Items',
-      render: (item: any) => (item as any).itemCount ?? (item as any).items?.length ?? '-',
+      render: (item: any) => (
+        <ItemsPreview
+          idKey={item.id}
+          items={(item as any).items}
+          count={(item as any).detailsCount ?? (item as any).items?.length}
+        />
+      ),
     },
     {
       key: 'status',

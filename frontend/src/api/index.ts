@@ -83,6 +83,7 @@ export type {
     ApproveIndentRequest,
     RejectIndentRequest,
     CancelIndentRequest,
+    IndentItemSummary,
 } from "./indents";
 
 export { plantIndentsApi } from "./plantIndents";
@@ -132,6 +133,7 @@ export type {
     IssueNoteSearchParams,
     IssueItemsRequest,
     ReturnIssueNoteRequest,
+    IssueNoteItemSummary,
 } from "./issueNotes";
 
 export { inventoryApi } from "./inventory";
