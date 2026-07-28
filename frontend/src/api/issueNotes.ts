@@ -46,7 +46,8 @@ export interface IssueNote {
 // (IssueNoteSummaryResponse.ItemSummary) — powers the Items hover-preview without a per-row detail fetch.
 export interface IssueNoteItemSummary {
     materialName?: string;
-    companies?: string; // comma-separated company names stocking this material
+    materialDescription?: string;
+    companies?: string; // the specific company selected at creation (falls back to all companies for legacy rows)
     uomCode?: string;
     quantity?: number;
 }
@@ -76,7 +77,8 @@ export interface IssueNoteDetail {
     amount?: number;
     purpose?: string;
     status: number;
-    companies?: string; // comma-separated company names stocking this material
+    companyId?: number; // the specific company selected for this line at creation (null for legacy rows)
+    companies?: string; // resolved company name(s) — the selected one, or all companies for legacy rows
     storesBalance?: number; // aggregated current stock balance in stores
 }
 
@@ -125,6 +127,7 @@ export interface IssueNoteCreateRequest {
 
 export interface IssueNoteLineItemCreateRequest {
     materialId: number;
+    companyId?: number; // the specific company selected with this material in the dropdown
     unitOfMeasureId: number;
     quantity: number;
     rate?: number;

@@ -67,7 +67,8 @@ export interface Indent {
 // — powers the Items hover-preview without a per-row detail fetch.
 export interface IndentItemSummary {
     materialName?: string;
-    companies?: string; // comma-separated company names stocking this material
+    materialDescription?: string;
+    companies?: string; // the specific company selected at creation (falls back to all companies for legacy rows)
     uomCode?: string;
     quantity?: number;
 }
@@ -111,7 +112,8 @@ export interface IndentItem {
     purpose?: string;
     vendor?: string;
     status: number;
-    companies?: string; // comma-separated company names stocking this material
+    companyId?: number; // the specific company selected for this line at creation (null for legacy rows)
+    companies?: string; // resolved company name(s) — the selected one, or all companies for legacy rows
     currentStock?: number; // aggregated current stock across companies/plants
     // Optional aliases for UI compatibility
     materialDescription?: string; // alias for materialName
@@ -135,6 +137,7 @@ export interface IndentCreateRequest {
 
 export interface IndentDetailCreateRequest {
     materialId: number;
+    companyId?: number; // the specific company selected with this material in the dropdown
     unitOfMeasureId: number;
     quantity: number;
     rmQuantity?: number;

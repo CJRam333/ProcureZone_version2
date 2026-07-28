@@ -37,6 +37,14 @@ public class IndentDetail {
     @JoinColumn(name = "indent_details_material", nullable = false)
     private Material material;
 
+    /**
+     * The SPECIFIC company selected for this line at creation (the material+company combination the
+     * user picked in the dropdown). Nullable — rows created before this feature have no value, in
+     * which case the display falls back to the multi-company resolver. Stored as a plain id (no FK).
+     */
+    @Column(name = "indent_details_company")
+    private Integer companyId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "indent_details_umo", nullable = false)
     private UnitOfMeasure unitOfMeasure;
@@ -94,6 +102,14 @@ public class IndentDetail {
 
     public void setMaterial(Material material) {
         this.material = material;
+    }
+
+    public Integer getCompanyId() {
+        return companyId;
+    }
+
+    public void setCompanyId(Integer companyId) {
+        this.companyId = companyId;
     }
 
     public UnitOfMeasure getUnitOfMeasure() {

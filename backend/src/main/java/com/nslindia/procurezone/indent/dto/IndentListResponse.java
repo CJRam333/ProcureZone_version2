@@ -37,6 +37,7 @@ public record IndentListResponse(
      */
     public record ItemSummary(
             String materialName,
+            String materialDescription,
             String companies,
             String uomCode,
             BigDecimal quantity) {

@@ -30,6 +30,9 @@ public record IndentDetailResponse(
         String purpose,
         String vendor,
         Integer status,
+        // The specific company id captured for this line at creation (null for legacy rows). Lets the
+        // edit form round-trip the selection so it isn't lost on save.
+        Integer companyId,
         String companies,
         List<QuantityEditDTO> quantityHistory,
         // Current authoritative stock for the material, aggregated across all companies/plants from

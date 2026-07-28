@@ -65,6 +65,9 @@ public record IssueNoteResponse(
             BigDecimal amount,
             String purpose,
             Integer status,
+            // The specific company id captured for this line at creation (null for legacy rows). Lets the
+            // edit form round-trip the selection so it isn't lost on save.
+            Integer companyId,
             String companies,
             java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO> quantityHistory,
             // Current authoritative stock (aggregated tbl_map_company_plant_material.map_quantity_stores

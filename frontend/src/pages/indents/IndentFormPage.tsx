@@ -249,6 +249,21 @@ const IndentFormPage: React.FC = () => {
           vendor: item.vendor || '',
         })),
       });
+      // Repopulate the per-line company map from the captured companyId so editing a draft doesn't
+      // drop the selected company (the update path rebuilds details from the submitted payload).
+      const companyMap: Record<number, ItemCompanyInfo> = {};
+      detailItems.forEach((item: any, index: number) => {
+        if (item.companyId) {
+          companyMap[index] = {
+            companyId: item.companyId,
+            companyName: item.companies || '',
+            plantId: 0,
+            plantName: '',
+            stock: item.currentStock != null ? Number(item.currentStock) : null,
+          };
+        }
+      });
+      setItemCompanyMap(companyMap);
     }
   }, [existingIndent, reset, companiesData]);
 
@@ -270,6 +285,8 @@ const IndentFormPage: React.FC = () => {
       deliveryDate: data.deliveryDate || null,
       details: data.items.map((item, index) => ({
         materialId: item.materialId,
+        // the specific company selected with this material in the dropdown (captured in itemCompanyMap)
+        companyId: itemCompanyMap[index]?.companyId ?? undefined,
         unitOfMeasureId: item.uomId,
         quantity: item.requestedQuantity,
         pricing: item.estimatedRate || 0,

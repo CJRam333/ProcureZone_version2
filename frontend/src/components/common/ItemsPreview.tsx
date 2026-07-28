@@ -8,7 +8,8 @@ import { FaListUl } from 'react-icons/fa';
  */
 export interface ItemsPreviewLine {
   materialName?: string;
-  companies?: string; // comma-separated company names stocking this material
+  materialDescription?: string;
+  companies?: string; // company selected at creation (falls back to all companies for legacy rows)
   uomCode?: string;
   quantity?: number;
 }
@@ -57,6 +58,11 @@ const ItemsPreview: React.FC<ItemsPreviewProps> = ({ items, count, idKey }) => {
                   {it.uomCode ? ` ${it.uomCode}` : ''}
                 </span>
               </div>
+              {it.materialDescription && (
+                <div className="text-muted fst-italic" style={{ wordBreak: 'break-word' }}>
+                  {it.materialDescription}
+                </div>
+              )}
               {it.companies && (
                 <div className="text-muted" style={{ wordBreak: 'break-word' }}>
                   {it.companies}

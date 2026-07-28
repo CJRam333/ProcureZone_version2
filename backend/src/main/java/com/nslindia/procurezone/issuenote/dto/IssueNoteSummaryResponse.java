@@ -37,6 +37,7 @@ public record IssueNoteSummaryResponse(
      */
     public record ItemSummary(
             String materialName,
+            String materialDescription,
             String companies,
             String uomCode,
             BigDecimal quantity) {

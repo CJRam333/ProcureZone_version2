@@ -184,6 +184,21 @@ const IssueNoteFormPage: React.FC = () => {
           purpose: item.purpose || '',
         })) || [{ materialId: 0, materialCode: '', materialDescription: '', uomCode: '', unitOfMeasureId: 0, quantity: 1, purpose: '' }],
       });
+      // Repopulate the per-line company map from the captured companyId so editing a draft doesn't
+      // drop the selected company (the update path rebuilds details from the submitted payload).
+      const companyMap: Record<number, ItemCompanyInfo> = {};
+      (existingIssueNote.details ?? []).forEach((item, index) => {
+        if (item.companyId) {
+          companyMap[index] = {
+            companyId: item.companyId,
+            companyName: item.companies || '',
+            plantId: 0,
+            plantName: '',
+            stock: item.storesBalance != null ? Number(item.storesBalance) : null,
+          };
+        }
+      });
+      setItemCompanyMap(companyMap);
     }
   }, [existingIssueNote, reset]);
 
@@ -239,6 +254,8 @@ const IssueNoteFormPage: React.FC = () => {
       comments: data.comments,
       lineItems: data.lineItems.map((item, index) => ({
         materialId: item.materialId,
+        // the specific company selected with this material in the dropdown (captured in itemCompanyMap)
+        companyId: itemCompanyMap[index]?.companyId ?? undefined,
         unitOfMeasureId: item.unitOfMeasureId,
         quantity: item.quantity,
         quantityStores: stockByIndex[index] ?? undefined,
@@ -268,6 +285,8 @@ const IssueNoteFormPage: React.FC = () => {
         comments: data.comments,
         lineItems: data.lineItems.map((item, index) => ({
           materialId: item.materialId,
+          // the specific company selected with this material in the dropdown (captured in itemCompanyMap)
+          companyId: itemCompanyMap[index]?.companyId ?? undefined,
           unitOfMeasureId: item.unitOfMeasureId,
           quantity: item.quantity,
           purpose: item.purpose,

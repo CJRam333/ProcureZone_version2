@@ -273,6 +273,7 @@ public class IndentService {
                 for (IndentDetailRequest detailReq : request.details()) {
                         IndentDetail detail = new IndentDetail();
                         detail.setMaterial(entityManager.getReference(Material.class, detailReq.materialId()));
+                        detail.setCompanyId(detailReq.companyId());
                         detail.setUnitOfMeasure(
                                         entityManager.getReference(UnitOfMeasure.class, detailReq.unitOfMeasureId()));
                         detail.setQuantity(detailReq.quantity());
@@ -578,6 +579,7 @@ public class IndentService {
                         for (IndentDetailRequest detailReq : request.details()) {
                                 IndentDetail detail = new IndentDetail();
                                 detail.setMaterial(entityManager.getReference(Material.class, detailReq.materialId()));
+                                detail.setCompanyId(detailReq.companyId());
                                 detail.setUnitOfMeasure(entityManager.getReference(UnitOfMeasure.class,
                                                 detailReq.unitOfMeasureId()));
                                 detail.setQuantity(detailReq.quantity());
@@ -2078,7 +2080,7 @@ public class IndentService {
                         Map<Integer, java.math.BigDecimal> stockByMaterial,
                         Map<Integer, java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> historyByDetail) {
                 Integer materialId = detail.getMaterial() != null ? detail.getMaterial().getId() : null;
-                String companies = resolveCompaniesForMaterial(materialId, companiesByMaterial);
+                String companies = resolveLineCompany(detail.getCompanyId(), materialId, companiesByMaterial);
                 java.math.BigDecimal currentStock = resolveCurrentStock(materialId, stockByMaterial);
                 // Effective = the most-advanced stage's value: dept ?? rm ?? original.
                 java.math.BigDecimal effective = detail.getDeptQuantity() != null ? detail.getDeptQuantity()
@@ -2102,6 +2104,7 @@ public class IndentService {
                                 detail.getPurpose(),
                                 detail.getVendor(),
                                 detail.getStatus(),
+                                detail.getCompanyId(),
                                 companies,
                                 history,
                                 currentStock);
@@ -2159,6 +2162,23 @@ public class IndentService {
                 });
         }
 
+        /**
+         * Company shown for a line item: the SPECIFIC company selected at creation, when captured.
+         * Newer line items store the chosen companyId, so we show just that one company's name.
+         * Legacy rows (companyId == null, or a company id that no longer resolves) fall back to the
+         * multi-company resolver so they don't display blank. entityManager.find is L1-cached within
+         * the transaction, so repeated look-ups of the same company cost nothing extra.
+         */
+        private String resolveLineCompany(Integer lineCompanyId, Integer materialId, Map<Integer, String> cache) {
+                if (lineCompanyId != null) {
+                        Company company = entityManager.find(Company.class, lineCompanyId);
+                        if (company != null && company.getName() != null) {
+                                return company.getName();
+                        }
+                }
+                return resolveCompaniesForMaterial(materialId, cache);
+        }
+
         private IndentListResponse toIndentListResponse(Indent indent) {
                 // Cache company-name lookups per distinct materialId so we query each material at most
                 // once across this indent's line items (reuses the same Map-repo resolver as the detail page).
@@ -2186,7 +2206,9 @@ public class IndentService {
                                 indent.getDetails().stream()
                                         .map(d -> new IndentListResponse.ItemSummary(
                                                 d.getMaterial() != null ? d.getMaterial().getName() : null,
-                                                resolveCompaniesForMaterial(
+                                                d.getMaterial() != null ? d.getMaterial().getDescription() : null,
+                                                resolveLineCompany(
+                                                        d.getCompanyId(),
                                                         d.getMaterial() != null ? d.getMaterial().getId() : null,
                                                         companiesByMaterial),
                                                 d.getUnitOfMeasure() != null ? d.getUnitOfMeasure().getCode() : null,

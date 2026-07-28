@@ -35,6 +35,14 @@ public class IssueNoteDetails {
     @Column(name = "issue_note_material", nullable = false)
     private Integer materialId;
 
+    /**
+     * The SPECIFIC company selected for this line at creation (the material+company combination the
+     * user picked in the dropdown). Nullable — rows created before this feature have no value, in
+     * which case the display falls back to the multi-company resolver. Stored as a plain id (no FK).
+     */
+    @Column(name = "issue_note_details_company")
+    private Integer companyId;
+
     @Column(name = "issue_note_details_umo", nullable = false)
     private Integer unitOfMeasureId;
 

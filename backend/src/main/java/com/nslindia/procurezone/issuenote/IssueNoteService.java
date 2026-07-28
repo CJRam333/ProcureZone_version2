@@ -166,6 +166,7 @@ public class IssueNoteService {
             IssueNoteDetails detail = IssueNoteDetails.builder()
                     .issueNote(issueNote)
                     .materialId(lineItem.materialId())
+                    .companyId(lineItem.companyId())
                     .unitOfMeasureId(lineItem.unitOfMeasureId())
                     .quantity(lineItem.quantity())
                     .quantityStores(lineItem.quantityStores())
@@ -839,6 +840,23 @@ public class IssueNoteService {
     }
 
     /**
+     * Company shown for a line item: the SPECIFIC company selected at creation, when captured.
+     * Newer line items store the chosen companyId, so we show just that one company's name. Legacy
+     * rows (companyId == null, or a company id that no longer resolves) fall back to the multi-company
+     * resolver so they don't display blank. companyRepository.findById is L1-cached within the
+     * transaction, so repeated look-ups of the same company cost nothing extra.
+     */
+    private String resolveLineCompany(Integer lineCompanyId, Integer materialId, Map<Integer, String> cache) {
+        if (lineCompanyId != null) {
+            String name = companyRepository.findById(lineCompanyId).map(c -> c.getName()).orElse(null);
+            if (name != null) {
+                return name;
+            }
+        }
+        return resolveCompaniesForMaterial(materialId, cache);
+    }
+
+    /**
      * Builds each line item's RM quantity-edit history (oldest first) from the issue-note audit
      * table, in a single query. Empty for lines that were never adjusted.
      */
@@ -889,7 +907,8 @@ public class IssueNoteService {
                             d.getAmount(),
                             d.getPurpose(),
                             d.getStatus(),
-                            resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial),
+                            d.getCompanyId(),
+                            resolveLineCompany(d.getCompanyId(), d.getMaterialId(), companiesByMaterial),
                             historyByDetail.getOrDefault(d.getId(), List.of()),
                             d.getMaterialId() == null ? null
                                     : companyPlantMaterialMapRepository.sumQuantityByMaterial(d.getMaterialId())
@@ -969,9 +988,12 @@ public class IssueNoteService {
         List<Integer> uomIds = details.stream()
                 .map(d -> d.getUnitOfMeasureId()).filter(id -> id != null).distinct().collect(Collectors.toList());
         Map<Integer, String> materialNameById = new HashMap<>();
+        Map<Integer, String> materialDescById = new HashMap<>();
         if (!materialIds.isEmpty()) {
-            materialRepository.findAllById(materialIds)
-                    .forEach(m -> materialNameById.put(m.getId(), m.getName()));
+            materialRepository.findAllById(materialIds).forEach(m -> {
+                materialNameById.put(m.getId(), m.getName());
+                materialDescById.put(m.getId(), m.getDescription());
+            });
         }
         Map<Integer, String> uomCodeById = new HashMap<>();
         if (!uomIds.isEmpty()) {
@@ -982,7 +1004,8 @@ public class IssueNoteService {
         List<IssueNoteSummaryResponse.ItemSummary> items = details.stream()
                 .map(d -> new IssueNoteSummaryResponse.ItemSummary(
                         materialNameById.get(d.getMaterialId()),
-                        resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial),
+                        materialDescById.get(d.getMaterialId()),
+                        resolveLineCompany(d.getCompanyId(), d.getMaterialId(), companiesByMaterial),
                         uomCodeById.get(d.getUnitOfMeasureId()),
                         d.getQuantity()))
                 .collect(Collectors.toList());

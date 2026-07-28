@@ -2985,3 +2985,90 @@ through and the shapes still match structurally.
   company lookups to the list endpoint (issue-note list already resolved companies per note). Acceptable for
   paginated sizes; noted for future tuning.
 - Not runtime-verified against a live DB; analysis/build are code-level.
+
+---
+
+## 2026-07-28 (follow-up 2) — Items Company = the SPECIFIC company selected at creation (not all companies) + description in hover popup
+
+### STEP 1-2 — investigation result: PATH 2 (column missing AND value never sent)
+Resolved the contradiction in project history definitively:
+- **tbl_indent_details entity (IndentDetail):** columns were material, umo, qty, rm_qty, dept_qty, stock_aval,
+  pricing, purpose, vendor, status, lmd, lmu — **NO company column.**
+- **tbl_issue_note_details entity (IssueNoteDetails):** material, umo, quantity, rm_qty, rate, amount,
+  quantity_stores, purpose, status, lmd, lmu — **NO company column.**
+- **Create DTOs:** `IndentDetailRequest` and `CreateIssueNoteRequest.IssueNoteLineItem` had no companyId field.
+- **Save paths:** `createIndent` / `updateIndent` set stockAvailable but never a company; `createIssueNote`
+  builder set materialId/qty/stores but never a company.
+- **Frontend:** the dropdown option carries companyId+companyName; `selectMaterial` DOES capture it into
+  `itemCompanyMap[index]`, and stock flows through as `stockAvailable`/`quantityStores` — but the chosen
+  **companyId was never included in the submit payload** (`transformFormData` / issue-note `lineItems.map`).
+- **Verdict:** the "captures materialId+companyId+stockAvailable" note was WRONG about companyId. The selected
+  company was captured on the client, discarded before save, and there was no column to hold it. The display
+  therefore had to list ALL companies for the material. → PATH 2.
+
+### Fix implemented (PATH 2, full stack)
+1. **Migration `V59__line_item_selected_company.sql`** — adds nullable plain-INT columns (no FK, not
+   back-filled): `tbl_indent_details.indent_details_company` and `tbl_issue_note_details.issue_note_details_company`.
+2. **Entities** — `IndentDetail.companyId` (@Column indent_details_company + getter/setter),
+   `IssueNoteDetails.companyId` (@Column issue_note_details_company; Lombok getter/setter + builder).
+3. **Create DTOs** — added optional `Integer companyId` to `IndentDetailRequest` and
+   `CreateIssueNoteRequest.IssueNoteLineItem` (Jackson-only construction, so backward compatible: old
+   payloads deserialize companyId = null).
+4. **Save paths** — `createIndent` + `updateIndent` now `detail.setCompanyId(detailReq.companyId())`;
+   `createIssueNote` builder `.companyId(lineItem.companyId())`. (Issue notes have no PUT/update endpoint in
+   the controller, so no update-path change was needed there.)
+5. **Frontend send** — indent `transformFormData` and BOTH issue-note payload builders now send
+   `companyId: itemCompanyMap[index]?.companyId ?? undefined` per line. Create-request types gained `companyId?`.
+6. **Display — all four locations via one helper per service** (`resolveLineCompany(lineCompanyId, materialId, cache)`):
+   if the line has a captured companyId → show THAT single company's name (indent via `entityManager.find(Company)`,
+   issue-note via `companyRepository.findById`, both L1-cached in-tx); else **fall back to the existing
+   multi-company resolver** `resolveCompaniesForMaterial` so pre-existing rows never show blank.
+   - Indent detail Items card — `toIndentDetailResponse`
+   - Indent list hover popup — `toIndentListResponse` ItemSummary
+   - Issue Note detail Items card — `mapToResponse`
+   - Issue Note list hover popup — `mapToSummaryResponse` ItemSummary
+
+### Fallback behavior for pre-existing records
+Rows created before V59 have companyId = null → `resolveLineCompany` returns the multi-company list exactly
+as before (no visible change for old records). Every NEW indent/issue note created after this change shows the
+single company the user selected. Legacy-safe by construction.
+
+### Edit round-trip (prevents silent data-loss — flagged per Rule 9/10)
+The indent **update** path does `details.clear()` + rebuild from the payload. Without care, editing a draft
+whose lines weren't re-selected would resend companyId = null and wipe the captured company. Fixed by:
+- Exposing `companyId` on `IndentDetailResponse` + `IssueNoteResponse.IssueNoteDetailResponse` (and the FE
+  `IndentItem`/`IssueNoteDetail` types).
+- On edit-load, both forms repopulate `itemCompanyMap` from the loaded line's `companyId` (+ `companies` as the
+  name) so an unchanged line resends and preserves its company on save.
+(Scoped to company only — I deliberately did NOT change the pre-existing behavior where stockAvailable isn't
+repopulated on edit; that's out of scope. Reported, not silently altered — Rule 4.)
+
+### STEP 4 — material description in the hover popup
+Added `materialDescription` to both `ItemSummary` records, populated from the SAME Material already read for
+the name (indent: `d.getMaterial().getDescription()`; issue-note: added `description` to the existing per-note
+batch `findAllById` — no new resolver). Frontend `IndentItemSummary`/`IssueNoteItemSummary`/`ItemsPreviewLine`
+gained `materialDescription?`; `ItemsPreview` renders it as an italic muted line under the name, above company.
+Popup order now: **Name (+ qty·UOM on the same row) → Description → Company**.
+
+### Files changed (18)
+Migration (1): V59__line_item_selected_company.sql.
+BE (9): IndentDetail, IssueNoteDetails, IndentDetailRequest, CreateIssueNoteRequest, IndentService,
+IssueNoteService, IndentDetailResponse, IssueNoteResponse, IndentListResponse, IssueNoteSummaryResponse.
+FE (6): api/indents.ts, api/issueNotes.ts, components/common/ItemsPreview.tsx, IndentFormPage.tsx,
+IssueNoteFormPage.tsx (+ the two list pages already pass items through — unchanged).
+
+### Build
+- `mvn -q -DskipTests compile` — clean, 0 errors.
+- `tsc -b` — clean, 0 errors.
+- `vite build` — clean (pre-existing >500 kB chunk warning only). New JS `assets/index-BDHeUhpK.js`;
+  CSS unchanged `assets/index-C0ZtAKUb.css`.
+
+### Verification (Rule 7) + notes
+- Each changed response DTO has exactly ONE constructor (all updated); grep confirmed no other positional
+  callers would break (Rule 3/8).
+- `resolveLineCompany` fallback path preserves the prior multi-company display for legacy rows — verified by
+  code trace, not a live DB (no DB access).
+- ⚠ The V59 migration MUST run before the app serves requests (Flyway auto-applies on startup); the entities
+  now map the new columns, so an un-migrated DB would fail with "unknown column". Standard deploy order handles
+  this.
+- Not runtime-verified against a live DB; analysis/build are code-level.
