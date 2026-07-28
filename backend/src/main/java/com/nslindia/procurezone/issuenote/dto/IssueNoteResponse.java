@@ -66,6 +66,9 @@ public record IssueNoteResponse(
             String purpose,
             Integer status,
             String companies,
-            java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO> quantityHistory) {
+            java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO> quantityHistory,
+            // Current authoritative stock (aggregated tbl_map_company_plant_material.map_quantity_stores
+            // across companies/plants) — raw SAP-fed figure for informational display only.
+            BigDecimal storesBalance) {
     }
 }

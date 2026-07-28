@@ -56,6 +56,9 @@ public class IndentService {
 
         private static final Logger logger = LoggerFactory.getLogger(IndentService.class);
 
+        /** Sanity ceiling for any line-item quantity (business rule: no per-stage monotonic limit). */
+        private static final java.math.BigDecimal MAX_QUANTITY = java.math.BigDecimal.valueOf(99999);
+
         private static final Map<Integer, String> SPRING_STATUS_LABELS = Map.of(
                 1, "Draft",
                 2, "Submitted",
@@ -752,12 +755,19 @@ public class IndentService {
                 // !hasSupervisor`. A PLANTMANAGER (not covered) — or a DEPTHEAD who reports to someone
                 // (hasSupervisor=true) — saw the popup but the bypass silently no-opped, leaving the
                 // indent at "Pending RM Approval". Aligning to the popup fixes both cases.
+                // Read the raiser's normalized principal roles once (same signal the frontend popups
+                // use). DEPTHEAD/PLANTMANAGER bypass BOTH stages to Procurement; a plain SUPERVISOR
+                // bypasses only the RM stage (they ARE the RM) and lands in the Dept-Head queue.
                 var bypassAuth = org.springframework.security.core.context.SecurityContextHolder
                         .getContext().getAuthentication();
-                boolean isDeptLevelRaiser = bypassAuth != null
-                        && bypassAuth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal bp
-                        && bp.roles() != null
-                        && (bp.roles().contains("DEPTHEAD") || bp.roles().contains("PLANTMANAGER"));
+                java.util.Set<String> raiserRoles =
+                        (bypassAuth != null
+                                && bypassAuth.getPrincipal() instanceof com.nslindia.procurezone.security.UserPrincipal bp
+                                && bp.roles() != null)
+                                        ? bp.roles() : java.util.Set.of();
+                boolean isDeptLevelRaiser = raiserRoles.contains("DEPTHEAD") || raiserRoles.contains("PLANTMANAGER");
+                boolean isSupervisorRaiser = !isDeptLevelRaiser && raiserRoles.contains("SUPERVISOR");
+
                 if (isDeptLevelRaiser) {
                         logger.info("Dept-level auto-approval: user {} is DEPTHEAD/PLANTMANAGER — "
                                         + "bypassing L1+L2, routing indent to Procurement", username);
@@ -791,20 +801,47 @@ public class IndentService {
                         indent.setFinalStatus(entityManager.getReference(IndentStatus.class, 4));
                         indent.setProcurementStatus(entityManager.getReference(IndentStatus.class, 4));
                         indent.setRemarks("L1+L2 auto-approved (submitter is DEPTHEAD/PLANTMANAGER) — routed to Procurement");
+                } else if (isSupervisorRaiser) {
+                        logger.info("Supervisor auto-approval: user {} is SUPERVISOR (the RM) — "
+                                        + "bypassing the RM stage, routing indent to the Dept-Head queue", username);
+
+                        // Auto-approve L1 only (the Supervisor IS the RM): copy the requested quantity
+                        // into rmQuantity. deptQuantity stays NULL — the Dept Head has not acted yet, so
+                        // the Dept Head column correctly renders blank until they do.
+                        for (IndentDetail detail : indent.getDetails()) {
+                                if (detail.getRmQuantity() == null) {
+                                        detail.setRmQuantity(detail.getQuantity());
+                                        detail.setLastModifiedDate(LocalDateTime.now());
+                                        detail.setLastModifiedBy(currentUser.getEmpNumber());
+                                }
+                        }
+
+                        // Three-column state = RM approved (approved=3), awaiting Dept Head
+                        // (finalStatus=1, procurementStatus=1 — left as set at creation). status stays 2
+                        // (Submitted). deriveDisplayStatus(3,1,1) = "RM Approved" → the Dept-Head queue
+                        // (findDeptHeadQueueForCreators filters approvedStatus=3 AND finalStatus=1).
+                        indent.setApprovedBy(currentUser);
+                        indent.setApprovedByDate(LocalDateTime.now());
+                        indent.setApprovedStatus(entityManager.getReference(IndentStatus.class, 3));
+                        indent.setRemarks("L1 auto-approved (submitter is SUPERVISOR / RM) — awaiting Dept Head");
                 }
 
                 indent = indentRepository.save(indent);
 
                 // Record workflow action
-                boolean autoApproved = isDeptLevelRaiser;
-                String action = autoApproved ? "SUBMITTED_AUTO_L1_L2" : "SUBMITTED";
-                recordWorkflowAction(indent, currentUser, action,
-                                autoApproved ? "L1+L2 auto-approved for DEPTHEAD/PLANTMANAGER — routed to Procurement" : null, 0);
+                boolean autoApproved = isDeptLevelRaiser || isSupervisorRaiser;
+                String action = isDeptLevelRaiser ? "SUBMITTED_AUTO_L1_L2"
+                                : isSupervisorRaiser ? "SUBMITTED_AUTO_L1" : "SUBMITTED";
+                String bypassNote = isDeptLevelRaiser
+                                ? "L1+L2 auto-approved (DEPTHEAD/PLANTMANAGER) — routed to Procurement"
+                                : isSupervisorRaiser
+                                        ? "L1 auto-approved (SUPERVISOR/RM) — awaiting Dept Head"
+                                        : null;
+                recordWorkflowAction(indent, currentUser, action, bypassNote, 0);
 
                 // Audit log
                 String auditMessage = autoApproved
-                                ? String.format("Submitted indent %s for approval (L1+L2 auto-approved - DEPTHEAD/PLANTMANAGER, routed to Procurement)",
-                                                indent.getIndentNumber())
+                                ? String.format("Submitted indent %s for approval (%s)", indent.getIndentNumber(), bypassNote)
                                 : String.format("Submitted indent %s for approval", indent.getIndentNumber());
                 auditService.logEntityChange(
                                 "SUBMIT",
@@ -946,14 +983,13 @@ public class IndentService {
                                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                                 "Indent detail not found with ID: " + adj.detailId()));
 
-                                // Monotonic-decrease validation (server-authoritative):
-                                // 0 <= rmQuantity <= original quantity. Zero is allowed.
+                                // Sanity bound only (business decision: monotonic-decrease limit removed):
+                                // 0 <= rmQuantity <= 99999. RM may increase or decrease freely.
                                 if (adj.rmQuantity().signum() < 0
-                                                || adj.rmQuantity().compareTo(detail.getQuantity()) > 0) {
+                                                || adj.rmQuantity().compareTo(MAX_QUANTITY) > 0) {
                                         throw new IllegalArgumentException(
-                                                        String.format("RM quantity (%.2f) must be between 0 and the original quantity (%.2f) for line item %d",
-                                                                        adj.rmQuantity(), detail.getQuantity(),
-                                                                        adj.detailId()));
+                                                        String.format("RM quantity (%.2f) must be between 0 and 99999 for line item %d",
+                                                                        adj.rmQuantity(), adj.detailId()));
                                 }
 
                                 // Audit only a real change (old = original indent_details_qty).
@@ -1123,14 +1159,13 @@ public class IndentService {
                                                 ? detail.getRmQuantity()
                                                 : detail.getQuantity();
 
-                                // Monotonic-decrease validation (server-authoritative):
-                                // 0 <= deptQuantity <= reference (rm qty if set, else original). Zero allowed.
+                                // Sanity bound only (business decision: monotonic-decrease limit removed):
+                                // 0 <= deptQuantity <= 99999. DeptHead may increase or decrease freely.
                                 if (adj.deptQuantity().signum() < 0
-                                                || adj.deptQuantity().compareTo(referenceQty) > 0) {
+                                                || adj.deptQuantity().compareTo(MAX_QUANTITY) > 0) {
                                         throw new IllegalArgumentException(
-                                                        String.format("Dept quantity (%.2f) must be between 0 and the previous stage's quantity (%.2f) for line item %d",
-                                                                        adj.deptQuantity(), referenceQty,
-                                                                        adj.detailId()));
+                                                        String.format("Dept quantity (%.2f) must be between 0 and 99999 for line item %d",
+                                                                        adj.deptQuantity(), adj.detailId()));
                                 }
 
                                 // Audit only a real change (old = the reference qty the DeptHead saw).
@@ -1973,11 +2008,13 @@ public class IndentService {
                 // Cache company-name lookups per distinct materialId so we do at most one query
                 // per material across all line items of this indent.
                 Map<Integer, String> companiesByMaterial = new java.util.HashMap<>();
+                // Cache current-stock lookups per distinct materialId (one query per material).
+                Map<Integer, java.math.BigDecimal> stockByMaterial = new java.util.HashMap<>();
                 // Per-line quantity-edit history, resolved from the audit table in one query.
                 Map<Integer, java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> historyByDetail =
                                 buildIndentQtyHistory(indent.getDetails());
                 List<IndentDetailResponse> detailResponses = indent.getDetails().stream()
-                                .map(detail -> toIndentDetailResponse(detail, companiesByMaterial, historyByDetail))
+                                .map(detail -> toIndentDetailResponse(detail, companiesByMaterial, stockByMaterial, historyByDetail))
                                 .collect(Collectors.toList());
 
                 return new IndentResponse(
@@ -2036,9 +2073,11 @@ public class IndentService {
 
         private IndentDetailResponse toIndentDetailResponse(IndentDetail detail,
                         Map<Integer, String> companiesByMaterial,
+                        Map<Integer, java.math.BigDecimal> stockByMaterial,
                         Map<Integer, java.util.List<com.nslindia.procurezone.common.dto.QuantityEditDTO>> historyByDetail) {
                 Integer materialId = detail.getMaterial() != null ? detail.getMaterial().getId() : null;
                 String companies = resolveCompaniesForMaterial(materialId, companiesByMaterial);
+                java.math.BigDecimal currentStock = resolveCurrentStock(materialId, stockByMaterial);
                 // Effective = the most-advanced stage's value: dept ?? rm ?? original.
                 java.math.BigDecimal effective = detail.getDeptQuantity() != null ? detail.getDeptQuantity()
                                 : (detail.getRmQuantity() != null ? detail.getRmQuantity() : detail.getQuantity());
@@ -2062,7 +2101,19 @@ public class IndentService {
                                 detail.getVendor(),
                                 detail.getStatus(),
                                 companies,
-                                history);
+                                history,
+                                currentStock);
+        }
+
+        /**
+         * Current authoritative stock for a material — aggregated map_quantity_stores across all
+         * companies/plants (same source as the material dropdown / Inventory). Cached per materialId.
+         */
+        private java.math.BigDecimal resolveCurrentStock(Integer materialId, Map<Integer, java.math.BigDecimal> cache) {
+                if (materialId == null) return null;
+                return cache.computeIfAbsent(materialId, id ->
+                                companyPlantMaterialRepository.sumQuantityByMaterial(id)
+                                                .orElse(java.math.BigDecimal.ZERO));
         }
 
         /**

@@ -102,6 +102,7 @@ export interface IndentItem {
     vendor?: string;
     status: number;
     companies?: string; // comma-separated company names stocking this material
+    currentStock?: number; // aggregated current stock across companies/plants
     // Optional aliases for UI compatibility
     materialDescription?: string; // alias for materialName
     uomCode?: string; // alias for unitOfMeasureCode

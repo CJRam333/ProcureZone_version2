@@ -65,6 +65,9 @@ public class IssueNoteService {
     private final UnitOfMeasureRepository unitOfMeasureRepository;
     private final IssueNoteDetailQtyAuditRepository qtyAuditRepository;
 
+    /** Sanity ceiling for any line-item quantity (business rule: no monotonic/stock limit). */
+    private static final BigDecimal MAX_QUANTITY = BigDecimal.valueOf(99999);
+
     private static final String ENTITY_TYPE = "Issue Note";
     private static final String ERROR_NOT_FOUND = "Issue Note not found with ID: ";
 
@@ -158,15 +161,10 @@ public class IssueNoteService {
         // Save issue note first to get ID
         issueNote = issueNoteRepository.save(issueNote);
 
-        // Create line items
+        // Create line items. (Business rule 2026-07-27: the creation-stage "exceeds available stock"
+        // cap was removed — an issue note may be raised for any quantity in [0, 99999]. Stock is still
+        // validated later at the Stores/issueGoods stage before goods are actually released.)
         for (var lineItem : request.lineItems()) {
-            if (lineItem.quantityStores() != null
-                    && lineItem.quantity().compareTo(lineItem.quantityStores()) > 0) {
-                throw new IllegalArgumentException(
-                        "Requested quantity for material ID " + lineItem.materialId()
-                        + " exceeds available stock ("
-                        + lineItem.quantity() + " > " + lineItem.quantityStores() + ")");
-            }
             IssueNoteDetails detail = IssueNoteDetails.builder()
                     .issueNote(issueNote)
                     .materialId(lineItem.materialId())
@@ -311,13 +309,13 @@ public class IssueNoteService {
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Issue note detail not found with ID: " + item.detailId()));
 
-                // Monotonic-decrease validation (server-authoritative):
-                // 0 <= rmQuantity <= requester's original quantity. Zero is allowed.
+                // Sanity bound only (business decision: monotonic-decrease limit removed):
+                // 0 <= rmQuantity <= 99999. RM may increase or decrease freely.
                 if (item.rmQuantity().signum() < 0
-                        || item.rmQuantity().compareTo(detail.getQuantity()) > 0) {
+                        || item.rmQuantity().compareTo(MAX_QUANTITY) > 0) {
                     throw new IllegalArgumentException(String.format(
-                            "RM quantity (%.2f) must be between 0 and the requested quantity (%.2f) for line item %d",
-                            item.rmQuantity(), detail.getQuantity(), item.detailId()));
+                            "RM quantity (%.2f) must be between 0 and 99999 for line item %d",
+                            item.rmQuantity(), item.detailId()));
                 }
 
                 // Audit only a real change (old = the requester's original quantity).
@@ -894,7 +892,10 @@ public class IssueNoteService {
                             d.getPurpose(),
                             d.getStatus(),
                             resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial),
-                            historyByDetail.getOrDefault(d.getId(), List.of()));
+                            historyByDetail.getOrDefault(d.getId(), List.of()),
+                            d.getMaterialId() == null ? null
+                                    : companyPlantMaterialRepository.sumQuantityByMaterial(d.getMaterialId())
+                                            .orElse(BigDecimal.ZERO));
                 })
                 .collect(Collectors.toList());
 

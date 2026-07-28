@@ -100,7 +100,10 @@ public class ApprovalController {
      * - Status 5 (Proc. In Progress)  → L3 Procurement Approval  (→ status 6)
      */
     @PostMapping("/indents/{id}/approve")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
+    // Workflow ACTION (2026-07-27): the smart-route approve requires an actual workflow role
+    // (SUPERVISOR=L1, DEPTHEAD/PLANTMANAGER=L2, PROCUREMENT=procurement). ADMIN/SUPERADMIN removed —
+    // a global admin who is not a workflow approver can no longer approve.
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('SUPERVISOR')")
     public ResponseEntity<?> approveIndent(
             @PathVariable Integer id,
             @RequestParam(required = false) String remarks,
@@ -149,7 +152,8 @@ public class ApprovalController {
      * POST /api/v1/approvals/indents/{id}/reject?remarks=...
      */
     @PostMapping("/indents/{id}/reject")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('ADMIN') or hasRole('SUPERADMIN') or hasRole('SUPERVISOR')")
+    // Workflow ACTION (2026-07-27): requires an actual workflow role; ADMIN/SUPERADMIN removed.
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('PROCUREMENT') or hasRole('SUPERVISOR')")
     public ResponseEntity<?> rejectIndent(
             @PathVariable Integer id,
             @RequestParam String remarks,

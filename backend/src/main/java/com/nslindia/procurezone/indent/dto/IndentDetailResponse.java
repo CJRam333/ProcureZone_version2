@@ -31,5 +31,9 @@ public record IndentDetailResponse(
         String vendor,
         Integer status,
         String companies,
-        List<QuantityEditDTO> quantityHistory) {
+        List<QuantityEditDTO> quantityHistory,
+        // Current authoritative stock for the material, aggregated across all companies/plants from
+        // tbl_map_company_plant_material.map_quantity_stores (same source as the material dropdown /
+        // Inventory). Distinct from stockAvailable, which is the value captured at indent creation.
+        BigDecimal currentStock) {
 }

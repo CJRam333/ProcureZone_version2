@@ -356,7 +356,9 @@ public class IndentController {
      */
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    // Workflow ACTION (2026-07-27): requires the actual workflow role (DeptHead/PlantManager).
+    // ADMIN/SUPERADMIN removed — a global admin who is not a workflow approver cannot approve.
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER')")
     public ResponseEntity<IndentResponse> approveIndent(
             @PathVariable Integer id,
             @RequestParam(required = false) String remarks,
@@ -376,7 +378,8 @@ public class IndentController {
      */
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    // Workflow ACTION (2026-07-27): requires the actual workflow role; ADMIN/SUPERADMIN removed.
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER')")
     public ResponseEntity<IndentResponse> rejectIndent(
             @PathVariable Integer id,
             @RequestParam String remarks,
@@ -445,7 +448,8 @@ public class IndentController {
      * optionally further adjust quantities (deptQuantity) for each line item.
      */
     @PostMapping("/{id}/l2-approve")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    // Workflow ACTION (2026-07-27): L2 requires the actual DeptHead/PlantManager role; ADMIN/SUPERADMIN removed.
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER')")
     public ResponseEntity<IndentResponse> l2ApproveIndent(
             @PathVariable Integer id,
             @Valid @RequestBody(required = false) L2ApprovalRequest request,
@@ -468,7 +472,8 @@ public class IndentController {
      * POST /api/v1/indents/{id}/l2-reject
      */
     @PostMapping("/{id}/l2-reject")
-    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER') or hasRole('ADMIN') or hasRole('SUPERADMIN')")
+    // Workflow ACTION (2026-07-27): L2 requires the actual DeptHead/PlantManager role; ADMIN/SUPERADMIN removed.
+    @PreAuthorize("hasRole('DEPTHEAD') or hasRole('PLANTMANAGER')")
     public ResponseEntity<IndentResponse> l2RejectIndent(
             @PathVariable Integer id,
             @RequestParam String remarks,

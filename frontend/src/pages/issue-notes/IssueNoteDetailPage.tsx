@@ -187,7 +187,7 @@ const IssueNoteDetailPage: React.FC = () => {
   const canSubmit = isTrueDraft && hasAnyRole(['SUPERADMIN', 'ADMIN', 'USER', 'ISSUECONFIRM', 'SUPERVISOR']);
   // RM stage: submitted (status=2) and RM decision still pending
   const canRmAct = issueNote.status === 2 && approvedStatusId === 1
-    && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'SUPERVISOR']);
+    && hasAnyRole(['DEPTHEAD', 'SUPERVISOR']);
   // Stores stage: RM approved, stores action pending. PROCUREMENT fills the stores role in this
   // deployment, so it must see the Goods Issued / Reject (Stores) buttons alongside ISSUECONFIRM.
   const canIssue = approvedStatusId === 3 && storesByStatusId === 1
@@ -306,6 +306,7 @@ const IssueNoteDetailPage: React.FC = () => {
                           <th rowSpan={2}>Description</th>
                           <th rowSpan={2}>Company</th>
                           <th rowSpan={2}>UOM</th>
+                          <th rowSpan={2} className="text-end">Balance in Stores</th>
                           <th className="text-center" colSpan={2}>Quantity</th>
                         </tr>
                         <tr>
@@ -316,7 +317,7 @@ const IssueNoteDetailPage: React.FC = () => {
                       <tbody>
                         {details.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="text-center text-muted py-4">No items found</td>
+                            <td colSpan={8} className="text-center text-muted py-4">No items found</td>
                           </tr>
                         ) : (
                           details.map((item, index) => {
@@ -353,6 +354,7 @@ const IssueNoteDetailPage: React.FC = () => {
                                 <td>{item.materialName || 'N/A'}</td>
                                 <td>{item.companies || '—'}</td>
                                 <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
+                                <td className="text-end">{item.storesBalance ?? '—'}</td>
                                 {/* Requested — the requester's original, always read-only */}
                                 <td className="text-end">{qty}</td>
                                 {/* RM — editable only on the RM approval turn; else rmQty ?? original */}
@@ -363,7 +365,7 @@ const IssueNoteDetailPage: React.FC = () => {
                                         type="number"
                                         size="sm"
                                         min={0}
-                                        max={qty}
+                                        max={99999}
                                         value={qtyEdits[item.id] ?? effectiveQty}
                                         onChange={(e) =>
                                           setQtyEdits((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))
@@ -381,7 +383,7 @@ const IssueNoteDetailPage: React.FC = () => {
                       </tbody>
                       <tfoot className="bg-light">
                         <tr>
-                          <td colSpan={5} className="text-end fw-bold">Total Quantity:</td>
+                          <td colSpan={6} className="text-end fw-bold">Total Quantity:</td>
                           <td className="text-end fw-bold">
                             {details.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)}
                           </td>

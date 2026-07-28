@@ -275,8 +275,8 @@ const IndentDetailPage: React.FC = () => {
   // Once the indent reaches procurement (finalStatus=4, procurementStatus>=4) there is no
   // approve/reject — PROCUREMENT works exclusively through the status-update card below.
   const canApprove =
-    (awaitingL1 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'SUPERVISOR'])) ||
-    (awaitingL2 && hasAnyRole(['SUPERADMIN', 'ADMIN', 'DEPTHEAD', 'PLANTMANAGER']));
+    (awaitingL1 && hasAnyRole(['SUPERVISOR'])) ||
+    (awaitingL2 && hasAnyRole(['DEPTHEAD', 'PLANTMANAGER']));
 
   // Dynamic approve button label — describes the workflow stage
   const approveLabel = awaitingL1 ? 'Approve (RM Review)'
@@ -485,6 +485,7 @@ const IndentDetailPage: React.FC = () => {
                           <th rowSpan={2}>Description</th>
                           <th rowSpan={2}>Company</th>
                           <th rowSpan={2}>UOM</th>
+                          <th rowSpan={2} className="text-end">Available Stock</th>
                           <th className="text-center" colSpan={3}>Quantity</th>
                           <th rowSpan={2}>Remarks</th>
                         </tr>
@@ -497,7 +498,7 @@ const IndentDetailPage: React.FC = () => {
                       <tbody>
                         {details.length === 0 ? (
                           <tr>
-                            <td colSpan={9} className="text-center text-muted py-4">
+                            <td colSpan={10} className="text-center text-muted py-4">
                               No items found
                             </td>
                           </tr>
@@ -561,17 +562,18 @@ const IndentDetailPage: React.FC = () => {
                                 <td>{item.materialName || item.materialDescription || 'N/A'}</td>
                                 <td>{item.companies || '—'}</td>
                                 <td><Badge bg="secondary">{item.unitOfMeasureCode || item.uomCode || 'N/A'}</Badge></td>
+                                <td className="text-end">{item.currentStock ?? '—'}</td>
                                 {/* Requested — the requester's original, always read-only */}
                                 <td className="text-end">{qty}</td>
                                 {/* RM — editable only on the L1 (RM/Supervisor) turn */}
                                 <td className="text-end">
-                                  {isL1Turn ? qtyInput(qty) : withEdit(rmDisplay, rmEdit)}
+                                  {isL1Turn ? qtyInput(99999) : withEdit(rmDisplay, rmEdit)}
                                 </td>
                                 {/* Dept Head — editable only on the L2 turn; otherwise BLANK until a
                                     Dept Head has actually acted (deptQuantity set), never the RM value */}
                                 <td className="text-end">
                                   {isL2Turn
-                                    ? qtyInput(Number(item.rmQuantity ?? qty))
+                                    ? qtyInput(99999)
                                     : (item.deptQuantity != null
                                         ? withEdit(Number(item.deptQuantity), deptEdit)
                                         : <span className="text-muted">—</span>)}

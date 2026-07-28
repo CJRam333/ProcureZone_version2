@@ -67,6 +67,7 @@ export interface IssueNoteDetail {
     purpose?: string;
     status: number;
     companies?: string; // comma-separated company names stocking this material
+    storesBalance?: number; // aggregated current stock balance in stores
 }
 
 // Backend Issue Note status values (1-based, from issue_note_status column)

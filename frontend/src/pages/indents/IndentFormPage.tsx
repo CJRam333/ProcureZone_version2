@@ -14,7 +14,7 @@ import {
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { FaPlus, FaTrash, FaSave, FaPaperPlane, FaArrowLeft, FaSearch, FaEdit, FaTimes } from 'react-icons/fa';
 import { PageHeader, LoadingSpinner } from '../../components/common';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -30,7 +30,7 @@ const indentItemSchema = z.object({
   materialDescription: z.string().optional(),
   uomId: z.number().min(1, 'UOM is required'),
   uomCode: z.string().optional(),
-  requestedQuantity: z.number().min(0.01, 'Quantity must be greater than 0'),
+  requestedQuantity: z.number().min(0, 'Quantity cannot be negative').max(99999, 'Quantity cannot exceed 99999'),
   estimatedRate: z.number().min(0).optional(),
   remarks: z.string().optional(),
   vendor: z.string().optional(),
@@ -62,6 +62,9 @@ const IndentFormPage: React.FC = () => {
   const [showDeptHeadConfirm, setShowDeptHeadConfirm] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<IndentFormData | null>(null);
   const [materialSearch, setMaterialSearch] = useState('');
+  // Debounced copy of materialSearch that actually drives the query. Kept separate so typing
+  // is responsive while requests are throttled, and so clearing can reset instantly.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showMaterialSearch, setShowMaterialSearch] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
   const [dropdownAnchor, setDropdownAnchor] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -123,6 +126,18 @@ const IndentFormPage: React.FC = () => {
     };
   }, [showMaterialSearch]);
 
+  // Debounce the material search (~300ms). Clearing the box resets the debounced term
+  // immediately (no lingering stale results). Because the timer is cleared and rescheduled on
+  // every change, the search reliably fires again after clearing and retyping — no blur/refocus.
+  useEffect(() => {
+    if (materialSearch === '') {
+      setDebouncedSearch('');
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedSearch(materialSearch), 300);
+    return () => clearTimeout(timer);
+  }, [materialSearch]);
+
   const watchItems = watch('items');
   const watchPlantId = watch('plantId');
 
@@ -134,11 +149,15 @@ const IndentFormPage: React.FC = () => {
   });
 
   // Fetch materials for dropdown — fires whenever the search popup is open
-  const { data: dropdownMaterials } = useQuery<MaterialDropdownItem[]>({
-    queryKey: ['materials-dropdown', materialSearch],
-    queryFn: () => materialsApi.dropdown(materialSearch),
+  const { data: dropdownMaterials, isFetching: isSearching } = useQuery<MaterialDropdownItem[]>({
+    queryKey: ['materials-dropdown', debouncedSearch],
+    queryFn: () => materialsApi.dropdown(debouncedSearch),
     enabled: showMaterialSearch,
     staleTime: 30000,
+    // Results are keyed by the debounced term, so a late response for an older term lands in its
+    // own cache entry and can never overwrite the current term's results (out-of-order guard).
+    // keepPreviousData shows the prior list until the new one arrives, preventing flicker.
+    placeholderData: keepPreviousData,
   });
 
   // Fetch UOMs for dropdown
@@ -530,9 +549,14 @@ const IndentFormPage: React.FC = () => {
                               className="bg-white border rounded shadow-lg"
                               style={{ position: 'fixed', top: dropdownAnchor.top, left: dropdownAnchor.left, width: dropdownAnchor.width, minWidth: '400px', maxHeight: '250px', overflowY: 'auto', zIndex: 9999 }}
                             >
+                              {isSearching && (
+                                <div className="p-2 text-muted text-center small border-bottom">
+                                  <Spinner as="span" animation="border" size="sm" className="me-2" />
+                                  Searching...
+                                </div>
+                              )}
                               {dropdownMaterials && dropdownMaterials.length > 0 ? (
                                 dropdownMaterials.map((item, idx) => {
-                                  const desc = item.materialDescription ? ` (${item.materialDescription})` : '';
                                   const stock = item.stockQuantity !== null ? item.stockQuantity : 0;
                                   return (
                                     <div
@@ -547,7 +571,12 @@ const IndentFormPage: React.FC = () => {
                                       onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e9ecef'; }}
                                       onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
                                     >
-                                      <div className="fw-semibold text-primary">[{item.materialCode}] {item.materialName}{desc}</div>
+                                      <div className="fw-semibold text-primary">{item.materialName}</div>
+                                      {item.materialDescription && (
+                                        <small className="text-muted d-block" style={{ lineHeight: 1.3 }}>
+                                          {item.materialDescription}
+                                        </small>
+                                      )}
                                       <small className="text-muted d-block">
                                         Company: <strong>{item.companyName}</strong> | Plant: {item.plantName} | Stock: <span className={Number(stock) > 0 ? 'text-success fw-medium' : 'text-danger fw-medium'}>{stock}</span>
                                       </small>
@@ -555,9 +584,11 @@ const IndentFormPage: React.FC = () => {
                                   );
                                 })
                               ) : (
-                                <div className="p-3 text-muted text-center small">
-                                  {materialSearch ? `No materials found for "${materialSearch}"` : 'No materials found'}
-                                </div>
+                                !isSearching && (
+                                  <div className="p-3 text-muted text-center small">
+                                    {debouncedSearch ? `No materials found for "${debouncedSearch}"` : 'No materials found'}
+                                  </div>
+                                )
                               )}
                             </div>
                           )}
@@ -575,7 +606,10 @@ const IndentFormPage: React.FC = () => {
                           isInvalid={!!errors.items?.[index]?.uomId}
                           onChange={(e) => {
                             const uomId = Number(e.target.value);
-                            setValue(`items.${index}.uomId`, uomId, { shouldDirty: true });
+                            // shouldValidate re-runs the field validator on selection so the
+                            // "UOM is required" error clears immediately and the numeric value
+                            // is captured into form state.
+                            setValue(`items.${index}.uomId`, uomId, { shouldDirty: true, shouldValidate: true });
                             const selectedUom = uomData?.content?.find((u) => u.id === uomId);
                             setValue(`items.${index}.uomCode`, selectedUom?.code || '', { shouldDirty: true });
                           }}
@@ -595,7 +629,8 @@ const IndentFormPage: React.FC = () => {
                         <Form.Control
                           type="number"
                           step="0.01"
-                          min="0.01"
+                          min={0}
+                          max={99999}
                           size="sm"
                           className="text-center"
                           {...register(`items.${index}.requestedQuantity`, { valueAsNumber: true })}

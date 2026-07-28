@@ -168,7 +168,9 @@ public class IssueNoteController {
          * Changes status from 2 (Pending RM Approval) to 3 (RM Approved)
          */
         @PostMapping("/{id}/rm-approve")
-        @PreAuthorize("hasAnyRole('SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
+        // Workflow ACTION (2026-07-27): RM approval requires the actual RM role (SUPERVISOR/DEPTHEAD);
+        // ADMIN/SUPERADMIN removed — a global admin who is not an RM can no longer RM-approve.
+        @PreAuthorize("hasAnyRole('SUPERVISOR', 'DEPTHEAD')")
         public ResponseEntity<Map<String, Object>> rmApproveIssueNote(
                         @PathVariable Integer id,
                         @Valid @RequestBody ApproveIssueNoteRequest request,
@@ -194,7 +196,8 @@ public class IssueNoteController {
          * Changes status from 2 (Pending RM Approval) to 5 (Rejected by RM)
          */
         @PostMapping("/{id}/rm-reject")
-        @PreAuthorize("hasAnyRole('SUPERVISOR', 'DEPTHEAD', 'ADMIN', 'SUPERADMIN')")
+        // Workflow ACTION (2026-07-27): requires the actual RM role; ADMIN/SUPERADMIN removed.
+        @PreAuthorize("hasAnyRole('SUPERVISOR', 'DEPTHEAD')")
         public ResponseEntity<Map<String, Object>> rmRejectIssueNote(
                         @PathVariable Integer id,
                         @Valid @RequestBody RejectIssueNoteRequest request,

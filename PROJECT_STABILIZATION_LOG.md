@@ -2751,3 +2751,108 @@ the per-column inline tooltip (matching the indent pattern); `Popover`/`FaHistor
 - Part 3 traced: not-acted → deptQuantity null → column blank; l2Approve (adjust or not) writes
   deptQuantity → column shows it; bypass seeds deptQuantity → shows it.
 - Not runtime-verified against a live DB (no DB access).
+
+## 2026-07-27 — 8-item batch: search robustness, role/permission independence, quantity limits, supervisor bypass, dropdown fields, password field, UOM validation, detail-page stock columns
+
+### PART 1 — Material search robustness (both creation forms)
+Search is DUPLICATED inline in IndentFormPage + IssueNoteFormPage (no shared component); fixed both.
+Root cause: NO debounce — the raw input drove the React Query key with `staleTime:30000`, so clearing
+mapped to the cached empty-term result (stale results lingered) and rapid clear/retype could settle on
+a stale cached response until a blur/refocus reset it. Fix: 300ms `debouncedSearch` (cleared/rescheduled
+each keystroke; clearing resets synchronously), query keyed on the debounced term, `keepPreviousData`
+to prevent flicker, per-term cache + current-key-only read as the out-of-order guard, and an `isFetching`
+"Searching…" indicator.
+
+### PART 2 — Workflow actions require the ACTUAL workflow role, not ADMIN/SUPERADMIN
+Business model: module/list/export VISIBILITY stays ADMIN/SUPERADMIN-governed; workflow ACTIONS
+(approve/reject, quantity-edit at L1/L2, RM approve) require the real workflow role. Holding ADMIN alone
+no longer grants action rights.
+- **Frontend gates (detail pages):**
+  - IndentDetailPage `canApprove`: `(awaitingL1 && ['SUPERADMIN','ADMIN','SUPERVISOR']) || (awaitingL2 && ['SUPERADMIN','ADMIN','DEPTHEAD','PLANTMANAGER'])` → `(awaitingL1 && ['SUPERVISOR']) || (awaitingL2 && ['DEPTHEAD','PLANTMANAGER'])`. (isL1Turn/isL2Turn — hence the quantity-edit inputs — inherit this.)
+  - IssueNoteDetailPage `canRmAct`: `['SUPERADMIN','ADMIN','DEPTHEAD','SUPERVISOR']` → `['DEPTHEAD','SUPERVISOR']`.
+  - Left unchanged: `canEdit`/`canSubmit` (draft), `canIssue` (stores) — not L1/L2 approval actions.
+- **Backend endpoint @PreAuthorize (ADMIN/SUPERADMIN removed):**
+  - IndentController `/{id}/approve`, `/{id}/reject`, `/{id}/l2-approve`, `/{id}/l2-reject`:
+    `DEPTHEAD or PLANTMANAGER or ADMIN or SUPERADMIN` → `DEPTHEAD or PLANTMANAGER`.
+  - ApprovalController (smart-route) `/indents/{id}/approve`, `/reject`: dropped `ADMIN`/`SUPERADMIN`
+    (kept DEPTHEAD/PLANTMANAGER/PROCUREMENT/SUPERVISOR).
+  - IssueNoteController `/{id}/rm-approve`, `/{id}/rm-reject`: `SUPERVISOR,DEPTHEAD,ADMIN,SUPERADMIN` → `SUPERVISOR,DEPTHEAD`.
+  - `l1-approve`/`l1-reject` stay `isAuthenticated()` — authority is enforced by `canApproveFor` (reporting-chain / SUPERVISOR-self), which already excludes ADMIN.
+- **STEP 3 confirmed:** `canApproveFor` self-branch already checks `roles().contains("SUPERVISOR")` (B2) — no ADMIN — unchanged.
+- **⚠ FLAGGED TRADEOFF (Rule 7):** an ADMIN/SUPERADMIN who is NOT also a SUPERVISOR/DEPTHEAD/PLANTMANAGER can
+  no longer Approve/Reject or edit quantities on ANY indent/issue note — they keep full read/export
+  visibility only. This removes the previous admin-override for unblocking stuck approvals. This is the
+  intended business tradeoff. (Out of scope, left as-is: `final-approve` / `procurement-approve` — non-L1/L2
+  stages — still allow ADMIN; and the deprecated manager-stage endpoints.)
+
+### PART 3 — Supervisor-raised indent skips RM, lands in the Dept-Head queue
+`submitIndent()` now reads the raiser's principal roles once and branches:
+- DEPTHEAD/PLANTMANAGER → full bypass to Procurement (approved=3, final=4, procurement=4) — unchanged.
+- **NEW: SUPERVISOR (and not DEPTHEAD/PLANTMANAGER)** → RM auto-approved only: copy qty→rmQuantity,
+  set `approvedStatus=3`, leave `finalStatus=1` and `procurementStatus=1`, status stays 2. deriveDisplayStatus(3,1,1)
+  = "RM Approved" → the indent appears in the Dept-Head queue (findDeptHeadQueueForCreators filters approved=3 && final=1).
+  deptQuantity stays null (Dept Head hasn't acted → Dept Head column blank).
+- **B2 self-approval + CTE-SQL fixes are UNTOUCHED (Rule 10):** `ReportingHierarchyService.canApproveFor`
+  (SUPERVISOR self-approval) and `findReportingChain` (GROUP BY report_sup ORDER BY MIN(level)) remain in
+  the code exactly as before. New Supervisor-raised indents simply won't reach the self-approval path
+  (they're past RM at creation), but the path still works for any pre-existing "Pending RM Approval" indent.
+
+### PART 4 — Removed monotonic quantity limits; sanity cap 0–99999 everywhere
+- Backend: `l1Approve`, `l2Approve` (IndentService) and issue-note `rmApprove` — replaced the
+  `0 <= qty <= previousStageQty` monotonic check with `0 <= qty <= 99999` (new `MAX_QUANTITY` constant in
+  each service). Removed the issue-note creation "exceeds available stock" cap (stock is still validated at
+  the Stores/issueGoods stage — flagged). Creation DTOs `IndentDetailRequest.quantity` and
+  `CreateIssueNoteRequest.quantity`: `@Positive` → `@PositiveOrZero` + `@DecimalMax("99999")`.
+- Frontend: creation-form quantity inputs `min="0.01"` → `min={0} max={99999}`; zod `.min(0).max(99999)`;
+  removed the issue-note stock-violation cap. Detail-page approval-stage inputs: `max` → `99999` (both pages).
+
+### PART 5 — Material dropdown: remove Code, add Description
+Both forms: dropdown rows changed from `[code] name (desc?) / Company|Plant|Stock` to `name / description /
+Company|Plant|Stock` — Code removed, Description added as its own line, company/plant/stock unchanged. Display-only.
+
+### PART 6 — Employee "Temporary Password" reveal toggle
+**No change needed.** The non-LDAP create "Temporary Password *" field (EmployeeFormPage) is already a plain
+masked `type="password"` with NO show/hide toggle. The eye toggles elsewhere in the file belong to a separate
+password-reset section (not this field, not in scope). Reported per Rule 6 rather than touching unrelated UI.
+
+### PART 7 — UOM validation stuck red (Indent creation)
+Root cause: the UOM `Form.Select` had a custom `onChange` after `{...register()}` that wrote the value via
+`setValue(..., { shouldDirty: true })` WITHOUT `shouldValidate`, so selecting a UOM never re-ran validation —
+the "UOM is required" error from a failed submit persisted and the selection appeared not to take. Fix: added
+`shouldValidate: true` to the `setValue`, so selection clears the error immediately and the value submits.
+
+### PART 8 — Detail-page Company + current-stock columns
+- **8a Indent Company "not showing" — investigated, NO frontend/backend code discrepancy.** Backend
+  `toIndentDetailResponse` populates `companies` via the same `resolveCompaniesForMaterial` resolver as issue
+  notes; frontend sources `indent.details` and renders `item.companies || '—'` — structurally identical to the
+  (working) issue-note page. Conclusion: the empty column is DATA-driven (the tested indent's materials lack
+  active rows in tbl_map_company_plant_material), not code. No spurious change made.
+- **Available Stock (indent) / Balance in Stores (issue-note):** new backend field per detail line —
+  `IndentDetailResponse.currentStock` and `IssueNoteResponse.IssueNoteDetailResponse.storesBalance` — both
+  resolved from `CompanyPlantMaterialRepository.sumQuantityByMaterial(materialId)`, the **aggregated** total of
+  `map_quantity_stores` across all companies/plants (chosen over per-company breakdown: simpler, reuses the
+  existing method, matches the dropdown's total). New columns added to both detail item tables (indent → 10
+  cols, issue-note → 8 cols; grouped-Quantity headers + colSpans kept consistent). Frontend types gained
+  `currentStock?`/`storesBalance?`.
+  - "Reconciled effective available" stock: no such reconciliation feature exists — the figure shown is the
+    raw aggregated map_quantity_stores (informational, read-only), as the task specified for that case.
+
+### Files changed (15)
+Backend: IndentService, IndentController, ApprovalController, IndentDetailRequest, IndentDetailResponse,
+IssueNoteService, IssueNoteController, CreateIssueNoteRequest, IssueNoteResponse.
+Frontend: api/indents.ts, api/issueNotes.ts, IndentDetailPage.tsx, IndentFormPage.tsx,
+IssueNoteDetailPage.tsx, IssueNoteFormPage.tsx.
+
+### Build results
+- `mvn -DskipTests compile` — clean, 0 errors
+- `tsc -b` — clean, 0 errors
+- `vite build` — clean, 0 errors (pre-existing >500 kB chunk warning only)
+- New build hash: JS `assets/index-1SzRGnd3.js` (CSS unchanged `assets/index-C0ZtAKUb.css`)
+
+### Verification (Rule 7) + flags
+- PART 2 tradeoff (ADMIN loses workflow-action rights) and PART 4 issue-note-creation stock-cap removal are
+  flagged above as deliberate consequences.
+- PART 3: B2 self-approval + CTE fixes confirmed present and untouched.
+- PART 8a Company: no code bug — data-driven (needs a DB check of tbl_map_company_plant_material for the tested
+  materials).
+- Not runtime-verified against a live DB (no DB access); traces/analysis are code-level.
