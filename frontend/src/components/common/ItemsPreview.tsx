@@ -7,8 +7,8 @@ import { FaListUl } from 'react-icons/fa';
  * (IndentListResponse.ItemSummary / IssueNoteSummaryResponse.ItemSummary).
  */
 export interface ItemsPreviewLine {
-  materialCode?: string;
   materialName?: string;
+  companies?: string; // comma-separated company names stocking this material
   uomCode?: string;
   quantity?: number;
 }
@@ -24,7 +24,8 @@ interface ItemsPreviewProps {
 
 /**
  * Renders the item count followed by a preview icon. Hovering/focusing the icon shows a popup
- * listing every material on the document (code — name, quantity + UOM per line). Used in the
+ * listing every material on the document — material NAME (full, wraps; never truncated), the
+ * company/companies stocking it, and quantity + UOM together — one row per line item. Used in the
  * Indent and Issue Note list pages' "Items" column.
  */
 const ItemsPreview: React.FC<ItemsPreviewProps> = ({ items, count, idKey }) => {
@@ -36,24 +37,31 @@ const ItemsPreview: React.FC<ItemsPreviewProps> = ({ items, count, idKey }) => {
   }
 
   const popover = (
-    <Popover id={`items-preview-${idKey}`} style={{ maxWidth: 360 }}>
+    // Widened well beyond Bootstrap's 276px default; names WRAP (wordBreak) instead of truncating,
+    // so a material name of any length is shown in full.
+    <Popover id={`items-preview-${idKey}`} style={{ maxWidth: 440 }}>
       <Popover.Header as="h6" className="py-2">Items ({lines.length})</Popover.Header>
       <Popover.Body className="p-2">
-        <div className="d-flex flex-column gap-1" style={{ maxHeight: 260, overflowY: 'auto' }}>
+        <div
+          className="d-flex flex-column gap-2"
+          style={{ maxHeight: 300, overflowY: 'auto', minWidth: 280 }}
+        >
           {lines.map((it, idx) => (
-            <div
-              key={idx}
-              className="small d-flex justify-content-between gap-3 border-bottom pb-1"
-            >
-              <span className="text-truncate" style={{ maxWidth: 220 }}>
-                {it.materialCode && <span className="fw-medium">{it.materialCode}</span>}
-                {it.materialCode && it.materialName ? ' — ' : ''}
-                {it.materialName ?? ''}
-              </span>
-              <span className="text-nowrap text-muted">
-                {it.quantity ?? '-'}
-                {it.uomCode ? ` ${it.uomCode}` : ''}
-              </span>
+            <div key={idx} className="small border-bottom pb-1">
+              <div className="d-flex justify-content-between gap-3">
+                <span className="fw-medium" style={{ wordBreak: 'break-word' }}>
+                  {it.materialName ?? '—'}
+                </span>
+                <span className="text-nowrap text-muted">
+                  {it.quantity ?? '-'}
+                  {it.uomCode ? ` ${it.uomCode}` : ''}
+                </span>
+              </div>
+              {it.companies && (
+                <div className="text-muted" style={{ wordBreak: 'break-word' }}>
+                  {it.companies}
+                </div>
+              )}
             </div>
           ))}
         </div>

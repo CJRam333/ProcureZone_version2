@@ -2927,3 +2927,61 @@ api/indents.ts, api/issueNotes.ts, api/index.ts, components/common/index.ts, + n
 - PART 3 issue-note summary uses a per-note batch lookup (2 queries/note) rather than N+1; indent summary reuses
   the already-loaded detail relations. Acceptable for paginated list sizes; noted for future perf tuning.
 - Not runtime-verified against a live DB; analysis/build are code-level.
+
+---
+
+## 2026-07-28 (follow-up) — Items hover-preview: name-only + company + qty-with-UOM, widened popover (no name clipping)
+
+### Popover content — before → after (per line item)
+- BEFORE: `<materialCode> — <materialName>` (code redundant with the dropdown; name `text-truncate`
+  capped at 220px so long names were clipped) │ right column: `<quantity> <uomCode>`.
+- AFTER: line 1 — **material NAME only** (full, `wordBreak: break-word`, wraps, never truncated) on the
+  left; **quantity + UOM together** (`10 KG`) on the right. line 2 — **Company/companies** (comma-separated,
+  muted, wraps) when present. Material code removed entirely.
+
+### DTO change (`ItemSummary`, both records)
+- BEFORE: `ItemSummary(materialCode, materialName, uomCode, quantity)`.
+- AFTER:  `ItemSummary(materialName, companies, uomCode, quantity)` — `materialCode` REMOVED, `companies` ADDED.
+- `materialCode` was safe to drop: grep confirmed the summary DTO's `materialCode` was consumed ONLY by
+  `ItemsPreview.tsx` (the other `materialCode` fields live on unrelated interfaces — `IndentItem`,
+  `IssueNoteDetail`, `IssueNoteItem` — untouched). Frontend `IndentItemSummary`/`IssueNoteItemSummary` and
+  the shared `ItemsPreviewLine` were updated to match (drop `materialCode`, add `companies?`).
+- `companies` is resolved by REUSING the existing `resolveCompaniesForMaterial(materialId, cache)` in each
+  service (the Map-repo / tbl_map_company_plant_material resolver fixed earlier today) — no logic duplicated:
+  - `IndentService.toIndentListResponse`: added a per-indent `companiesByMaterial` cache; each line's
+    company resolved via that resolver.
+  - `IssueNoteService.mapToSummaryResponse`: dropped the now-unused `materialCodeById` batch map; added a
+    per-note `companiesByMaterial` cache + resolver call. Material name (batch `findAllById`) and UOM lookups
+    retained.
+
+### Sizing fix (name never clipped)
+- Removed the `text-truncate` + `maxWidth: 220` cap on the name span (that cap WAS the clipping).
+- Popover `maxWidth` 360 → **440** (well past Bootstrap's 276px default), body `minWidth: 280`,
+  `maxHeight` 260 → 300 with vertical scroll for many lines.
+- Name and company use `wordBreak: 'break-word'` → they WRAP to multiple lines rather than truncate, so a
+  material name (or long multi-company list) of ANY length is shown in full. This makes the fix
+  length-independent — it does not depend on knowing the single longest name.
+- ⚠ Rule 7 honesty: I could not query the DB for the literal longest material name (no DB access). The
+  wrapping approach is strictly stronger than sizing to one known maximum — no finite name length can clip.
+  Owner can eyeball the longest name in a note's preview to confirm the visual.
+
+### Files changed (7)
+BE: IndentListResponse (ItemSummary), IssueNoteSummaryResponse (ItemSummary), IndentService
+(toIndentListResponse), IssueNoteService (mapToSummaryResponse).
+FE: components/common/ItemsPreview.tsx, api/indents.ts (IndentItemSummary), api/issueNotes.ts
+(IssueNoteItemSummary). List pages (IndentsListPage/IssueNotesListPage) unchanged — they pass `items`
+through and the shapes still match structurally.
+
+### Build
+- `mvn -q -DskipTests compile` — clean, 0 errors.
+- `tsc -b` — clean, 0 errors.
+- `vite build` — clean (pre-existing >500 kB chunk warning only). New JS `assets/index-Bign-_5C.js`;
+  CSS unchanged `assets/index-C0ZtAKUb.css`.
+
+### Verification (Rule 7) + notes
+- Company reuse traced: both mappers now call the SAME `resolveCompaniesForMaterial` (Map repo) the detail
+  page uses — company data is identical to the detail-page Company column and the dropdown/Inventory.
+- Perf: the indent list mapper now resolves companies per distinct material (cached per indent) — adds
+  company lookups to the list endpoint (issue-note list already resolved companies per note). Acceptable for
+  paginated sizes; noted for future tuning.
+- Not runtime-verified against a live DB; analysis/build are code-level.

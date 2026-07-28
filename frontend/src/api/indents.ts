@@ -66,8 +66,8 @@ export interface Indent {
 // Compact line-item summary returned by the indent LIST endpoint (IndentListResponse.ItemSummary)
 // — powers the Items hover-preview without a per-row detail fetch.
 export interface IndentItemSummary {
-    materialCode?: string;
     materialName?: string;
+    companies?: string; // comma-separated company names stocking this material
     uomCode?: string;
     quantity?: number;
 }

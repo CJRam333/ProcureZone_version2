@@ -2160,6 +2160,9 @@ public class IndentService {
         }
 
         private IndentListResponse toIndentListResponse(Indent indent) {
+                // Cache company-name lookups per distinct materialId so we query each material at most
+                // once across this indent's line items (reuses the same Map-repo resolver as the detail page).
+                Map<Integer, String> companiesByMaterial = new java.util.HashMap<>();
                 return new IndentListResponse(
                                 indent.getId(),
                                 indent.getIndentNumber(),
@@ -2182,8 +2185,10 @@ public class IndentService {
                                 indent.getLastModifiedDate(),
                                 indent.getDetails().stream()
                                         .map(d -> new IndentListResponse.ItemSummary(
-                                                d.getMaterial() != null ? d.getMaterial().getCode() : null,
                                                 d.getMaterial() != null ? d.getMaterial().getName() : null,
+                                                resolveCompaniesForMaterial(
+                                                        d.getMaterial() != null ? d.getMaterial().getId() : null,
+                                                        companiesByMaterial),
                                                 d.getUnitOfMeasure() != null ? d.getUnitOfMeasure().getCode() : null,
                                                 d.getQuantity()))
                                         .collect(Collectors.toList()));

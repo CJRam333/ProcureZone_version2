@@ -45,8 +45,8 @@ export interface IssueNote {
 // Compact line-item summary returned by the issue-note LIST endpoint
 // (IssueNoteSummaryResponse.ItemSummary) — powers the Items hover-preview without a per-row detail fetch.
 export interface IssueNoteItemSummary {
-    materialCode?: string;
     materialName?: string;
+    companies?: string; // comma-separated company names stocking this material
     uomCode?: string;
     quantity?: number;
 }

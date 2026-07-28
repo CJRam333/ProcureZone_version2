@@ -962,28 +962,27 @@ public class IssueNoteService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Compact per-line item summary for the list-page Items hover-preview. Batch-load this
-        // note's materials/UOMs once (one query each) to avoid a per-line N+1.
+        // note's material names + UOMs once (one query each) to avoid a per-line N+1; companies are
+        // resolved via the shared Map-repo resolver, cached per distinct material.
         List<Integer> materialIds = details.stream()
                 .map(d -> d.getMaterialId()).filter(id -> id != null).distinct().collect(Collectors.toList());
         List<Integer> uomIds = details.stream()
                 .map(d -> d.getUnitOfMeasureId()).filter(id -> id != null).distinct().collect(Collectors.toList());
-        Map<Integer, String> materialCodeById = new HashMap<>();
         Map<Integer, String> materialNameById = new HashMap<>();
         if (!materialIds.isEmpty()) {
-            materialRepository.findAllById(materialIds).forEach(m -> {
-                materialCodeById.put(m.getId(), m.getCode());
-                materialNameById.put(m.getId(), m.getName());
-            });
+            materialRepository.findAllById(materialIds)
+                    .forEach(m -> materialNameById.put(m.getId(), m.getName()));
         }
         Map<Integer, String> uomCodeById = new HashMap<>();
         if (!uomIds.isEmpty()) {
             unitOfMeasureRepository.findAllById(uomIds)
                     .forEach(u -> uomCodeById.put(u.getId(), u.getCode()));
         }
+        Map<Integer, String> companiesByMaterial = new HashMap<>();
         List<IssueNoteSummaryResponse.ItemSummary> items = details.stream()
                 .map(d -> new IssueNoteSummaryResponse.ItemSummary(
-                        materialCodeById.get(d.getMaterialId()),
                         materialNameById.get(d.getMaterialId()),
+                        resolveCompaniesForMaterial(d.getMaterialId(), companiesByMaterial),
                         uomCodeById.get(d.getUnitOfMeasureId()),
                         d.getQuantity()))
                 .collect(Collectors.toList());

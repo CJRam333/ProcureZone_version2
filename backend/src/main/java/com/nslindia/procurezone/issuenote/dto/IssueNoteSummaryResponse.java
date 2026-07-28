@@ -30,10 +30,14 @@ public record IssueNoteSummaryResponse(
         LocalDateTime lastModifiedDate,
         List<ItemSummary> items) {
 
-    /** Compact line-item summary for the list-page Items hover-preview. */
+    /**
+     * Compact line-item summary for the list-page Items hover-preview.
+     * {@code companies} is the comma-separated list of companies stocking the material, resolved the
+     * SAME way the detail page does (Map repo, tbl_map_company_plant_material).
+     */
     public record ItemSummary(
-            String materialCode,
             String materialName,
+            String companies,
             String uomCode,
             BigDecimal quantity) {
     }
