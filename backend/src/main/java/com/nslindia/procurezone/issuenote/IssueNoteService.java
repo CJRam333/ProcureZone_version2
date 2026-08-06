@@ -309,11 +309,11 @@ public class IssueNoteService {
                                 "Issue note detail not found with ID: " + item.detailId()));
 
                 // Sanity bound only (business decision: monotonic-decrease limit removed):
-                // 0 <= rmQuantity <= 99999. RM may increase or decrease freely.
-                if (item.rmQuantity().signum() < 0
+                // 0 < rmQuantity <= 99999. RM may increase or decrease freely, but not to zero.
+                if (item.rmQuantity().signum() <= 0
                         || item.rmQuantity().compareTo(MAX_QUANTITY) > 0) {
                     throw new IllegalArgumentException(String.format(
-                            "RM quantity (%.2f) must be between 0 and 99999 for line item %d",
+                            "RM quantity (%.2f) must be greater than 0 and at most 99999 for line item %d",
                             item.rmQuantity(), item.detailId()));
                 }
 
@@ -898,6 +898,7 @@ public class IssueNoteService {
                             d.getMaterialId(),
                             material != null ? material.getCode() : null,
                             material != null ? material.getName() : null,
+                            material != null ? material.getDescription() : null,
                             d.getUnitOfMeasureId(),
                             uom != null ? uom.getCode() : null,
                             d.getQuantity(),

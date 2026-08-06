@@ -358,7 +358,7 @@ const IssueNoteDetailPage: React.FC = () => {
                               <tr key={item.id}>
                                 <td>{index + 1}</td>
                                 <td><code>{item.materialCode || 'N/A'}</code></td>
-                                <td>{item.materialName || 'N/A'}</td>
+                                <td>{item.materialDescription || item.materialName || 'N/A'}</td>
                                 <td>{item.companies || '—'}</td>
                                 <td><Badge bg="secondary">{item.uomCode || 'N/A'}</Badge></td>
                                 <td className="text-end">{item.storesBalance ?? '—'}</td>
@@ -371,7 +371,7 @@ const IssueNoteDetailPage: React.FC = () => {
                                       <Form.Control
                                         type="number"
                                         size="sm"
-                                        min={0}
+                                        min={0.01}
                                         max={99999}
                                         value={qtyEdits[item.id] ?? effectiveQty}
                                         onChange={(e) =>

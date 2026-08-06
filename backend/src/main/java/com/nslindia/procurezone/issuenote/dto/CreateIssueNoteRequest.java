@@ -4,7 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -48,7 +48,7 @@ public record CreateIssueNoteRequest(
 
             @NotNull(message = "Unit of Measure ID is required") Integer unitOfMeasureId,
 
-            @NotNull(message = "Quantity is required") @PositiveOrZero(message = "Quantity cannot be negative") @DecimalMax(value = "99999", message = "Quantity cannot exceed 99999") BigDecimal quantity,
+            @NotNull(message = "Quantity is required") @Positive(message = "Quantity must be greater than 0") @DecimalMax(value = "99999", message = "Quantity cannot exceed 99999") BigDecimal quantity,
 
             BigDecimal rate,
 

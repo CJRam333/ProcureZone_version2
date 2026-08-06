@@ -18,6 +18,9 @@ public record IndentDetailResponse(
         Integer materialId,
         String materialCode,
         String materialName,
+        // Material's description (tbl_material_master.material_desc) — the value the Items-card
+        // "Description" column shows, distinct from materialCode and materialName.
+        String materialDescription,
         Integer unitOfMeasureId,
         String unitOfMeasureCode,
         String unitOfMeasureName,

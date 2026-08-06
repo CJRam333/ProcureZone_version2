@@ -28,7 +28,7 @@ const issueNoteLineItemSchema = z.object({
   materialDescription: z.string().optional(),
   uomCode: z.string().optional(),
   unitOfMeasureId: z.number().min(1, 'UOM is required'),
-  quantity: z.number().min(0, 'Quantity cannot be negative').max(99999, 'Quantity cannot exceed 99999'),
+  quantity: z.number().min(0.01, 'Quantity must be greater than 0').max(99999, 'Quantity cannot exceed 99999'),
   purpose: z.string().optional(),
 });
 
@@ -548,7 +548,7 @@ const IssueNoteFormPage: React.FC = () => {
                         <Form.Control
                           type="number"
                           step="0.01"
-                          min={0}
+                          min={0.01}
                           max={99999}
                           {...register(`lineItems.${index}.quantity`, { valueAsNumber: true })}
                           isInvalid={!!errors.lineItems?.[index]?.quantity}

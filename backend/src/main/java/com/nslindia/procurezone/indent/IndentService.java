@@ -988,11 +988,11 @@ public class IndentService {
                                                                 "Indent detail not found with ID: " + adj.detailId()));
 
                                 // Sanity bound only (business decision: monotonic-decrease limit removed):
-                                // 0 <= rmQuantity <= 99999. RM may increase or decrease freely.
-                                if (adj.rmQuantity().signum() < 0
+                                // 0 < rmQuantity <= 99999. RM may increase or decrease freely, but not to zero.
+                                if (adj.rmQuantity().signum() <= 0
                                                 || adj.rmQuantity().compareTo(MAX_QUANTITY) > 0) {
                                         throw new IllegalArgumentException(
-                                                        String.format("RM quantity (%.2f) must be between 0 and 99999 for line item %d",
+                                                        String.format("RM quantity (%.2f) must be greater than 0 and at most 99999 for line item %d",
                                                                         adj.rmQuantity(), adj.detailId()));
                                 }
 
@@ -1164,11 +1164,11 @@ public class IndentService {
                                                 : detail.getQuantity();
 
                                 // Sanity bound only (business decision: monotonic-decrease limit removed):
-                                // 0 <= deptQuantity <= 99999. DeptHead may increase or decrease freely.
-                                if (adj.deptQuantity().signum() < 0
+                                // 0 < deptQuantity <= 99999. DeptHead may increase or decrease freely, but not to zero.
+                                if (adj.deptQuantity().signum() <= 0
                                                 || adj.deptQuantity().compareTo(MAX_QUANTITY) > 0) {
                                         throw new IllegalArgumentException(
-                                                        String.format("Dept quantity (%.2f) must be between 0 and 99999 for line item %d",
+                                                        String.format("Dept quantity (%.2f) must be greater than 0 and at most 99999 for line item %d",
                                                                         adj.deptQuantity(), adj.detailId()));
                                 }
 
@@ -2092,6 +2092,7 @@ public class IndentService {
                                 materialId,
                                 detail.getMaterial() != null ? detail.getMaterial().getCode() : null,
                                 detail.getMaterial() != null ? detail.getMaterial().getName() : null,
+                                detail.getMaterial() != null ? detail.getMaterial().getDescription() : null,
                                 detail.getUnitOfMeasure() != null ? detail.getUnitOfMeasure().getId() : null,
                                 detail.getUnitOfMeasure() != null ? detail.getUnitOfMeasure().getCode() : null,
                                 detail.getUnitOfMeasure() != null ? detail.getUnitOfMeasure().getName() : null,

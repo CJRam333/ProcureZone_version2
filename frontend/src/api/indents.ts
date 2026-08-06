@@ -115,8 +115,8 @@ export interface IndentItem {
     companyId?: number; // the specific company selected for this line at creation (null for legacy rows)
     companies?: string; // resolved company name(s) — the selected one, or all companies for legacy rows
     currentStock?: number; // aggregated current stock across companies/plants
+    materialDescription?: string; // material_desc — shown in the Items-card "Description" column
     // Optional aliases for UI compatibility
-    materialDescription?: string; // alias for materialName
     uomCode?: string; // alias for unitOfMeasureCode
     requestedQuantity?: number; // alias for quantity
     estimatedRate?: number; // alias for pricing

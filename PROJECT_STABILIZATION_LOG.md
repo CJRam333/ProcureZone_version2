@@ -3072,3 +3072,95 @@ IssueNoteFormPage.tsx (+ the two list pages already pass items through — uncha
   now map the new columns, so an un-migrated DB would fail with "unknown column". Standard deploy order handles
   this.
 - Not runtime-verified against a live DB; analysis/build are code-level.
+
+---
+
+## 2026-08-06 — Description column bug, quantity minimum reverted to >0, dashboard Latest-Activity staleness
+
+### PART 1 — Items-card "Description" column now shows the material DESCRIPTION (was showing the name)
+STEP 1 (data flow): `tbl_material_master` / `Material` entity has THREE distinct fields — `material_code`
+(code), `material_name` (name), `material_desc` (description). But the detail response DTOs
+(`IndentDetailResponse`, `IssueNoteResponse.IssueNoteDetailResponse`) exposed only `materialCode` +
+`materialName` — **no materialDescription field at all**.
+STEP 2 (rendering): the Items-card "Description" column was bound to `materialName`, so it showed the
+material's NAME (which in this data often equals the code, hence the "shows code" report) — never the
+`material_desc` description, which wasn't even in the DTO.
+- **Fix — before → after:**
+  - IndentDetailResponse / IssueNoteDetailResponse: **added `String materialDescription`** (after
+    materialName), populated in the mappers from `material.getDescription()`
+    (`toIndentDetailResponse`, `mapToResponse`).
+  - FE types: `IndentItem.materialDescription` re-documented as the real field (was an "alias for
+    materialName" comment); `IssueNoteDetail` **gained `materialDescription?`**.
+  - IndentDetailPage Items row: Description cell `{item.materialName || item.materialDescription || 'N/A'}`
+    → `{item.materialDescription || item.materialName || 'N/A'}` (prefer description; fall back to name so
+    it's never blank).
+  - IssueNoteDetailPage Items row: `{item.materialName || 'N/A'}` → `{item.materialDescription || item.materialName || 'N/A'}`.
+  - Material Code column (`item.materialCode`) unchanged — it was already correct.
+- Rule 8: each detail DTO has exactly ONE constructor (grep-confirmed); both updated.
+
+### PART 2 — Quantity minimum reverted to strictly > 0 everywhere (max stays 99999)
+System uses BigDecimal(20,2) quantities (decimals allowed) → frontend min = 0.01, step 0.01.
+- **Backend (before → after):**
+  - `IndentDetailRequest.quantity`: `@PositiveOrZero` → `@Positive` (message "must be greater than 0"); `@DecimalMax("99999")` kept.
+  - `CreateIssueNoteRequest.IssueNoteLineItem.quantity`: `@PositiveOrZero` → `@Positive`; DecimalMax kept.
+  - `IndentService.l1Approve` rmQuantity bound: `signum() < 0` → `signum() <= 0` (message "must be greater than 0 and at most 99999").
+  - `IndentService.l2Approve` deptQuantity bound: `signum() < 0` → `signum() <= 0`.
+  - `IssueNoteService.rmApprove` rmQuantity bound: `signum() < 0` → `signum() <= 0`.
+- **Frontend (before → after):**
+  - IndentFormPage: input `min={0}` → `min={0.01}`; zod `requestedQuantity.min(0,...)` → `.min(0.01,'Quantity must be greater than 0')`.
+  - IssueNoteFormPage: input `min={0}` → `min={0.01}`; zod `quantity.min(0,...)` → `.min(0.01,...)`.
+  - IndentDetailPage approval `qtyInput` (shared by L1 & L2): `min={0}` → `min={0.01}`.
+  - IssueNoteDetailPage approval RM input: `min={0}` → `min={0.01}`.
+- This exactly reverses the 2026-07-27 Part 4 lower-bound change; the 99999 upper bound is untouched.
+  Grep confirmed no other quantity `min={0}` / `.min(0` remained (estimatedRate stays `.min(0)` — a rate, not a quantity).
+
+### PART 3 — Dashboard "Latest Activity" staleness (INVESTIGATED + FIXED)
+- **STEP 1 (current query):** `queryKey: ['dashboard','latest-activity']` (static, NOT identity-aware),
+  `enabled: !!user`, and **no staleTime / refetchOnMount / refetchInterval** → inherits the global 5-minute
+  staleTime. A revisit within 5 min serves the cached (stale) feed; a status change (RM/DeptHead
+  approve-reject, creation) isn't reflected until that window lapses or a hard reload.
+- **STEP 2 (comparison):** the Indent/Issue-Note list-page contamination fix uses
+  `['<entity>', user?.employeeNumber, user?.roles, ...] + staleTime:0 + refetchOnMount:'always'`.
+  That fix was **never applied to the dashboard query** → this is the same stale-cache class of bug.
+  ROOT CAUSE: the dashboard trusted the global 5-min stale cache under a non-identity key.
+- **STEP 3 (latency behavior):** requirement is "shown without any delay". The (revised) task resolved the
+  ambiguity in favour of BOTH revalidate-on-mount AND short polling — no owner question needed.
+- **STEP 4/5 (fix applied) — before → after** on the Latest Activity query:
+  - key `['dashboard','latest-activity']` → `['dashboard','latest-activity', user?.employeeNumber, user?.roles]` (identity-aware)
+  - added `staleTime: 0`
+  - added `refetchOnMount: 'always'` (every visit revalidates)
+  - added `refetchInterval: 30000` (an already-open dashboard self-refreshes every 30 s)
+  - Safe per new Rule 11: the dashboard is a read-only display; no editable form is bound to `activity`.
+- **STEP 6 (backend cache check):** GET /api/v1/dashboard/latest-activity → `DashboardService.getLatestActivity`
+  reads LIVE each call (`indentService.filterIndents(...)` + `issueNoteService.getAll(...)`, both hit the
+  DB), with **no @Cacheable / in-memory cache / Cache-Control headers**. Confirmed: the backend adds no
+  delay; the latency was 100% the frontend stale cache. Dashboard scoping is unchanged (still reuses
+  `filterIndents` / `getAll`) — matches list-page visibility as required.
+
+### Rule 11 added to docs/DEVELOPMENT_RULES.md
+"Never auto-refresh (refetchInterval) a query that feeds an editable form" — verbatim as specified.
+- **refetchInterval audit (all uses):**
+  - `DashboardPage.tsx:53` — Latest Activity (read-only display feed). SAFE.
+  - `TopNavbar.tsx:45` — notifications unread-count badge (read-only counter). SAFE.
+  - No refetchInterval on any creation/edit/form page. Audit passes.
+
+### Files changed (13)
+BE (5): IndentDetailResponse, IssueNoteResponse, IndentService, IssueNoteService, IndentDetailRequest,
+CreateIssueNoteRequest — (6 actually). FE (6): api/indents.ts, api/issueNotes.ts, IndentDetailPage.tsx,
+IssueNoteDetailPage.tsx, IndentFormPage.tsx, IssueNoteFormPage.tsx, DashboardPage.tsx — (7). Docs (1):
+DEVELOPMENT_RULES.md (Rule 11).
+
+### Build
+- `mvn -q -DskipTests compile` — clean, 0 errors.
+- `tsc -b` — clean, 0 errors.
+- `vite build` — clean (pre-existing >500 kB chunk warning only). New JS `assets/index-DwBrodvt.js`;
+  CSS unchanged `assets/index-C0ZtAKUb.css`.
+
+### Verification (Rule 7) + notes
+- PART 1: verified by tracing entity → mapper → DTO → FE binding; the description now flows end-to-end.
+  Fallback to name prevents a blank column when material_desc is null.
+- PART 2: @Positive rejects 0 and negatives at the DTO boundary; signum()<=0 rejects 0/negative at the
+  approval stage; FE min=0.01 + zod .min(0.01) are convenience only (server is authoritative).
+- PART 3: root cause is a code-level cache-config gap (traced against the list-page fix), fixed by matching
+  that pattern + 30 s polling. Not runtime-verified against a live server (no DB/live access); analysis +
+  green builds only.

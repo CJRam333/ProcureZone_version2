@@ -30,7 +30,7 @@ const indentItemSchema = z.object({
   materialDescription: z.string().optional(),
   uomId: z.number().min(1, 'UOM is required'),
   uomCode: z.string().optional(),
-  requestedQuantity: z.number().min(0, 'Quantity cannot be negative').max(99999, 'Quantity cannot exceed 99999'),
+  requestedQuantity: z.number().min(0.01, 'Quantity must be greater than 0').max(99999, 'Quantity cannot exceed 99999'),
   estimatedRate: z.number().min(0).optional(),
   remarks: z.string().optional(),
   vendor: z.string().optional(),
@@ -646,7 +646,7 @@ const IndentFormPage: React.FC = () => {
                         <Form.Control
                           type="number"
                           step="0.01"
-                          min={0}
+                          min={0.01}
                           max={99999}
                           size="sm"
                           className="text-center"

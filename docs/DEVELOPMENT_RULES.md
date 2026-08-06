@@ -56,6 +56,13 @@ page as if nothing happened.
 bug B, stop and explicitly flag it before proceeding. Do not silently trade one fix for
 another.
 
+## Rule 11 — Never auto-refresh (refetchInterval) a query that feeds an editable form.
+Periodic background refetching is only safe on read-only display pages (dashboards, list
+views, non-editing detail views). If a query's data populates form fields a user can type
+into, auto-refresh can silently overwrite their unsaved input with server data. Before
+adding refetchInterval to any query, confirm the page has no editable form bound to that
+same data.
+
 ---
 
 # General software engineering discipline (applies always)

@@ -67,6 +67,7 @@ export interface IssueNoteDetail {
     materialId: number;
     materialCode?: string;
     materialName?: string;
+    materialDescription?: string; // material_desc — shown in the Items-card "Description" column
     unitOfMeasureId: number;
     uomCode?: string;
     quantity: number;                  // requester's ORIGINAL quantity (never overwritten)

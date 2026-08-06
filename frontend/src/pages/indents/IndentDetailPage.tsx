@@ -551,7 +551,7 @@ const IndentDetailPage: React.FC = () => {
                                 <Form.Control
                                   type="number"
                                   size="sm"
-                                  min={0}
+                                  min={0.01}
                                   max={max}
                                   value={qtyEdits[item.id] ?? effectiveQty}
                                   onChange={(e) =>
@@ -566,7 +566,7 @@ const IndentDetailPage: React.FC = () => {
                               <tr key={item.id || index}>
                                 <td>{index + 1}</td>
                                 <td><code>{item.materialCode || 'N/A'}</code></td>
-                                <td>{item.materialName || item.materialDescription || 'N/A'}</td>
+                                <td>{item.materialDescription || item.materialName || 'N/A'}</td>
                                 <td>{item.companies || '—'}</td>
                                 <td><Badge bg="secondary">{item.unitOfMeasureCode || item.uomCode || 'N/A'}</Badge></td>
                                 <td className="text-end">{item.currentStock ?? '—'}</td>

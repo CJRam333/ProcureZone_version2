@@ -38,10 +38,19 @@ const DashboardPage: React.FC = () => {
   const canCreateIssueNote = hasAnyRole(['SUPERADMIN', 'ADMIN', 'PLANTMANAGER', 'USER', 'ISSUECONFIRM', 'SUPERVISOR', 'DEPTHEAD']);
   const hasAnyQuickAction = canCreateIndent || canCreateIssueNote;
 
+  // Identity-aware key (+ staleTime:0 + refetchOnMount:'always') so one viewer's role-scoped activity
+  // is never served to another identity under the same key, and every visit revalidates instead of
+  // trusting the global 5-min stale cache (root cause of the "Latest Activity not updating" latency).
+  // refetchInterval keeps an already-open dashboard current without navigating away — safe here because
+  // this is a read-only display with no editable form bound to the data (Rule 11). Matches the
+  // Indent/Issue-Note list-page contamination fix.
   const { data: activity, isLoading } = useQuery({
-    queryKey: ['dashboard', 'latest-activity'],
+    queryKey: ['dashboard', 'latest-activity', user?.employeeNumber, user?.roles],
     queryFn: () => dashboardApi.getLatestActivity(15),
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchInterval: 30000,
   });
 
   const formatDate = (dateStr: string | null | undefined): string => {
