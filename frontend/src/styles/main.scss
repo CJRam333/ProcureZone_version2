@@ -755,8 +755,9 @@ body {
         box-shadow: 0 8px 25px rgba($primary, 0.4);
       }
 
+      // Depress on press, consistent with the global button press animation.
       &:active:not(:disabled) {
-        transform: translateY(0);
+        transform: translateY(1px) scale(0.97);
       }
     }
     
@@ -798,8 +799,99 @@ body {
   border-radius: 8px;
   font-weight: 500;
   padding: 0.5rem 1rem;
-  transition: all 0.2s;
-  
+
+  // ---- 3D metallic depth + press animation (2026-08-13) ----------------------------------------
+  // Pure depth/motion layered on top of each variant's EXISTING color — no hex/color values are set
+  // here. `position: relative; z-index: 0` establishes a stacking context so the metallic sheen
+  // (::before, z-index:-1) paints ABOVE the button's own background but BELOW its label.
+  position: relative;
+  z-index: 0;
+  // Soft outer drop shadow lifts the button off the page (base for outline/link; filled variants
+  // re-declare below to add inset edge highlights).
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  // Release springs back gently (~180ms); color transitions preserved. Press timing is overridden
+  // on :active for an immediate, non-springy depress.
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.1, 0.64, 1),
+    box-shadow 0.18s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+
+  // Hover: subtle lift (reuses the existing translateY(-1px) convention already used by .btn-primary).
+  &:hover:not(:disabled):not(.disabled) {
+    transform: translateY(-1px);
+  }
+
+  // Press: depress immediately (no overshoot) and tighten the shadow as it nears the surface.
+  &:active:not(:disabled):not(.disabled) {
+    transform: translateY(1px) scale(0.97);
+    transition-duration: 0.1s;
+    transition-timing-function: ease-out;
+  }
+
+  // Disabled buttons stay flat & inert — no depth, no sheen, no motion.
+  &:disabled, &.disabled {
+    box-shadow: none;
+    transform: none;
+    &::before { display: none; }
+  }
+
+  // FILLED variants (everything except outline/link): metallic edge highlights + brushed sheen.
+  &:not([class*="btn-outline"]):not(.btn-link) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),   // light catching the top edge
+      inset 0 -1px 0 rgba(0, 0, 0, 0.2),         // bottom edge receding
+      0 2px 4px rgba(0, 0, 0, 0.15);             // outer lift
+
+    // Barely-there sheen over the existing background color — color stays clearly recognizable.
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      border-radius: inherit;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.06));
+      pointer-events: none;
+    }
+
+    &:hover:not(:disabled):not(.disabled) {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+        0 4px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    &:active:not(:disabled):not(.disabled) {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.3),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+        0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  // OUTLINE variants: depth + motion via the outer shadow only (no fill/sheen — stays transparent).
+  &[class*="btn-outline"] {
+    &:hover:not(:disabled):not(.disabled) {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+    }
+    &:active:not(:disabled):not(.disabled) {
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  // LINK-style buttons look like text links — keep them flat (no shadow, lift, or press).
+  &.btn-link {
+    box-shadow: none;
+    &::before { display: none; }
+    &:hover:not(:disabled):not(.disabled),
+    &:active:not(:disabled):not(.disabled) {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+  // ---- end 3D metallic depth -------------------------------------------------------------------
+
   &.btn-primary {
     background: $primary;
     border-color: $primary;

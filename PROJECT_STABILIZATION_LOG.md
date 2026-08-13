@@ -3234,3 +3234,66 @@ FE: IssueNoteFormPage.tsx (dropdown 0-stock disable + Badge import).
 - Scope flag (Rule 4): Indent creation intentionally NOT changed (owner said "issue note"). Confirm if indents
   should get the same 0-stock gate.
 - Not runtime-verified against a live DB (no DB access); analysis + green builds only.
+
+---
+
+## 2026-08-13 (follow-up) — 3D metallic depth + press animation on all buttons (colors/styles unchanged)
+
+Pure CSS. One shared definition on the global `.btn` class in `styles/main.scss` (the file that already
+holds the app's button rules), so EVERY React-Bootstrap `<Button>` (all render `.btn`) picks it up — no
+per-instance duplication. No `DESIGN_TOKENS.md` exists in the repo yet, so no external spec to reuse; the
+one pre-existing hover value in the codebase (`translateY(-1px)` on `.btn-primary`) was reused verbatim.
+
+### Approach — why it can't change colors
+- The metallic **sheen** is a `::before` overlay (`position:absolute; inset:0; z-index:-1;
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(0,0,0,0.06))`), layered via a stacking
+  context (`.btn { position:relative; z-index:0 }`) so it paints ABOVE the button's own background but
+  BELOW its label. This deliberately AVOIDS touching `background`/`background-color`, so the existing
+  `background: $primary` (etc.) shorthand rules are untouched and every variant keeps its exact color —
+  the translucent overlay only adds a brushed-metal gradient over whatever color is already there.
+- Edge highlights + lift are `box-shadow` only (additive), never color declarations.
+- Diff audit: grep of all added lines found ZERO hex / background-color / color / border-color values —
+  only rgba white/black shadows + the sheen overlay. Colors verified unchanged.
+
+### Exact CSS values (on base `.btn`)
+- Rest depth (filled): `box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.15)` + the `::before` sheen gradient above.
+- Rest depth (outline): `box-shadow: 0 2px 4px rgba(0,0,0,0.15)` (outer only — no sheen/insets, stays transparent).
+- Hover: `transform: translateY(-1px)`; outer shadow → `0 4px 8px rgba(0,0,0,0.18)` (insets kept for filled).
+- Press (`:active`): `transform: translateY(1px) scale(0.97)`; outer shadow tightens → `0 1px 2px rgba(0,0,0,0.2)`;
+  `transition-duration: 0.1s; transition-timing-function: ease-out` (immediate, no overshoot).
+- Release: base `transition: transform 0.18s cubic-bezier(0.34, 1.1, 0.64, 1)` (~180ms gentle settle) +
+  `box-shadow 0.18s ease` + color transitions (background/border/color 0.2s) preserved.
+- Disabled (`:disabled, .disabled`): `box-shadow:none; transform:none; &::before{display:none}` and every
+  hover/press rule is guarded `:not(:disabled):not(.disabled)` → disabled buttons stay flat & inert.
+- `.btn-link`: neutralized (no shadow/lift/press) — link-style buttons look like text links.
+- Login hero button (`.login-card .btn-primary`): keeps its stronger `translateY(-2px)` hover; its
+  `:active` was updated `translateY(0)` → `translateY(1px) scale(0.97)` so it also depresses.
+
+### Variant coverage — every button context verified (variants actually in use, grepped)
+- Filled (get insets + sheen): `primary` (92 uses), `danger` (68), `secondary` (35), `success` (25),
+  `warning` (19), `info` (15), `light` (2).
+- Outline (get outer shadow + motion only): `outline-secondary` (119), `outline-primary` (55),
+  `outline-danger` (40), `outline-success` (13), `outline-info` (5), `outline-warning` (2).
+- `link` (12) → flat by design. Icon-only buttons (View/Edit/Delete etc.) are `.btn.btn-sm.btn-outline-*`
+  → covered by the outline path. `tabs`/`pills`/`flush` are Nav/Accordion variants (not `.btn`) → untouched.
+- Pages/components implicitly covered (all use React-Bootstrap `<Button>` → `.btn`): Login, Indent &
+  Issue-Note list pages (New/View/Edit/Delete/Export), detail pages (Approve/Reject/Back/Print/Submit),
+  creation forms, dashboard quick-action buttons, PageHeader actions, modals/dialogs.
+- No conflicting local override: only `MainLayout.css` `body.compact-mode .btn` exists — it sets padding/
+  font-size only (no shadow/transform/transition), so compact mode still gets the treatment.
+
+### Files changed (1)
+FE: `frontend/src/styles/main.scss` (global `.btn` 3D block + login `:active` depress). No .tsx changed.
+
+### Build
+- `mvn -q -DskipTests compile` — clean (no backend change).
+- `tsc -b` — clean.
+- `vite build` — clean; SCSS compiled. New CSS `assets/index-Dq2mN2_x.css` (256.98 → 258.49 kB, +~1.5 kB);
+  JS `assets/index-BJtqIvm_.js`. (CSS hash changed — this is the visible change; JS unchanged in content.)
+
+### Verification (Rule 7)
+- Verified by CSS trace + variant grep + diff color-audit (no color values added) + green SCSS compile.
+- Not visually screenshot-verified in a running browser (no live/browser access here); the treatment is
+  standard CSS (box-shadow layers, ::before overlay, transform on :hover/:active) reasoned through per
+  stacking-context painting order. Recommend a quick visual pass on deploy across a filled, an outline, an
+  icon-only, and a disabled button.
