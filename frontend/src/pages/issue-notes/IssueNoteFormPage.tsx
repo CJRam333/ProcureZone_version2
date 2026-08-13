@@ -10,6 +10,7 @@ import {
   InputGroup,
   Spinner,
   Alert,
+  Badge,
 } from 'react-bootstrap';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -481,30 +482,46 @@ const IssueNoteFormPage: React.FC = () => {
                                 </div>
                               )}
                               {dropdownMaterials && dropdownMaterials.length > 0 ? (
-                                dropdownMaterials.map((item) => (
+                                dropdownMaterials.map((item) => {
+                                  // 0-stock materials cannot be added to a NEW issue note (2026-08-13):
+                                  // greyed out + non-selectable. Server-side validation is authoritative;
+                                  // this is convenience only.
+                                  const outOfStock = (item.stockQuantity ?? 0) <= 0;
+                                  return (
                                   <div
                                     key={`${item.materialId}-${item.companyId}`}
                                     className="p-2 border-bottom"
-                                    style={{ cursor: 'pointer', transition: 'background-color 0.15s ease' }}
+                                    style={{
+                                      cursor: outOfStock ? 'not-allowed' : 'pointer',
+                                      opacity: outOfStock ? 0.55 : 1,
+                                      transition: 'background-color 0.15s ease',
+                                    }}
+                                    aria-disabled={outOfStock}
+                                    title={outOfStock ? 'Out of stock — cannot be added to an issue note' : undefined}
                                     onMouseDown={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
+                                      if (outOfStock) return;
                                       selectMaterial(item, index);
                                     }}
-                                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e9ecef'; }}
+                                    onMouseOver={(e) => { if (!outOfStock) e.currentTarget.style.backgroundColor = '#e9ecef'; }}
                                     onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'white'; }}
                                   >
-                                    <div className="fw-semibold text-primary">{item.materialName}</div>
+                                    <div className="fw-semibold text-primary">
+                                      {item.materialName}
+                                      {outOfStock && <Badge bg="secondary" className="ms-2">Out of stock</Badge>}
+                                    </div>
                                     {item.materialDescription && (
                                       <small className="text-muted d-block" style={{ lineHeight: 1.3 }}>
                                         {item.materialDescription}
                                       </small>
                                     )}
                                     <small className="text-muted d-block">
-                                      Company: <strong>{item.companyName}</strong> | Plant: {item.plantName} | Stock: <span className={(item.stockQuantity ?? 0) > 0 ? 'text-success fw-medium' : 'text-danger fw-medium'}>{item.stockQuantity ?? 0}</span>
+                                      Company: <strong>{item.companyName}</strong> | Plant: {item.plantName} | Stock: <span className={outOfStock ? 'text-danger fw-medium' : 'text-success fw-medium'}>{item.stockQuantity ?? 0}</span>
                                     </small>
                                   </div>
-                                ))
+                                  );
+                                })
                               ) : (
                                 !isSearching && (
                                   <div className="p-3 text-muted text-center small">

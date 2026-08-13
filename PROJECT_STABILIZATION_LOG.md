@@ -3164,3 +3164,73 @@ DEVELOPMENT_RULES.md (Rule 11).
 - PART 3: root cause is a code-level cache-config gap (traced against the list-page fix), fixed by matching
   that pattern + 30 s polling. Not runtime-verified against a live server (no DB/live access); analysis +
   green builds only.
+
+---
+
+## 2026-08-13 — Block issue-note creation with 0-stock materials (server-authoritative), preserving allow-over-request
+
+### Is this a re-litigation of the 2026-07-27 cap removal? NO — it's a distinct, narrower rule.
+- 2026-07-27 removed the creation-stage "requested > available" cap: an issue note may be raised for
+  ANY quantity in (0, 99999], with stock enforced later at the Stores/issueGoods stage. That decision stands.
+- This task adds a DIFFERENT check: a material with EXACTLY 0 available balance cannot be added to a new
+  issue note at all — even for a tiny quantity. "available == 0 → block" is not "requested > available → cap".
+
+### STEP 1 — current behavior found
+- `IssueNoteService.createIssueNote` had NO stock check after the 2026-07-27 removal (comment at ~162 confirms).
+- The only stock enforcement is at issueGoods (Stores): `sumQuantityByMaterial(materialId)` vs requested →
+  "Insufficient stock" (IssueNoteService ~473-486). That is the authoritative aggregate source.
+- The creation dropdown (searchForDropdownAllCompanies, LEFT JOIN + COALESCE(SUM,0)) DOES return 0-stock
+  materials, and the form rendered them fully selectable (stock shown in red but clickable).
+  → So a 0-stock material was freely selectable AND creation was completely unchecked.
+
+### STEP 2 — rule implemented
+Block a line item at issue-note creation when its material's available balance is 0 (or negative, defensive):
+`available.signum() <= 0`. NOT `available < requested`. Authoritative source = the SAME aggregate the
+issueGoods stage uses (`CompanyPlantMaterialMapRepository.sumQuantityByMaterial`, tbl_map_company_plant_material)
+so the creation gate and the issue-time gate agree.
+
+### STEP 3 — implementation (scope: Issue Note creation ONLY)
+Per the owner's wording ("new issue note"), scoped to issue notes; the Indent form/service were NOT touched
+(indents draw from a different workflow). Flagged for confirmation if indents should follow later.
+- **Backend — IssueNoteService.createIssueNote (before → after):**
+  - BEFORE: line-items built and saved with no stock check.
+  - AFTER: added a fail-fast loop BEFORE the first save — for each line item,
+    `available = sumQuantityByMaterial(materialId).orElse(ZERO)`; if `available.signum() <= 0` throw
+    `IllegalArgumentException("Cannot create issue note: material %d has no available stock (balance in stores is 0).")`.
+    Maps to HTTP 400 via the global RestExceptionHandler (same mechanism issueGoods' "Insufficient stock" uses).
+    @Transactional → the throw rolls back; no partial record. This is AUTHORITATIVE.
+- **Frontend — IssueNoteFormPage.tsx material dropdown (before → after):**
+  - BEFORE: every option selectable; 0-stock shown in red but clickable.
+  - AFTER: `outOfStock = (item.stockQuantity ?? 0) <= 0`; such options are greyed (opacity 0.55, cursor
+    not-allowed), carry an "Out of stock" Badge + title tooltip, skip the hover highlight, and `onMouseDown`
+    returns early so `selectMaterial` never fires → not selectable. Convenience only (server is authoritative).
+  - Added `Badge` to the react-bootstrap import.
+  - Backend 400 already surfaces to the user: createMutation `onError → setError(getErrorMessage)` +
+    handleSaveAndSubmit catch → `<Alert>` (defense-in-depth if stock drops to 0 between load and submit).
+
+### STEP 4 — two-case verification trace (behaviors coexist)
+- **0-stock material →** FE: option greyed + non-selectable; BE (if forced): sum=0 → signum<=0 → 400. BLOCKED. ✓
+- **5 in stock, request 20 →** FE: outOfStock=false → selectable, qty 20 accepted (no cap); BE: available=5,
+  signum=1>0 → guard passes, NO `<requested` comparison at creation → issue note CREATED (over-request still
+  enforced at issueGoods where 5 < 20 → "Insufficient stock"). ALLOWED. ✓
+  Confirmed: guard is `signum() <= 0` only — cannot reintroduce the removed over-request cap.
+
+### Files changed (2)
+BE: IssueNoteService.java (createIssueNote 0-stock guard).
+FE: IssueNoteFormPage.tsx (dropdown 0-stock disable + Badge import).
+
+### Build
+- `mvn -q -DskipTests compile` — clean, 0 errors.
+- `tsc -b` — clean, 0 errors.
+- `vite build` — clean (pre-existing >500 kB chunk warning only). New JS `assets/index-CEfUE2gf.js`;
+  CSS unchanged `assets/index-C0ZtAKUb.css`.
+
+### Verification (Rule 7) + notes
+- Verified by tracing entity/repo/DTO and both layers (FE disable + BE 400) + the two-case coexistence trace
+  above. The authoritative check reuses the exact aggregate the issueGoods stage already uses, so creation and
+  issue-time gates cannot disagree on what "0 stock" means.
+- Rule 5 re-check: createIssueNote still captures companyId per line + supervisor bypass; the dropdown still
+  captures company/stock (selectMaterial unchanged) and shows material description — all intact.
+- Scope flag (Rule 4): Indent creation intentionally NOT changed (owner said "issue note"). Confirm if indents
+  should get the same 0-stock gate.
+- Not runtime-verified against a live DB (no DB access); analysis + green builds only.

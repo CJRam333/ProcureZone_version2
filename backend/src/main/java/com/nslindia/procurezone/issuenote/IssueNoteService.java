@@ -156,6 +156,24 @@ public class IssueNoteService {
                 .lastModifiedBy(userId)
                 .build();
 
+        // 0-stock guard (2026-08-13): a material with ZERO balance in stores cannot be raised on a
+        // NEW issue note. This is a NARROW check (available == 0 → blocked) and is DISTINCT from the
+        // 2026-07-27 removal of the over-request cap: a material with stock > 0 may STILL be requested
+        // above its balance (that over-request is only enforced later at the Stores/issueGoods stage).
+        // Authoritative source is the SAME aggregate that stage uses — tbl_map_company_plant_material
+        // via sumQuantityByMaterial — so the creation gate and the issue-time gate agree. Validated
+        // before the first save so an invalid line fails fast with a 400 (also rolls back @Transactional).
+        for (var lineItem : request.lineItems()) {
+            BigDecimal available = companyPlantMaterialMapRepository
+                    .sumQuantityByMaterial(lineItem.materialId())
+                    .orElse(BigDecimal.ZERO);
+            if (available.signum() <= 0) {
+                throw new IllegalArgumentException(String.format(
+                        "Cannot create issue note: material %d has no available stock (balance in stores is 0).",
+                        lineItem.materialId()));
+            }
+        }
+
         // Save issue note first to get ID
         issueNote = issueNoteRepository.save(issueNote);
 
