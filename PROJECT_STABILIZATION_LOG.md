@@ -3297,3 +3297,42 @@ FE: `frontend/src/styles/main.scss` (global `.btn` 3D block + login `:active` de
   standard CSS (box-shadow layers, ::before overlay, transform on :hover/:active) reasoned through per
   stacking-context painting order. Recommend a quick visual pass on deploy across a filled, an outline, an
   icon-only, and a disabled button.
+
+---
+
+## 2026-08-13 (follow-up 2) — SAP material watcher: watch a SECOND directory (either path triggers import)
+
+The event-driven SAP material import (`SapMaterialFileWatcher`, integration/sap/watcher) previously watched
+one directory (`sap.csv.import.path`, default `/home/issuenote/issue`). Extended it to watch MULTIPLE
+directories — a `Material(YYYY-MM-DD).CSV` appearing in ANY of them is imported the same way.
+
+- **Property (unchanged name, now comma-separated):** `sap.csv.import.path` bound as `String[]`;
+  default `"/home/issuenote/issue,/home/nsl/issuenote/issue"` (the requested second path added). A single
+  path still works (1-element array) — backward compatible. Deployments can override with any comma list.
+- **start():** resolves every configured path that exists as a directory (skips missing ones with a warn),
+  registers EACH on one shared `WatchService`, and stores `WatchKey → Path` in a new `watchedDirs` map so an
+  event resolves to the directory it came from. Live watch not started only if NONE are valid dirs.
+- **scanOnStartup(List<Path>):** now scans ALL watched dirs, aggregates matches, and imports the single
+  newest unprocessed `Material(...)` file across them (absolute-overwrite semantics: newest = current truth,
+  wherever it landed).
+- **watchLoop():** looks up the firing key's dir via `watchedDirs`, builds the file as `dir.resolve(name)`
+  (not the old single `importPath`). If one dir's key goes invalid it's dropped and watching continues on the
+  rest; the loop stops only when no watched dirs remain (previously a single invalid key stopped everything).
+- Unchanged: strict `Material(YYYY-MM-DD).CSV` match, size-stability wait, exactly-once dedup by filename via
+  `tbl_stock_import_history`, and the authoritative upsert of `tbl_map_company_plant_material` in
+  `MaterialImportService`. Dedup remains filename-based, so a same-named file in either dir is one snapshot.
+
+### Files changed (1)
+BE: `integration/sap/watcher/SapMaterialFileWatcher.java` (multi-directory watch).
+
+### Build
+- `mvn -q -DskipTests compile` — clean, 0 errors (build temp redirected to D: — the system C: temp drive was
+  full at the time). No frontend change, so tsc/vite not run.
+
+### Verification (Rule 7) + notes
+- Verified by code trace + clean compile. The second reader of `sap.csv.import.path`
+  (`scheduler/job/SapMaterialImportJob`) is DEPRECATED with disabled crons and binds the key to a plain unused
+  `String`, so the comma-separated value is harmless there (never parsed/used).
+- Not runtime-verified against a live filesystem/two live directories (no live access here).
+- Environment flag: the machine's C:\ (system temp) was at 100% during this task — unrelated to the change,
+  but worth clearing so future local builds don't fail on temp writes.

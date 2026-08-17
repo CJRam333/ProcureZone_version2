@@ -23,19 +23,25 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
  * Event-driven SAP stock import.
  *
- * <p>Watches the local XFS directory {@code sap.csv.import.path} (default
- * {@code /home/issuenote/issue}) and imports ONLY files named exactly
- * {@code Material(YYYY-MM-DD).CSV} — every other file in that directory
- * (Plant_Indent…, Quality_Info…, PRD-*.CSV, …) is ignored. Each file is processed exactly once,
- * tracked by filename in {@code tbl_stock_import_history}. Replaces the old three cron triggers.
+ * <p>Watches one or more local directories from {@code sap.csv.import.path} (comma-separated;
+ * default {@code /home/issuenote/issue,/home/nsl/issuenote/issue}). A Material file that appears in
+ * ANY watched directory is imported. Only files named exactly {@code Material(YYYY-MM-DD).CSV} are
+ * imported — every other file in those directories (Plant_Indent…, Quality_Info…, PRD-*.CSV, …) is
+ * ignored. Each file is processed exactly once, tracked by filename in {@code tbl_stock_import_history}
+ * (dedup is by filename, so the same-named file in either directory is treated as one snapshot).
+ * Replaces the old three cron triggers.
  *
  * <p>The import upserts the AUTHORITATIVE stock table {@code tbl_map_company_plant_material}
  * (see {@link MaterialImportService}).
@@ -54,8 +60,10 @@ public class SapMaterialFileWatcher {
     private final MaterialImportService materialImportService;
     private final StockImportHistoryRepository historyRepository;
 
-    @Value("${sap.csv.import.path:/home/issuenote/issue}")
-    private String importPath;
+    // Comma-separated list of directories to watch. A Material file appearing in ANY of them is
+    // imported. Defaults to the primary path plus the secondary /home/nsl/issuenote/issue.
+    @Value("${sap.csv.import.path:/home/issuenote/issue,/home/nsl/issuenote/issue}")
+    private String[] importPaths;
 
     @Value("${sap.csv.watch.enabled:true}")
     private boolean watchEnabled;
@@ -63,6 +71,9 @@ public class SapMaterialFileWatcher {
     private volatile boolean running = false;
     private WatchService watchService;
     private Thread watchThread;
+    // Maps each registered directory's WatchKey back to its Path, so an event resolves to the dir it
+    // came from (needed now that multiple directories share one WatchService).
+    private final Map<WatchKey, Path> watchedDirs = new HashMap<>();
 
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
@@ -70,30 +81,48 @@ public class SapMaterialFileWatcher {
             log.info("SAP material file watcher is disabled (sap.csv.watch.enabled=false)");
             return;
         }
-        Path dir = Paths.get(importPath);
-        if (!Files.isDirectory(dir)) {
-            log.warn("SAP import path '{}' is not a directory — file watcher NOT started", importPath);
+
+        // Resolve every configured path that actually exists as a directory (skip any that don't).
+        List<Path> dirs = new ArrayList<>();
+        for (String raw : importPaths) {
+            String trimmed = raw == null ? "" : raw.trim();
+            if (trimmed.isEmpty()) continue;
+            Path dir = Paths.get(trimmed);
+            if (Files.isDirectory(dir)) {
+                dirs.add(dir);
+            } else {
+                log.warn("SAP import path '{}' is not a directory — skipping it", trimmed);
+            }
+        }
+        if (dirs.isEmpty()) {
+            log.warn("No valid SAP import directories in {} — file watcher NOT started",
+                    Arrays.toString(importPaths));
             return;
         }
 
-        // 1) Catch anything dropped while the app was down.
+        // 1) Catch anything dropped while the app was down (newest unprocessed across ALL dirs).
         try {
-            scanOnStartup(dir);
+            scanOnStartup(dirs);
         } catch (Exception e) {
             log.error("SAP startup scan failed: {}", e.getMessage(), e);
         }
 
-        // 2) Start the live watch on a daemon thread.
+        // 2) Start the live watch — register every directory on one shared WatchService.
         try {
             watchService = FileSystems.getDefault().newWatchService();
-            dir.register(watchService, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY);
+            for (Path dir : dirs) {
+                WatchKey key = dir.register(watchService,
+                        StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY);
+                watchedDirs.put(key, dir);
+            }
             running = true;
             watchThread = new Thread(this::watchLoop, "sap-material-file-watcher");
             watchThread.setDaemon(true);
             watchThread.start();
-            log.info("SAP material file watcher started on '{}' (matching Material(YYYY-MM-DD).CSV)", importPath);
+            log.info("SAP material file watcher started on {} (matching Material(YYYY-MM-DD).CSV)", dirs);
         } catch (IOException e) {
-            log.error("Failed to start SAP material file watcher on '{}': {}", importPath, e.getMessage(), e);
+            log.error("Failed to start SAP material file watcher on {}: {}",
+                    Arrays.toString(importPaths), e.getMessage(), e);
         }
     }
 
@@ -103,14 +132,23 @@ public class SapMaterialFileWatcher {
      * unprocessed ones — importing only the latest is sufficient and correct, and avoids applying a
      * stale snapshot over a newer one.
      */
-    private void scanOnStartup(Path dir) {
-        File[] matches = dir.toFile().listFiles((d, name) -> MATERIAL_FILE.matcher(name).matches());
-        if (matches == null || matches.length == 0) {
-            log.info("SAP startup scan: no Material(YYYY-MM-DD).CSV files present in '{}'", importPath);
+    private void scanOnStartup(List<Path> dirs) {
+        // Collect every matching Material file across ALL watched dirs, then import only the newest
+        // unprocessed one — each import is an ABSOLUTE overwrite of stock, so the most recent file
+        // (by embedded date) is the current truth and supersedes older ones, wherever it landed.
+        List<File> matches = new ArrayList<>();
+        for (Path dir : dirs) {
+            File[] found = dir.toFile().listFiles((d, name) -> MATERIAL_FILE.matcher(name).matches());
+            if (found != null) {
+                matches.addAll(Arrays.asList(found));
+            }
+        }
+        if (matches.isEmpty()) {
+            log.info("SAP startup scan: no Material(YYYY-MM-DD).CSV files present in {}", dirs);
             return;
         }
         // Newest by filename (the date is embedded and zero-padded, so lexical == chronological).
-        Optional<File> newest = Arrays.stream(matches).max(Comparator.comparing(File::getName));
+        Optional<File> newest = matches.stream().max(Comparator.comparing(File::getName));
         newest.ifPresent(f -> {
             if (alreadyProcessed(f.getName())) {
                 log.info("SAP startup scan: newest file {} already processed — nothing to do", f.getName());
@@ -133,6 +171,12 @@ public class SapMaterialFileWatcher {
                 if (running) log.error("SAP watch service error: {}", e.getMessage(), e);
                 break;
             }
+            // Resolve which watched directory this key/event belongs to (each dir has its own key).
+            Path dir = watchedDirs.get(key);
+            if (dir == null) {
+                key.cancel();
+                continue;
+            }
             for (WatchEvent<?> event : key.pollEvents()) {
                 if (event.kind() == StandardWatchEventKinds.OVERFLOW) {
                     continue;
@@ -142,14 +186,19 @@ public class SapMaterialFileWatcher {
                     log.debug("Ignoring non-Material file event: {}", fileName);
                     continue;
                 }
-                File file = new File(importPath, fileName);
+                File file = dir.resolve(fileName).toFile();
                 if (file.exists()) {
                     processFile(file);
                 }
             }
             if (!key.reset()) {
-                log.warn("SAP watch key no longer valid — watcher stopping");
-                break;
+                // This directory is no longer watchable; drop it. Stop only when none remain.
+                watchedDirs.remove(key);
+                log.warn("SAP watch key for '{}' no longer valid — no longer watching it", dir);
+                if (watchedDirs.isEmpty()) {
+                    log.warn("No SAP watch directories remain — watcher stopping");
+                    break;
+                }
             }
         }
     }
