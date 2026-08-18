@@ -40,7 +40,11 @@ import com.nslindia.procurezone.masterdata.Plant;
 import com.nslindia.procurezone.masterdata.Section;
 import com.nslindia.procurezone.masterdata.UnitOfMeasure;
 import com.nslindia.procurezone.masterdata.repository.SectionRepository;
+import com.nslindia.procurezone.notification.dto.EmailAttachment;
 import com.nslindia.procurezone.notification.service.EmailService;
+import com.nslindia.procurezone.notification.service.WorkflowRecipientResolver;
+import com.nslindia.procurezone.report.dto.IndentPdfData;
+import com.nslindia.procurezone.report.service.PdfReportService;
 import com.nslindia.procurezone.security.PlantSecurityService;
 
 import jakarta.persistence.EntityManager;
@@ -139,6 +143,9 @@ public class IndentService {
         private final EmployeeRoleRepository employeeRoleRepository;
         private final SectionRepository sectionRepository;
         private final EmployeeReportingRepository employeeReportingRepository;
+        // Workflow email routing (reuse of the queue resolution logic) + indent PDF for attachments.
+        private final WorkflowRecipientResolver workflowRecipientResolver;
+        private final PdfReportService pdfReportService;
         private final com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository;
         // Company/stock resolution reads the SAME table the dropdown & Inventory use
         // (tbl_map_company_plant_material via CompanyPlantMaterialMap), NOT tbl_pz_map_company_plant_material.
@@ -159,6 +166,8 @@ public class IndentService {
                         EmployeeRoleRepository employeeRoleRepository,
                         SectionRepository sectionRepository,
                         EmployeeReportingRepository employeeReportingRepository,
+                        WorkflowRecipientResolver workflowRecipientResolver,
+                        PdfReportService pdfReportService,
                         com.nslindia.procurezone.repository.CompanyEmployeeRepository companyEmployeeRepository,
                         com.nslindia.procurezone.mapping.CompanyPlantMaterialMapRepository companyPlantMaterialMapRepository,
                         IndentDetailQtyAuditRepository qtyAuditRepository) {
@@ -173,6 +182,8 @@ public class IndentService {
                 this.employeeRoleRepository = employeeRoleRepository;
                 this.sectionRepository = sectionRepository;
                 this.employeeReportingRepository = employeeReportingRepository;
+                this.workflowRecipientResolver = workflowRecipientResolver;
+                this.pdfReportService = pdfReportService;
                 this.companyEmployeeRepository = companyEmployeeRepository;
                 this.companyPlantMaterialMapRepository = companyPlantMaterialMapRepository;
                 this.qtyAuditRepository = qtyAuditRepository;
@@ -858,6 +869,9 @@ public class IndentService {
                 logger.info("Submitted indent {} for approval{}", indent.getIndentNumber(),
                                 autoApproved ? " (L1+L2 auto-approved → Procurement)" : "");
 
+                // Notify the next actor (adapts to the bypass: RM / Dept Head / Procurement).
+                sendIndentSubmittedNotification(indent, currentUser, isDeptLevelRaiser, isSupervisorRaiser);
+
                 return toIndentResponse(indent);
         }
 
@@ -1362,18 +1376,24 @@ public class IndentService {
         /**
          * Send email notification for L1 approval.
          */
+        // RM (L1) approved: route to the DEPT HEAD (next approver — the RM's own reporting manager,
+        // matching the hierarchy-scoped L2 queue), CC the creator. If no Dept Head resolves, skip
+        // (surfaced as a warning) rather than mail the wrong person.
         private void sendL1ApprovalNotification(Indent indent, Employee approver) {
                 try {
                         Employee indentCreator = indent.getEmployee();
-                        if (indentCreator == null || indentCreator.getEmail() == null) {
-                                logger.warn("Cannot send L1 approval notification - no creator email for indent {}",
+                        String deptHeadEmail = approver != null
+                                        ? workflowRecipientResolver.deptHeadEmailAboveRm(approver.getEmpNumber()).orElse(null)
+                                        : null;
+                        if (deptHeadEmail == null) {
+                                logger.warn("No Dept Head recipient resolved for indent {} — L1-approval email not sent",
                                                 indent.getIndentNumber());
                                 return;
                         }
 
                         java.util.Map<String, Object> variables = new java.util.HashMap<>();
                         variables.put("indentNumber", indent.getIndentNumber());
-                        variables.put("creatorName", indentCreator.getFullName());
+                        variables.put("creatorName", indentCreator != null ? indentCreator.getFullName() : "N/A");
                         variables.put("approverName", approver.getFullName());
                         variables.put("approvalDate", LocalDateTime.now().format(
                                         java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
@@ -1381,7 +1401,10 @@ public class IndentService {
                         variables.put("department",
                                         indent.getDepartment() != null ? indent.getDepartment().getName() : "N/A");
 
-                        emailService.sendEmailFromTemplate("INDENT_L1_APPROVED", variables, indentCreator.getEmail());
+                        java.util.List<String> cc = (indentCreator != null && indentCreator.getEmail() != null)
+                                        ? java.util.List.of(indentCreator.getEmail())
+                                        : null;
+                        emailService.sendEmailFromTemplate("INDENT_L1_APPROVED", variables, deptHeadEmail, cc);
                 } catch (Exception e) {
                         logger.error("Error sending L1 approval notification for indent {}: {}",
                                         indent.getIndentNumber(), e.getMessage());
@@ -1391,19 +1414,23 @@ public class IndentService {
         /**
          * Send email notification for L2 approval.
          */
+        // Dept Head (L2) final approval: route to PROCUREMENT (global role queue) WITH the indent PDF
+        // attached, CC the creator's RM. Also invoked on the DEPTHEAD/PLANTMANAGER submit bypass
+        // (indent goes straight to Procurement). Skips (with a warning) if no procurement recipient.
         private void sendL2ApprovalNotification(Indent indent, Employee approver) {
                 try {
-                        Employee indentCreator = indent.getEmployee();
-                        if (indentCreator == null || indentCreator.getEmail() == null) {
-                                logger.warn("Cannot send L2 approval notification - no creator email for indent {}",
+                        java.util.List<String> procurementEmails = workflowRecipientResolver.procurementEmails();
+                        if (procurementEmails.isEmpty()) {
+                                logger.warn("No Procurement recipients resolved for indent {} — final-approval email not sent",
                                                 indent.getIndentNumber());
                                 return;
                         }
+                        Employee indentCreator = indent.getEmployee();
 
                         java.util.Map<String, Object> variables = new java.util.HashMap<>();
                         variables.put("indentNumber", indent.getIndentNumber());
-                        variables.put("creatorName", indentCreator.getFullName());
-                        variables.put("approverName", approver.getFullName());
+                        variables.put("creatorName", indentCreator != null ? indentCreator.getFullName() : "N/A");
+                        variables.put("approverName", approver != null ? approver.getFullName() : "N/A");
                         variables.put("approvalDate", LocalDateTime.now().format(
                                         java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
                         variables.put("remarks",
@@ -1411,7 +1438,22 @@ public class IndentService {
                         variables.put("department",
                                         indent.getDepartment() != null ? indent.getDepartment().getName() : "N/A");
 
-                        emailService.sendEmailFromTemplate("INDENT_L2_APPROVED", variables, indentCreator.getEmail());
+                        // CC the creator's RM (the previous actor in the chain).
+                        java.util.List<String> cc = indentCreator != null
+                                        ? workflowRecipientResolver.reportingManagerEmail(indentCreator.getEmpNumber())
+                                                        .map(java.util.List::of).orElse(null)
+                                        : null;
+
+                        // Attach a PDF of the indent (best-effort — a PDF failure must not block the mail).
+                        java.util.List<EmailAttachment> attachments = null;
+                        byte[] pdf = buildIndentPdf(indent);
+                        if (pdf != null) {
+                                attachments = java.util.List.of(
+                                                EmailAttachment.pdf("indent-" + indent.getIndentNumber() + ".pdf", pdf));
+                        }
+
+                        emailService.sendEmailFromTemplate("INDENT_L2_APPROVED", variables,
+                                        procurementEmails, cc, attachments);
                 } catch (Exception e) {
                         logger.error("Error sending L2 approval notification for indent {}: {}",
                                         indent.getIndentNumber(), e.getMessage());
@@ -1467,10 +1509,142 @@ public class IndentService {
                         variables.put("reason", remarks != null ? remarks : "No reason provided");
                         variables.put("department",
                                         indent.getDepartment() != null ? indent.getDepartment().getName() : "N/A");
-                        emailService.sendEmailFromTemplate("INDENT_L2_REJECTED", variables, indentCreator.getEmail());
+                        java.util.List<String> cc = workflowRecipientResolver
+                                        .reportingManagerEmail(indentCreator.getEmpNumber())
+                                        .map(java.util.List::of).orElse(null);
+                        emailService.sendEmailFromTemplate("INDENT_L2_REJECTED", variables, indentCreator.getEmail(), cc);
                 } catch (Exception e) {
                         logger.error("Error sending L2 rejection notification for indent {}: {}",
                                         indent.getIndentNumber(), e.getMessage());
+                }
+        }
+
+        /**
+         * Indent submitted: notify the NEXT actor, adapting to the submit-time bypass so we never
+         * send a broken or duplicate notification:
+         * <ul>
+         *   <li>DEPTHEAD/PLANTMANAGER raiser (L1+L2 bypassed → straight to Procurement): send the
+         *       final-approval → Procurement mail (with PDF), exactly as a normal L2 approval would.
+         *       No INDENT_CREATED is sent (there is no RM/DeptHead stage to notify).</li>
+         *   <li>SUPERVISOR raiser (L1 bypassed — they ARE the RM): the next actor is the Dept Head,
+         *       so INDENT_CREATED ("pending your approval") goes to the Dept Head above the raiser.</li>
+         *   <li>Plain USER: INDENT_CREATED goes to the creator's RM (the L1 approver).</li>
+         * </ul>
+         */
+        private void sendIndentSubmittedNotification(Indent indent, Employee raiser,
+                        boolean deptLevelRaiser, boolean supervisorRaiser) {
+                try {
+                        if (deptLevelRaiser) {
+                                // Already at Procurement — reuse the exact final-approval routing (+PDF, CC RM).
+                                sendL2ApprovalNotification(indent, raiser);
+                                return;
+                        }
+
+                        Employee creator = indent.getEmployee();
+                        // USER → RM; SUPERVISOR raiser (creator IS the RM) → the Dept Head above them.
+                        String primary = supervisorRaiser
+                                        ? workflowRecipientResolver.deptHeadEmailAboveRm(
+                                                        creator != null ? creator.getEmpNumber() : null).orElse(null)
+                                        : workflowRecipientResolver.reportingManagerEmail(
+                                                        creator != null ? creator.getEmpNumber() : null).orElse(null);
+                        if (primary == null) {
+                                logger.warn("No {} recipient resolved for submitted indent {} — INDENT_CREATED not sent",
+                                                supervisorRaiser ? "Dept Head" : "RM", indent.getIndentNumber());
+                                return;
+                        }
+
+                        java.util.Map<String, Object> variables = new java.util.HashMap<>();
+                        variables.put("indentNumber", indent.getIndentNumber());
+                        variables.put("creatorName", creator != null ? creator.getFullName() : "N/A");
+                        variables.put("department",
+                                        indent.getDepartment() != null ? indent.getDepartment().getName() : "N/A");
+                        variables.put("deliveryDate", indent.getDeliveryDate() != null
+                                        ? indent.getDeliveryDate().toString() : "N/A");
+
+                        emailService.sendEmailFromTemplate("INDENT_CREATED", variables, primary, null);
+                } catch (Exception e) {
+                        logger.error("Error sending submitted notification for indent {}: {}",
+                                        indent.getIndentNumber(), e.getMessage());
+                }
+        }
+
+        /**
+         * Procurement status changed (Quotations / Negotiation / PO Released / Hold / Cash Buy):
+         * notify the indent creator. (Legacy had this coded-but-disabled; re-enabled here.)
+         */
+        private void sendProcurementStatusNotification(Indent indent, Integer procurementSubStatus,
+                        String poNumber, String remarks) {
+                try {
+                        Employee creator = indent.getEmployee();
+                        if (creator == null || creator.getEmail() == null) {
+                                logger.warn("Cannot send procurement-status notification - no creator email for indent {}",
+                                                indent.getIndentNumber());
+                                return;
+                        }
+
+                        String statusName = switch (procurementSubStatus == null ? -1 : procurementSubStatus) {
+                                case 5 -> "Quotations Collected";
+                                case 6 -> "Negotiation Done";
+                                case 7 -> "PO Released";
+                                case 8 -> "Hold";
+                                case 9 -> "Cash Buy";
+                                default -> "Updated";
+                        };
+
+                        java.util.Map<String, Object> variables = new java.util.HashMap<>();
+                        variables.put("indentNumber", indent.getIndentNumber());
+                        variables.put("department",
+                                        indent.getDepartment() != null ? indent.getDepartment().getName() : "N/A");
+                        variables.put("creatorName", creator.getFullName());
+                        variables.put("procurementStatus", statusName);
+                        variables.put("poNumber", poNumber != null ? poNumber : "N/A");
+                        variables.put("statusDate", LocalDateTime.now().format(
+                                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                        variables.put("remarks", remarks != null ? remarks : "No remarks");
+
+                        emailService.sendEmailFromTemplate("INDENT_PROCUREMENT_STATUS_CHANGED", variables,
+                                        creator.getEmail(), null);
+                } catch (Exception e) {
+                        logger.error("Error sending procurement-status notification for indent {}: {}",
+                                        indent.getIndentNumber(), e.getMessage());
+                }
+        }
+
+        /**
+         * Build a PDF of the indent for the final-approval → Procurement email attachment.
+         * Reuses the existing OpenPDF-based {@link PdfReportService} (Apache-2.0 licensed) — no new
+         * dependency, no iText. Best-effort: returns null on any failure so the email still sends.
+         */
+        private byte[] buildIndentPdf(Indent indent) {
+                try {
+                        java.util.List<IndentPdfData.IndentItemPdfData> items = new java.util.ArrayList<>();
+                        int sn = 1;
+                        if (indent.getDetails() != null) {
+                                for (IndentDetail d : indent.getDetails()) {
+                                        items.add(IndentPdfData.IndentItemPdfData.builder()
+                                                        .serialNumber(sn++)
+                                                        .materialCode(d.getMaterial() != null ? d.getMaterial().getCode() : null)
+                                                        .materialName(d.getMaterial() != null ? d.getMaterial().getName() : null)
+                                                        .uomName(d.getUnitOfMeasure() != null ? d.getUnitOfMeasure().getName() : null)
+                                                        .quantity(d.getQuantity())
+                                                        .build());
+                                }
+                        }
+                        Employee creator = indent.getEmployee();
+                        IndentPdfData data = IndentPdfData.builder()
+                                        .indentNumber(indent.getIndentNumber())
+                                        .indentDate(indent.getIndentDate())
+                                        .departmentName(indent.getDepartment() != null ? indent.getDepartment().getName() : null)
+                                        .requestorName(creator != null ? creator.getFullName() : null)
+                                        .status(indent.getStatus() != null ? indent.getStatus().getName() : null)
+                                        .items(items)
+                                        .totalItems(items.size())
+                                        .build();
+                        return pdfReportService.generateIndentPdf(data);
+                } catch (Exception e) {
+                        logger.error("Failed to build indent PDF for {}: {}",
+                                        indent.getIndentNumber(), e.getMessage());
+                        return null;
                 }
         }
 
@@ -1835,6 +2009,9 @@ public class IndentService {
                                 username,
                                 String.format("Procurement sub-status updated to %d on indent %s",
                                                 procurementSubStatus, indent.getIndentNumber()));
+
+                // Notify the indent creator of the procurement status change.
+                sendProcurementStatusNotification(indent, procurementSubStatus, poNumber, remarks);
 
                 return toIndentResponse(indent);
         }

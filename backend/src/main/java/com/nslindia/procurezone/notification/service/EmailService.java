@@ -17,6 +17,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -49,6 +50,12 @@ public class EmailService {
     private static final String INVENTORY_TEAM_EMAIL = "inventory@nslindia.com";
     private static final String ADMIN_EMAIL = "admin@nslindia.com";
 
+    // Sender ("From") address. Fully parameterized (env SMTP_FROM / app.mail.from) so real relay
+    // details drop in with zero code change. Previously NO From was set at all, which real relays
+    // reject — the legacy system sent from ezone@nslgroup.co.in, kept as the default here.
+    @Value("${app.mail.from:ezone@nslgroup.co.in}")
+    private String fromAddress;
+
     /**
      * Send email using template code
      */
@@ -58,6 +65,32 @@ public class EmailService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean sendEmailFromTemplate(String templateCode, Map<String, Object> variables,
             String toAddress) {
+        return sendEmailFromTemplate(templateCode, variables,
+                toAddress != null ? List.of(toAddress) : List.of(), null, null);
+    }
+
+    /**
+     * Overload: a single primary recipient plus an optional CC list (workflow "route to next
+     * actor, CC previous actor" model). REQUIRES_NEW isolation is preserved.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean sendEmailFromTemplate(String templateCode, Map<String, Object> variables,
+            String toAddress, List<String> ccAddresses) {
+        return sendEmailFromTemplate(templateCode, variables,
+                toAddress != null ? List.of(toAddress) : List.of(), ccAddresses, null);
+    }
+
+    /**
+     * Canonical template send: multiple primary recipients + optional CC list + optional
+     * attachments (e.g. an indent PDF on the final-approval → Procurement mail).
+     *
+     * REQUIRES_NEW is preserved here too: this method resolves+renders the template and delegates
+     * to {@link #sendEmail(EmailRequest)}, which owns the log row and the actual send. A mail or
+     * log failure returns false and can NEVER roll back the caller's business transaction.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean sendEmailFromTemplate(String templateCode, Map<String, Object> variables,
+            List<String> toAddresses, List<String> ccAddresses, List<EmailAttachment> attachments) {
         EmailTemplate template = emailTemplateRepository.findByCode(templateCode)
                 .orElseThrow(() -> new IllegalArgumentException("Email template not found: " + templateCode));
 
@@ -71,7 +104,29 @@ public class EmailService {
                 .isHtml("HTML".equalsIgnoreCase(template.getType()))
                 .build();
 
-        request.addToRecipient(toAddress);
+        if (toAddresses != null) {
+            for (String to : toAddresses) {
+                if (to != null && !to.isBlank()) {
+                    request.addToRecipient(to.trim());
+                }
+            }
+        }
+        if (ccAddresses != null) {
+            for (String cc : ccAddresses) {
+                // Skip blanks and anyone already a primary recipient (avoid duplicate delivery).
+                if (cc != null && !cc.isBlank()
+                        && (request.getTo() == null || !request.getTo().contains(cc.trim()))) {
+                    request.addCcRecipient(cc.trim());
+                }
+            }
+        }
+        if (attachments != null) {
+            for (EmailAttachment att : attachments) {
+                if (att != null) {
+                    request.addAttachment(att);
+                }
+            }
+        }
 
         return sendEmail(request);
     }
@@ -93,6 +148,11 @@ public class EmailService {
             // Create MIME message
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            // Set the sender. Real relays reject a from-less message; this was missing before.
+            if (fromAddress != null && !fromAddress.isBlank()) {
+                helper.setFrom(fromAddress);
+            }
 
             // Set recipients
             if (request.getTo() != null && !request.getTo().isEmpty()) {
@@ -471,6 +531,10 @@ public class EmailService {
 
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            if (fromAddress != null && !fromAddress.isBlank()) {
+                helper.setFrom(fromAddress);
+            }
 
             if (request.getTo() != null && !request.getTo().isEmpty()) {
                 helper.setTo(request.getTo().toArray(new String[0]));

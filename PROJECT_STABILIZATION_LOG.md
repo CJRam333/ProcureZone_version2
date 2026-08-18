@@ -3336,3 +3336,150 @@ BE: `integration/sap/watcher/SapMaterialFileWatcher.java` (multi-directory watch
 - Not runtime-verified against a live filesystem/two live directories (no live access here).
 - Environment flag: the machine's C:\ (system temp) was at 100% during this task — unrelated to the change,
   but worth clearing so future local builds don't fail on temp writes.
+
+---
+
+## 2026-08-18 — Email service: legacy-parity workflow routing (RM→DeptHead→Procurement + CC), PDF attachment, procurement-status notifications
+
+Implements the build proposed by `docs/email-service-investigation.md`. The new system previously sent
+EVERY workflow email to the indent/issue-note CREATOR only (no routing, no CC), so approvers,
+procurement and stores were never notified. This restores the legacy "route to the next actor, CC the
+previous actor" model, adds the missing/broken pieces, and parameterizes the mail server.
+
+### PART 1 — CC + multi-recipient support (EmailService)
+- **Before:** `boolean sendEmailFromTemplate(String templateCode, Map<String,Object> vars, String toAddress)`
+  — single TO, no CC, no attachments.
+- **After:** the 3-arg method is kept (delegates) and TWO overloads were added:
+  - `sendEmailFromTemplate(code, vars, String to, List<String> cc)` — primary + optional CC.
+  - `sendEmailFromTemplate(code, vars, List<String> to, List<String> cc, List<EmailAttachment> attachments)`
+    — canonical: multiple primaries + CC + attachments (used for the Procurement mail + PDF).
+  CC entries that are blank or already a primary are skipped (no duplicate delivery).
+- **REQUIRES_NEW preserved:** all three overloads are `@Transactional(propagation = REQUIRES_NEW)`; the
+  new overloads render the template then delegate to `sendEmail(...)`, which owns the log row + send.
+  A mail/log failure still returns false and can NEVER roll back the caller's business transaction.
+  Verified the annotation is present on every send entry point after the change.
+
+### PART 2 — Mail server config (parameterized, placeholder-safe) + From address
+- **Code:** `EmailService` now has `@Value("${app.mail.from:ezone@nslgroup.co.in}") private String fromAddress`
+  and calls `helper.setFrom(fromAddress)` in BOTH `sendEmail` and `sendEmailInternal`. Before: no
+  `setFrom` at all (real relays reject from-less mail). Legacy sender `ezone@nslgroup.co.in` kept as default.
+- **Config keys added** (env override then default): `SMTP_HOST`→host, `SMTP_PORT`→port, `SMTP_USERNAME`,
+  `SMTP_PASSWORD`, `SMTP_AUTH`→`mail.smtp.auth` (was hardcoded false), `SMTP_STARTTLS`→`mail.smtp.starttls.enable`
+  (was hardcoded false), `SMTP_FROM`→`app.mail.from`. Same env-var pattern as the DB credentials.
+- **IMPORTANT — where the config lives:** `application.yml` and `application-prod.yml` are **gitignored**
+  (they hold the DB password; .gitignore says "use application.yml.example instead"). So the tracked,
+  committed change is in **`application.yml.example`** (the template). The real `application.yml` /
+  `application-prod.yml` were also updated locally, but those edits are NOT in git and must be applied on
+  each environment (or supplied via the env vars above). Prod additionally uses an out-of-repo
+  `/opt/procurezone/application-prod.yml`.
+- **Bug caught + fixed during this work:** the first edit introduced a DUPLICATE top-level `app:` key in
+  `application.yml` (existing SAP block plus a new mail block). Spring's SnakeYAML loader rejects duplicate
+  keys and would have failed context startup. Fixed by merging `app.mail.from` INTO the existing `app:` block.
+
+### PART 3 — Templates
+- **`INDENT_CREATED`**: already seeded (V47) but never invoked. No re-seed; the CALL SITE was added
+  (see Part 4, `submitIndent`).
+- **New migration `V60__add_procurement_status_email_template.sql`**: seeds `INDENT_PROCUREMENT_STATUS_CHANGED`
+  (legacy had this coded-but-disabled). Placeholders: `indentNumber, department, creatorName,
+  procurementStatus, poNumber, statusDate, remarks`. `${...}` syntax (Flyway placeholder replacement is
+  off). template_lmu=1 (INT), matching the V47 fix.
+- **Out of scope, deliberately NOT seeded:** `PO_SENT_TO_VENDOR` (PO-vendor mail) and the 5 scheduled-job
+  templates — deferred per the task.
+
+### PART 4 — Full routing model implemented
+Recipient resolution REUSES the queue logic (Rule 3) via a NEW small shared component
+`notification/service/WorkflowRecipientResolver` (used by both IndentService and IssueNoteService):
+- `reportingManagerEmail(empNumber)` = `ReportingHierarchyService.getReportingManager(...)` (the L1 queue lookup).
+- `deptHeadEmailAboveRm(rmEmpNumber)` = the RM's own reporting manager, one level up (the hierarchy-scoped L2 queue).
+- `procurementEmails()` = `EmployeeRoleMappingRepository.findEmployeeNumbersByRole(5)` then emails (the global procurement queue, role_id=5).
+
+| Trigger | Primary | CC | Template | Resolution reused |
+|---|---|---|---|---|
+| Indent submitted (USER) | creator's RM | — | INDENT_CREATED | reportingManagerEmail(creator) |
+| Indent submitted (SUPERVISOR raiser) | Dept Head above raiser | — | INDENT_CREATED | deptHeadEmailAboveRm(creator) |
+| Indent submitted (DEPTHEAD/PLANTMANAGER raiser) | Procurement (+PDF) | RM | INDENT_L2_APPROVED | procurementEmails() + reportingManagerEmail |
+| Indent RM-approved (L1) | Dept Head | creator | INDENT_L1_APPROVED | deptHeadEmailAboveRm(approver=RM) |
+| Indent RM-rejected (L1) | creator | — | INDENT_L1_REJECTED | (creator, unchanged) |
+| Indent DeptHead final-approved (L2) | Procurement (+PDF) | RM | INDENT_L2_APPROVED | procurementEmails() + reportingManagerEmail |
+| Indent DeptHead-rejected (L2) | creator | RM | INDENT_L2_REJECTED | reportingManagerEmail(creator) |
+| Indent procurement status changed (5/6/7/8/9) | creator | — | INDENT_PROCUREMENT_STATUS_CHANGED | indent.getEmployee() |
+| Issue Note submitted | creator's RM | — | ISSUE_NOTE_CREATED | reportingManagerEmail(creator) |
+| Issue Note RM-approved | Procurement (stores) | creator | ISSUE_NOTE_RM_APPROVED | procurementEmails() |
+| Issue Note RM-rejected | creator | — | ISSUE_NOTE_RM_REJECTED | (creator, unchanged) |
+| Issue Note Goods Issued | creator | — | ISSUE_NOTE_ISSUED | (creator, unchanged) |
+| Issue Note Stores-rejected | creator | — | ISSUE_NOTE_STORES_REJECTED | (creator, unchanged) |
+
+**Before (per method):** `sendL1ApprovalNotification` / `sendL2ApprovalNotification` / `sendL2RejectionNotification`
+in IndentService and the single `sendIssueNoteNotification` helper in IssueNoteService ALL sent to
+`creator.getEmail()` with no CC. **After:** recipients + CC as the table above; `sendL2ApprovalNotification`
+now targets Procurement with the PDF attached and CCs the RM; a new `sendIndentSubmittedNotification`
+(INDENT_CREATED) and `sendProcurementStatusNotification` were added and wired into `submitIndent` and
+`updateProcurementStatus`. Indent cancellation (`INDENT_CANCELLED`, not in the task's routing table) was
+left unchanged (still to creator).
+
+**Bypass / self-approval handling (confirmed adapts, no duplicate/misfire):** emails are hooked to the
+actual state-transition actions, so a skipped stage simply never sends its email.
+- DEPTHEAD/PLANTMANAGER raiser: `submitIndent` sets state straight to Procurement (3,4,4); the dispatcher
+  sends ONLY the Procurement mail (+PDF, CC RM) — no INDENT_CREATED, and `l1Approve`/`l2Approve` are never
+  called so no L1/L2 emails fire.
+- SUPERVISOR raiser (they ARE the RM): `submitIndent` sets (3,1); INDENT_CREATED goes to the Dept Head
+  above them (not to themselves); `l1Approve` is never called so no RM-approved email.
+- Plain USER: normal RM → DeptHead → Procurement chain.
+
+**Fail-loud (Rule 9):** every routing helper resolves recipients and, if none resolve (missing hierarchy
+or no procurement role), logs a WARN and SKIPS rather than emailing the wrong person or silently
+swallowing. ISSUE_NOTE_CREATED / INDENT_CREATED are NOT sent to the creator as a fallback (that was the old bug).
+
+### PART 5 — PDF attachment on final-approval → Procurement
+- **Library decision:** the task said "add Apache PDFBox if none exists; avoid iText (AGPL)". A PDF
+  capability DOES already exist — TWO, in fact: `IndentPdfService` (iText7) and `PdfReportService` (OpenPDF,
+  Apache-2.0). To honor BOTH Rule 3 (reuse) AND the stated licensing preference, I reused
+  **`PdfReportService.generateIndentPdf(IndentPdfData)` (OpenPDF, Apache-2.0)** — no new dependency, no
+  iText, no PDFBox. New private `IndentService.buildIndentPdf(indent)` maps the entity to `IndentPdfData`
+  and returns `byte[]`; attached via `EmailAttachment.pdf("indent-<no>.pdf", bytes)`. Best-effort: a PDF
+  failure returns null and the email still sends (logged).
+- **PDF content:** indent number, indent date, department, requestor (creator full name), current status,
+  and a line-item table (serial no, material code, material name, UOM, quantity). Attached to the
+  Procurement-recipient email ONLY.
+- **OBSERVATION (flagged, not fixed — Rule 4):** iText7 (AGPL) remains a dependency used by the existing
+  `IndentPdfService` / `PurchaseOrderPdfService`. That is a pre-existing licensing exposure independent of
+  this task; worth a separate decision on whether to migrate those to OpenPDF.
+
+### PART 6 — Verification
+- **Logging:** every attempt writes a `tbl_email_log` row PENDING before send then SENT / FAILED after,
+  capturing `log_to`, `log_cc`, `log_subject`, `log_body`, `log_template_code` (the trigger), status and
+  error. Enough to verify recipient/CC/template/trigger correctness once real credentials arrive.
+- **Live delivery: BLOCKED — not verified.** Real SMTP credentials are not yet available (business owner is
+  getting them from IT) and no local mail catcher was stood up (the C: system-temp drive is 100% full and a
+  Docker/MailHog setup is not confirmed feasible here). Per Rule 7: what WAS verified = `mvn compile`
+  (0 errors), frontend `tsc -b && vite build` (0 errors), a full manual trace of every routing branch incl.
+  bypass cases, and the YAML/DI structure. What was NOT verified = an actual email leaving the server.
+- **Manual checklist for once SMTP is supplied (set SMTP_HOST/PORT/USERNAME/PASSWORD/AUTH/STARTTLS/FROM):**
+  1. As a plain USER, submit an indent → the creator's RM inbox receives INDENT_CREATED.
+  2. As that RM, L1-approve → the Dept Head inbox receives INDENT_L1_APPROVED, creator is CC'd.
+  3. As the Dept Head, L2-approve → the Procurement inbox(es) receive INDENT_L2_APPROVED WITH the PDF attached, RM is CC'd.
+  4. As Procurement, set status PO Released → the creator receives INDENT_PROCUREMENT_STATUS_CHANGED (repeat for Quotations/Negotiation/Hold/Cash Buy).
+  5. L1-reject / L2-reject → creator receives the rejection mail (L2 CCs the RM).
+  6. Bypass: submit an indent AS a DEPTHEAD → only the Procurement mail (+PDF) fires, nothing to RM/DeptHead.
+  7. Issue note: submit → RM; RM-approve → Procurement CC creator; goods-issued/reject → creator.
+  8. In each case confirm a `tbl_email_log` row with status SENT and the expected `log_to` / `log_cc`.
+
+### Files
+- BE (tracked): `notification/service/EmailService.java`, `notification/service/WorkflowRecipientResolver.java` (new),
+  `indent/IndentService.java`, `issuenote/IssueNoteService.java`,
+  `resources/db/migration/V60__add_procurement_status_email_template.sql` (new),
+  `resources/application.yml.example`.
+- Config (LOCAL ONLY, gitignored — apply per environment): `application.yml`, `application-prod.yml`.
+- Docs: `docs/email-service-investigation.md` (the prior investigation, committed with this work).
+
+### Build
+- `mvn -q -DskipTests compile` → 0 errors (temp redirected to D:; C: system-temp is full).
+- `npm run build` (tsc -b + vite build) → 0 errors (no frontend files changed; run for discipline).
+
+### Known flags for the business / next steps
+- Real SMTP host/port/credentials/From still needed from IT (B3 in the investigation).
+- Template wording nuance: INDENT_L1_APPROVED / INDENT_L2_APPROVED and ISSUE_NOTE_RM_APPROVED bodies are
+  phrased "Dear <creator>" but now have a non-creator PRIMARY recipient (Dept Head / Procurement) with the
+  creator/RM on CC. Delivery and data are correct; only the salutation is creator-oriented. Left as-is (not
+  in task scope) — reword later if desired.
+- Procurement role is assumed role_id=5 (per RoleNormalizer + create_test_users_CORRECTED.sql). Confirm against the live roles table.

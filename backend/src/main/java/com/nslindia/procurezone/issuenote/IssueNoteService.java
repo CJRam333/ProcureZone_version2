@@ -51,6 +51,8 @@ public class IssueNoteService {
     private final AuditService auditService;
     private final InventoryService inventoryService;
     private final EmailService emailService;
+    // Shared workflow email routing (reuse of the RM/Procurement resolution used by the queues).
+    private final com.nslindia.procurezone.notification.service.WorkflowRecipientResolver workflowRecipientResolver;
     private final EmployeeRepository employeeRepository;
     private final EmployeeReportingRepository employeeReportingRepository;
     private final CompanyEmployeeRepository companyEmployeeRepository;
@@ -1139,6 +1141,10 @@ public class IssueNoteService {
         return mapToResponse(issueNote);
     }
 
+    // Workflow email routing (legacy "route to next actor, CC previous actor"):
+    //   ISSUE_NOTE_CREATED     -> creator's RM (the approver), no CC
+    //   ISSUE_NOTE_RM_APPROVED -> Procurement (stores), CC the creator
+    //   all others (RM-rejected / goods-issued / stores-rejected) -> the creator, no CC
     private void sendIssueNoteNotification(String templateCode, IssueNote issueNote,
             java.util.Map<String, Object> extraVars) {
         try {
@@ -1152,7 +1158,33 @@ public class IssueNoteService {
             vars.put("issueNoteNumber", issueNote.getIssueNoteNumber());
             vars.put("issueDate", issueNote.getIssueDate() != null
                     ? issueNote.getIssueDate().toLocalDate().toString() : "N/A");
-            emailService.sendEmailFromTemplate(templateCode, vars, creator.getEmail());
+
+            switch (templateCode) {
+                case "ISSUE_NOTE_CREATED" -> {
+                    // Route to the creator's RM (the approver). Skip (warn) if none resolves,
+                    // rather than mail a "pending your approval" notice to the creator.
+                    String rmEmail = workflowRecipientResolver
+                            .reportingManagerEmail(creator.getEmpNumber()).orElse(null);
+                    if (rmEmail == null) {
+                        log.warn("No RM recipient resolved for issue note {} — ISSUE_NOTE_CREATED not sent",
+                                issueNote.getIssueNoteNumber());
+                        return;
+                    }
+                    emailService.sendEmailFromTemplate(templateCode, vars, rmEmail, null);
+                }
+                case "ISSUE_NOTE_RM_APPROVED" -> {
+                    // Route to Procurement (stores), CC the creator.
+                    java.util.List<String> procurementEmails = workflowRecipientResolver.procurementEmails();
+                    if (procurementEmails.isEmpty()) {
+                        log.warn("No Procurement recipients resolved for issue note {} — ISSUE_NOTE_RM_APPROVED not sent",
+                                issueNote.getIssueNoteNumber());
+                        return;
+                    }
+                    emailService.sendEmailFromTemplate(templateCode, vars, procurementEmails,
+                            java.util.List.of(creator.getEmail()), null);
+                }
+                default -> emailService.sendEmailFromTemplate(templateCode, vars, creator.getEmail());
+            }
         } catch (Exception e) {
             log.error("Error sending {} for issue note {}: {}", templateCode,
                     issueNote.getIssueNoteNumber(), e.getMessage());

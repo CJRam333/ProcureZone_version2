@@ -46,7 +46,7 @@ jwt:
     access-token:
         expiration: PT1H
 
-# SAP Integration Configuration
+# Application configuration (SAP + mail sender)
 app:
     sap:
         import:
@@ -58,16 +58,19 @@ app:
         archive:
             enabled: true
             path: ${SAP_CSV_ARCHIVE_PATH:/path/to/sap-import/archive}
+    # Sender ("From") address applied by EmailService.setFrom(...). Real relays reject from-less mail.
+    mail:
+        from: ${SMTP_FROM:ezone@nslgroup.co.in}
 
-# Email Configuration (SMTP)
+# Email Configuration (SMTP) — fully parameterized; supply real values via env vars.
 spring.mail:
     host: ${SMTP_HOST:your.smtp.server}
     port: ${SMTP_PORT:25}
     username: ${SMTP_USERNAME:}
     password: ${SMTP_PASSWORD:}
     properties:
-        mail.smtp.auth: false
-        mail.smtp.starttls.enable: false
+        mail.smtp.auth: ${SMTP_AUTH:false}
+        mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
     default-encoding: UTF-8
 
 # Quartz Scheduler Configuration
